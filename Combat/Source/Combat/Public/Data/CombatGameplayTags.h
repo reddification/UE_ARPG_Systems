@@ -1,0 +1,67 @@
+﻿#pragma once
+#include "NativeGameplayTags.h"
+
+namespace CombatGameplayTags
+{
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack_Event_Abort);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack_Event_Reactivate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack_Event_Release);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack_Event_Feint);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack_Event_RequestNextAttack);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Attack_Event_CostUnaffordable);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Hit_Steel);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Hit_Environment);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Hit_Body);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Sound_Grunt);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Sound_Hurt);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Sound_Staggered);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Sound_Dying);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_FX_Sound_Whoosh);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_WeaponType_TwoHanded);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_WeaponType_Saber);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_WeaponType_OneHandedSword);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_WeaponType_SwordAndShield);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_State_Stagger);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_State_GuardBreak);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_State_Knockdown);
+
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_HitDirection_Front);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_HitDirection_Back);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_HitDirection_Left);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_HitDirection_Right);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Death_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Stagger_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Stagger_Event_Abort);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_ReceiveGuardBreak_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_ReceiveGuardBreak_Event_Abort);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Knockdown_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Knockdown_Event_Abort);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_HitReact_Event_Activate);
+
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Block_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Block_Event_Stop);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Dodge_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Dodge_Event_Abort);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Clash_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Clash_Event_Finished);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_ChargeIn_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_ChargeIn_Event_Abort);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_SetByCaller_Damage_Health);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_SetByCaller_Damage_Poise);
+
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_SetByCaller_Block_Consumption_Stamina);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_SetByCaller_Block_Consumption_Poise);
+
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Clash_Cause_Parried);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Movement_Lock_Attack);
+}
