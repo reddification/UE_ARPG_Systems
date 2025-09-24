@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BehaviorTree/BTTaskNode.h"
 #include "BehaviorTree/Tasks/BTTask_MoveTo.h"
 #include "BTTask_MoveToEnhanced.generated.h"
 

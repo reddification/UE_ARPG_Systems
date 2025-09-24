@@ -27,9 +27,9 @@ class COMBAT_API ICombatant
 public:
 	FSimpleDelegate OnCombatantWeaponChanged;
 	
-	virtual void PerformAttack(EMeleeAttackType Attack, const FVector& Direction, const FVector& InRelativeAttackAcceleration) = 0;
+	virtual void OnAttackRequested(EMeleeAttackType Attack, const FVector& Direction, const FVector& InRelativeAttackAcceleration) = 0;
 
-	virtual void SetMovementEnabled(const FGameplayTag& LockTag, bool bEnabled) = 0;
+	virtual void SetCombatantMovementEnabled(const FGameplayTag& LockTag, bool bEnabled) = 0;
 	virtual void SetAttackPhase(EMeleeAttackPhase NewAttackPhase) = 0;
 
 	virtual TScriptInterface<ICombatAnimInstance> GetCombatAnimInstance() const = 0;
@@ -98,5 +98,7 @@ public:
 	virtual bool IsUsingShield() const = 0;
 	virtual bool IsUsingRangeWeapon() const { return false; }
 	virtual ECollisionComponentWeaponType GetCollisionWeaponType(UPrimitiveComponent* WeaponCollisionComponent) = 0;
-	virtual USkeletalMeshComponent* GetCombatantMeshComponent() const = 0;
+	virtual USkeletalMeshComponent* GetCombatantSkeletalMeshComponent() const = 0;
+
+	virtual void ActivateCombatantRagdoll() = 0;
 };

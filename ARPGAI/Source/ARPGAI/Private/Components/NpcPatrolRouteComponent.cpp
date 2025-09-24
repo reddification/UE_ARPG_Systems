@@ -5,7 +5,6 @@
 
 #include "AIController.h"
 #include "NavigationSystem.h"
-#include "Data/LogChannels.h"
 #include "Subsystems/NpcPatrolRoutesSubsystem.h"
 
 void UNpcPatrolRouteComponent::BeginPlay()
@@ -16,13 +15,6 @@ void UNpcPatrolRouteComponent::BeginPlay()
 	
 	UNpcPatrolRoutesSubsystem* PatrolRoutesSubsystem = UNpcPatrolRoutesSubsystem::Get(this);
 	PatrolRoutesSubsystem->RegisterPatrolRoute(this);
-
-	// just for testing
-	for (int i = 0; i < PatrolPoints.Num(); i++)
-	{
-		FVector PatrolPointWorldLocation = GetOwner()->GetActorTransform().TransformPosition(PatrolPoints[i]);
-		UE_VLOG_LOCATION(GetOwner(), LogARPGAI, VeryVerbose, PatrolPointWorldLocation, 25, FColor::White, TEXT("Point %d"), i);
-	}
 }
 
 void UNpcPatrolRouteComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -35,7 +27,7 @@ void UNpcPatrolRouteComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 FVector UNpcPatrolRouteComponent::GetRoutePointLocation(int Index) const
 {
-	return GetOwner()->GetActorTransform().TransformPosition(PatrolPoints[Index % PatrolPoints.Num()]);	
+	return PatrolPoints[Index % PatrolPoints.Num()].Location;	
 }
 
 FNpcPatrolRouteData UNpcPatrolRouteComponent::GetClosestRoutePointDistanceSq(const FVector& Location) const
@@ -44,7 +36,7 @@ FNpcPatrolRouteData UNpcPatrolRouteComponent::GetClosestRoutePointDistanceSq(con
 	Result.Distance = FLT_MAX;
 	for (int i = 0; i < PatrolPoints.Num(); i++)
 	{
-		FVector PatrolPointWorldLocation = GetOwner()->GetActorTransform().TransformPosition(PatrolPoints[i]);
+		FVector PatrolPointWorldLocation = PatrolPoints[i].Location;
 		float DistSq = (Location - PatrolPointWorldLocation).SizeSquared();
 		if (DistSq < Result.Distance)
 		{
@@ -52,6 +44,8 @@ FNpcPatrolRouteData UNpcPatrolRouteComponent::GetClosestRoutePointDistanceSq(con
 			Result.RoutePointIndex = i;
 			Result.InitialPointIndex = i;
 			Result.RoutePointLocation = PatrolPointWorldLocation;
+			Result.bCyclic = bIsPathLooped;
+			Result.bGoingForward = true;
 		}
 	}
 
@@ -67,7 +61,7 @@ FNpcPatrolRouteData UNpcPatrolRouteComponent::GetClosestRoutePointDistancePathfi
 	const ANavigationData* NavData = NavSys->GetNavDataForProps(AIController->GetNavAgentPropertiesRef(), NpcLocation);
 	for (int i = 0; i < PatrolPoints.Num(); i++)
 	{
-		FVector PatrolPointWorldLocation = GetOwner()->GetActorTransform().TransformPosition(PatrolPoints[i]);
+		FVector PatrolPointWorldLocation = GetOwner()->GetActorTransform().TransformPosition(PatrolPoints[i].Location);
 		FPathFindingQuery Query(AIController, *NavData, NpcLocation, PatrolPointWorldLocation);
 		FPathFindingResult PathFindingResult = NavSys->FindPathSync(Query, EPathFindingMode::Regular);
 		float TestDistance = PathFindingResult.Path->GetLength();

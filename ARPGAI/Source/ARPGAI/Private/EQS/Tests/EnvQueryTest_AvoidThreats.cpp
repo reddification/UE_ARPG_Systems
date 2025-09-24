@@ -70,7 +70,7 @@ void UEnvQueryTest_AvoidThreats::RunTest(FEnvQueryInstance& QueryInstance) const
 		float ItemToMobDistance = FVector::Dist(ItemLocation, QueryOwner->GetActorLocation());
 		for (const FAvoidThreatData& ThreatToAvoid : ThreatsToAvoid)
 		{
-			CollisionQueryParams.ClearIgnoredActors();
+			CollisionQueryParams.ClearIgnoredSourceObjects();
 			CollisionQueryParams.AddIgnoredActor(QueryOwner);
 			CollisionQueryParams.AddIgnoredActor(ThreatToAvoid.Actor);
 			FHitResult HitResult;

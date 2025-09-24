@@ -8,6 +8,7 @@
 
 #include "NpcDTR.generated.h"
 
+class UFlowAsset;
 class UNpcPerceptionReactionEvaluatorsDataAsset;
 class UNpcPhrasesDataAsset;
 struct FNpcAttitude;
@@ -35,11 +36,8 @@ struct ARPGAI_API FNpcDTR : public FTableRowBase
 	bool IsUniqueNpc = false;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
-	UNpcActivityDataAsset* DefaultActivityDataAsset;
+	TSoftObjectPtr<UFlowAsset> NpcActivitiesGraph;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
-	TMap<FGameplayTag, FNpcActivityParametersOptions> ActivityDefinitions;
-
 	// These parameters are used by NPC goals and reaction behavior evaluators (and whatever else is added)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct), Category="Behavior")
 	TMap<FGameplayTag, TInstancedStruct<FNpcGoalParametersBase>> NpcGoalAndReactionParameters;
@@ -68,6 +66,9 @@ struct ARPGAI_API FNpcDTR : public FTableRowBase
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="AI.Behavior"), Category="Behavior")
 	TMap<FGameplayTag, UBehaviorTree*> DynamicBehaviors;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="AI.Behavior"), Category="Behavior")
+	FGameplayTagContainer InitiallyActiveBehaviorEvaluators;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
 	UNpcCombatParametersDataAsset* NpcCombatParametersDataAsset;

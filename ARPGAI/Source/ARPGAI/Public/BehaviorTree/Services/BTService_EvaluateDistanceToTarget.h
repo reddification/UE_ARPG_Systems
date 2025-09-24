@@ -60,6 +60,9 @@ protected:
 	FBlackboardKeySelector OutEvaluatedTargetMoveDirectionBBKey;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FBlackboardKeySelector OutCurrentDistanceBehaviorDurationBBKey;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int AccumulatedTargetDeltasCapacity = 20;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

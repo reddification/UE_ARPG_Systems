@@ -2,6 +2,7 @@
 
 #include "Components/NpcInfoWidgetComponent.h"
 
+#include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "GameFramework/Character.h"
@@ -26,6 +27,17 @@ void UNpcInfoWidgetComponent::BeginPlay()
 
 void UNpcInfoWidgetComponent::InitializeNpc()
 {
+	if (auto AliveCreature = Cast<INpcAliveCreature>(GetOwner()))
+	{
+		if (!AliveCreature->IsNpcActorAlive()) // can happen after save-load
+		{
+			SetVisibility(false);
+			return;
+		}
+		
+		AliveCreature->OnDeathStarted.AddUObject(this, &UNpcInfoWidgetComponent::OnDeathStarted);
+	}
+	
 	auto NpcCombatSettings = GetDefault<UNpcCombatSettings>();
 	if (NpcCombatSettings->NpcInfoWidgetClass)
 	{
@@ -35,12 +47,7 @@ void UNpcInfoWidgetComponent::InitializeNpc()
 	
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
 	AttachToComponent(OwnerCharacter->GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, NpcCombatSettings->NpcInfoWidgetSocketName);
-
-	if (auto AliveCreature = Cast<INpcAliveCreature>(GetOwner()))
-	{
-		AliveCreature->OnDeathStarted.AddUObject(this, &UNpcInfoWidgetComponent::OnDeathStarted);
-	}
-
+	
 	NpcStateWidget = Cast<UNpcStateWidget>(GetWidget());
 	if (!NpcStateWidget.IsValid())
 		return;
@@ -50,6 +57,7 @@ void UNpcInfoWidgetComponent::InitializeNpc()
 	
 	PlayerPawn = UGameplayStatics::GetPlayerCharacter(this, 0);
 	OwnerNpcComponent = OwnerCharacter->FindComponentByClass<UNpcComponent>();
+	OwnerNpcAttitudesComponent = OwnerCharacter->FindComponentByClass<UNpcAttitudesComponent>();
 	MinDotProductToShowWidget = NpcCombatSettings->MinPlayerToNpcDotProductToShowWidget;
 	ConsiderableDistanceToPlayerForHostile = NpcCombatSettings->NpcInfoWidgetConsiderableDistanceToPlayer;
 	
@@ -59,26 +67,15 @@ void UNpcInfoWidgetComponent::InitializeNpc()
 	SetVisibility(false);
 }
 
-// void UNpcInfoWidgetComponent::TickComponent(float DeltaTime, ELevelTick TickType,
-//                                             FActorComponentTickFunction* ThisTickFunction)
-// {
-// 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-// 	if (bScaleWidget)
-// 	{
-// 		float DistanceToPlayerSq = (GetOwner()->GetActorLocation() - PlayerPawn->GetActorLocation()).SizeSquared();
-// 		SetScale
-// 	}
-// }
-
 void UNpcInfoWidgetComponent::UpdateVisibility()
 {
-	if (!OwnerNpcComponent.IsValid())
+	if (!OwnerNpcComponent.IsValid() || !OwnerNpcAttitudesComponent.IsValid())
 		return;
 
 	if (!PlayerPawn.IsValid())
 		return;
 	
-	FGameplayTag AttitudeToPlayer = OwnerNpcComponent->GetAttitude(PlayerPawn.Get());
+	FGameplayTag AttitudeToPlayer = OwnerNpcAttitudesComponent->GetAttitude(PlayerPawn.Get());
 
 	bool bHostile = AttitudeToPlayer.MatchesTag(AIGameplayTags::AI_Attitude_Hostile);
 	float ConsiderableDistance = bHostile ? ConsiderableDistanceToPlayerForHostile : ConsiderableDistanceToPlayerForNonHostile;

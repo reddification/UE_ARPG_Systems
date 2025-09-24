@@ -1,5 +1,6 @@
 #include "Subsystems/QuestSubsystem.h"
 
+#include "FlowSubsystem.h"
 #include "GameplayTagAssetInterface.h"
 #include "NavigationSystem.h"
 #include "GameFramework/Character.h"
@@ -48,7 +49,7 @@ void UQuestSubsystem::OnNpcKilled(IQuestCharacter* Killer, IQuestCharacter* Kill
 	QuestCharacterKilledEvent.Broadcast(Killer, Killed);
 }
 
-void UQuestSubsystem::OnNpcGoalCompleted(IQuestCharacter* Npc, const FGameplayTagContainer& GoalTags)
+void UQuestSubsystem::OnNpcGoalCompleted(IQuestCharacter* Npc, const FGameplayTagContainer& GoalTags, const FGameplayTagContainer& GoalExecutionTags)
 {
 	QuestNpcGoalCompletedEvent.Broadcast(Npc, GoalTags);
 }
@@ -72,18 +73,33 @@ void UQuestSubsystem::StartQuest(const FDataTableRowHandle& QuestDTRH)
 	FQuestSystemContext QuestSystemContext = GetQuestSystemContext();
 	FQuestDTR* QuestDTR = QuestDTRH.DataTable->FindRow<FQuestDTR>(QuestDTRH.RowName, "");
 	InitializeQuest(QuestDTRH, QuestDTR);
-	const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions = QuestDTR->BeginQuestActions;
 	
-	ExecuteQuestActions(QuestSystemContext, QuestActions);
+	// 05.08.2025 @AK: this means that the quest uses old quest system version. maybe I should just add versioning to QuestDTR like int QuestSystemVersion
+	// or just remove it when i'm sure that FlowGraph is up and running
+	if (QuestDTR->QuestEventsDT && QuestDTR->QuestFlow.IsNull())
+	{
+		const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions = QuestDTR->BeginQuestActions;
+		ExecuteQuestActions(QuestSystemContext, QuestActions);
+	}
 	
-	if (QuestStartedEvent.IsBound())
-		QuestStartedEvent.Broadcast(QuestDTR);
+	QuestStartedEvent.Broadcast(QuestDTR);
 }
 
 void UQuestSubsystem::InitializeQuest(const FDataTableRowHandle& QuestDTRH, const FQuestDTR* QuestDTR)
 {
 	FQuestProgress QuestProgress;
 	QuestProgress.QuestDTRH = QuestDTRH;
+
+	if (!QuestDTR->QuestFlow.IsNull())
+	{
+		FlowAssetToQuestIdLookup.Add(QuestDTR->QuestFlow, QuestDTRH.RowName);
+		ActiveQuests.Add(QuestDTRH.RowName, QuestProgress);
+		auto FS = GetGameInstance()->GetSubsystem<UFlowSubsystem>();
+		FS->StartRootFlow(this, QuestDTR->QuestFlow.LoadSynchronous(), false);
+		return;		
+	}
+
+	// @AK 05.08.2025: legacy approach that uses quest events DTRHs. TODO Remove when FlowGraph approach is tested
 	TArray<FName> QuestEventsDataTableRowNames = QuestDTR->QuestEventsDT->GetRowNames();
 	FQuestSystemContext QuestSystemContext = GetQuestSystemContext();
 	
@@ -254,9 +270,10 @@ void UQuestSubsystem::CompleteQuest(FQuestProgress& CompletedQuest, EQuestState 
 		PendingTask.Value.Finalize();
 	}
 
-	ExecuteQuestActions(QuestSystemContext, QuestFinalState != EQuestState::Failed ? QuestDTR->SuccessfulEndQuestActions : QuestDTR->FailureEndQuestActions);
+	if (QuestDTR->QuestEventsDT != nullptr && QuestDTR->QuestFlow.IsNull()) // TODO remove when QuestFlow is tested
+		ExecuteQuestActions(QuestSystemContext, QuestFinalState != EQuestState::Failed ? QuestDTR->SuccessfulEndQuestActions : QuestDTR->FailureEndQuestActions);
 
-	CompletedQuests.Add(CompletedQuest.QuestDTRH.RowName, CompletedQuest);
+	CompletedQuests.Add(CompletedQuest.QuestDTRH.RowName, MoveTemp(CompletedQuest));
 	ActiveQuests.Remove(CompletedQuest.QuestDTRH.RowName);
 	
 	if (QuestCompletedEvent.IsBound())
@@ -294,29 +311,47 @@ void UQuestSubsystem::ExecuteQuestActions(const FQuestSystemContext& QuestSystem
 			QuestActionProxy->Initialize(QuestActionInstancedStruct, QuestSystemContext);
 			DelayedQuestActions.Add(QuestAction.ActionId, QuestActionProxy);
 			if (QuestAction.StartAtNextTimeOfDay.IsValid())
-				RequestDelayedAction(QuestAction.ActionId, QuestAction.StartAtNextTimeOfDay);
-			else 
-				RequestDelayedAction(QuestAction.ActionId, QuestAction.GameTimeDelayHours);
+				QuestSystemContext.GameMode->RequestDelayedQuestAction(QuestAction.ActionId, QuestAction.StartAtNextTimeOfDay);
+			else
+				QuestSystemContext.GameMode->RequestDelayedQuestAction(QuestAction.ActionId, QuestAction.GameTimeDelayHours);
 		}
 	}
 }
 
-void UQuestSubsystem::RequestDelayedAction(const FGuid& ActionId, float DelayInGameHours)
+void UQuestSubsystem::DelayAction(const FGuid& ActionId, const TScriptInterface<IDelayedQuestAction>& DelayedAction, float GameTimeDelayHours)
 {
-	auto QuestSystemGameMode = Cast<IQuestSystemGameMode>(GetWorld()->GetAuthGameMode());
-	if (!ensure(QuestSystemGameMode))
-		return;
-
-	QuestSystemGameMode->RequestDelayedQuestAction(ActionId, DelayInGameHours);
+	DelayedQuestActions.Add(ActionId, DelayedAction);
+	auto QuestSystemContext = GetQuestSystemContext();
+	QuestSystemContext.GameMode->RequestDelayedQuestAction(ActionId, GameTimeDelayHours);
 }
 
-void UQuestSubsystem::RequestDelayedAction(const FGuid& ActionId, const FGameplayTag& AtNextTimeOfDay)
+void UQuestSubsystem::DelayAction(const FGuid& ActionId, const TScriptInterface<IDelayedQuestAction>& DelayedAction, const FGameplayTag& AtNextDayTime)
 {
-	auto QuestSystemGameMode = Cast<IQuestSystemGameMode>(GetWorld()->GetAuthGameMode());
-	if (!ensure(QuestSystemGameMode))
-		return;
+	DelayedQuestActions.Add(ActionId, DelayedAction);
+	auto QuestSystemContext = GetQuestSystemContext();
+	QuestSystemContext.GameMode->RequestDelayedQuestAction(ActionId, AtNextDayTime);
+}
 
-	QuestSystemGameMode->RequestDelayedQuestAction(ActionId, AtNextTimeOfDay);
+const FName* UQuestSubsystem::GetFlowQuestId(const UFlowAsset* FlowAsset)
+{
+	return FlowAssetToQuestIdLookup.Find(FlowAsset);
+}
+
+void UQuestSubsystem::CompleteFlowQuest(const FName& QuestId, EQuestState QuestFinalState)
+{
+	if (ensure(ActiveQuests.Contains(QuestId)))
+		CompleteQuest(ActiveQuests[QuestId], QuestFinalState);
+}
+
+void UQuestSubsystem::AddJournalLog(const FName& QuestId, const FText& JournalEntry,
+                                    const FGameplayTagContainer& JournalEntryTags)
+{
+	// 08.06.2025 @AK: TODO utilize JournalEntryTags 
+	auto QuestProgress = ActiveQuests.Find(QuestId);
+	if (ensure(QuestProgress))
+		QuestProgress->JournalLogs.Emplace(JournalEntry);
+
+	GetQuestSystemContext().GameMode->OnNewJournalLog();
 }
 
 void UQuestSubsystem::ExecuteDelayedAction(const FGuid& DelayedActionId)
@@ -325,7 +360,7 @@ void UQuestSubsystem::ExecuteDelayedAction(const FGuid& DelayedActionId)
 	if (ensure(DelayedAction))
 	{
 		auto QuestSystemContext = GetQuestSystemContext();
-		(*DelayedAction)->ExecuteDelayedAction(QuestSystemContext);
+		(*DelayedAction)->StartDelayedAction(QuestSystemContext);
 		DelayedQuestActions.Remove(DelayedActionId);
 	}
 }

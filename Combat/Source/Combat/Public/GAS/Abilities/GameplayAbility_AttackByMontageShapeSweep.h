@@ -39,9 +39,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag OverlapCollisionEventTag;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float SweepDistance = 60.f;
-
 	// In case hit actor has no GAS. Perhaps some destructible crates, fences, etc
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float FallbackRawDamage = 25.f;

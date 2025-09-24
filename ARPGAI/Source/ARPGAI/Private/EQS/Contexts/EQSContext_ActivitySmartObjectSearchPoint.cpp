@@ -3,10 +3,11 @@
 
 #include "EQS/Contexts/EQSContext_ActivitySmartObjectSearchPoint.h"
 
-#include "Components/Controller/NpcActivityComponent.h"
+#include "Data/AIGameplayTags.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
 #include "Gameframework/GameModeBase.h"
+#include "Interfaces/NpcGoalManager.h"
 #include "Interfaces/NpcSystemGameMode.h"
 
 void UEQSContext_ActivitySmartObjectSearchPoint::ProvideContext(FEnvQueryInstance& QueryInstance,
@@ -15,27 +16,19 @@ void UEQSContext_ActivitySmartObjectSearchPoint::ProvideContext(FEnvQueryInstanc
 	Super::ProvideContext(QueryInstance, ContextData);
 	const APawn* QuerierPawn = Cast<APawn>(QueryInstance.Owner.Get());
 	if (!IsValid(QuerierPawn) || !QuerierPawn->Controller)
-	{
-		return;
-	}
-
-	auto NpcActivityComponent = QuerierPawn->Controller->FindComponentByClass<UNpcActivityComponent>();
-	if (!NpcActivityComponent)
 		return;
 
-	auto ActiveGoal = Cast<UNpcGoalUseSmartObject>(NpcActivityComponent->GetActiveGoal());
-	FVector Result = NpcActivityComponent->GetPawnLocation();
-	if (ensure(ActiveGoal))
+	auto NpcGoalManager = Cast<INpcGoalManager>(QuerierPawn->Controller);
+	if (!NpcGoalManager)
+		return;
+
+	FGameplayTag LocationId = NpcGoalManager->GetGoalTagParameter(AIGameplayTags::Activity_Goal_Parameter_LocationId);
+	FVector Result = QuerierPawn->GetActorLocation();
+	if (LocationId.IsValid()) // can be empty. in this case - use querier location
 	{
-		FNpcGoalParameters_UseSmartObject Parameters = ActiveGoal->GetParameters(QuerierPawn);
-		if (Parameters.LocationIdTag.IsValid())
-		{
-			auto NpcGameMode = Cast<INpcSystemGameMode>(QuerierPawn->GetWorld()->GetAuthGameMode());
-			if (ensure(NpcGameMode))
-			{
-				Result = NpcGameMode->GetNpcLocation(Parameters.LocationIdTag, false);
-			}
-		}
+		auto NpcGameMode = Cast<INpcSystemGameMode>(QuerierPawn->GetWorld()->GetAuthGameMode());
+		if (ensure(NpcGameMode))
+			Result = NpcGameMode->GetNpcLocation(LocationId, QuerierPawn->GetActorLocation(), false);
 	}
 
 	UEnvQueryItemType_Point::SetContextHelper(ContextData, Result);

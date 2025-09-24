@@ -39,6 +39,8 @@ void UBTService_PrepareAttack::OnBecomeRelevant(UBehaviorTreeComponent& OwnerCom
 	ServiceMemory->NpcCombatComponent = NpcCombatComponent;
 	
 	ServiceMemory->AttackRangeSq = NpcCombatComponent->GetIntellectAffectedDistance(BaseAttackRange);
+	ServiceMemory->TooCloseDistanceSq = ServiceMemory->AttackRangeSq * TooCloseRangeDistanceCoefficient;
+	ServiceMemory->TooCloseDistanceSq *= ServiceMemory->TooCloseDistanceSq;
 	ServiceMemory->AttackRangeSq *= ServiceMemory->AttackRangeSq;
 	ServiceMemory->AttackRangeSq += LittleExtraAttackRange * LittleExtraAttackRange;
 
@@ -134,7 +136,7 @@ void UBTService_PrepareAttack::TickNode(UBehaviorTreeComponent& OwnerComp, uint8
 	{
 		const float DistSq = (OwnerComp.GetAIOwner()->GetPawn()->GetActorLocation() - Target->GetActorLocation()).SizeSquared();
 		float DistSqDeviated = ServiceMemory->NpcCombatComponent->GetIntellectAffectedDistance(DistSq);
-		const bool bTargetInAttackRange = DistSqDeviated < ServiceMemory->AttackRangeSq;
+		const bool bTargetInAttackRange = DistSqDeviated < ServiceMemory->AttackRangeSq && DistSqDeviated > ServiceMemory->TooCloseDistanceSq;
 		UE_VLOG_CAPSULE(OwnerComp.GetAIOwner(), LogARPGAI, VeryVerbose, Target->GetActorLocation() - FVector::UpVector * 90, 90, 30, FQuat::Identity, FColor::Red, TEXT("Target"));
 		if (bTargetInAttackRange)
 		{

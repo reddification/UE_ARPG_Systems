@@ -3,6 +3,7 @@
 #include "QuestActions.h"
 #include "QuestRequirements.h"
 #include "QuestTypes.h"
+#include "FlowAsset.h"
 #include "Engine/DataTable.h"
 #include "QuestDTR.generated.h"
 
@@ -25,19 +26,22 @@ struct QUESTSYSTEM_API FQuestDTR : public FTableRowBase
     FGameplayTagContainer QuestTags;
 
 	// TODO consider moving this one to TSoftObjectPtr<UQuestEventsDataAsset>, especially because of usage of instanced objects
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(RequiredAssetDataTags="RowStructure=/Script/QuestSystem.QuestEventDTR"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(RequiredAssetDataTags="RowStructure=/Script/QuestSystem.QuestEventDTR"))
 	class UDataTable* QuestEventsDT;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TSoftObjectPtr<UFlowAsset> QuestFlow;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct))
 	TArray<TInstancedStruct<FQuestRequirementBase>> QuestRequirements;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
 	TArray<TInstancedStruct<FQuestActionBase>> BeginQuestActions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
 	TArray<TInstancedStruct<FQuestActionBase>> SuccessfulEndQuestActions;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
 	TArray<TInstancedStruct<FQuestActionBase>> FailureEndQuestActions;
 	
     UPROPERTY(EditAnywhere, BlueprintReadOnly)

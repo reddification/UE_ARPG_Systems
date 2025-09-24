@@ -27,12 +27,15 @@ private:
 public:
 	virtual float GetThreatLevel(const AActor* ThreatOwner) const = 0;
 	virtual float GetAttackRange() const = 0;
+	virtual float GetStrength() const = 0;
+	virtual float GetAverageProtection() const = 0;
 	virtual bool IsAttacking() const = 0;
 	virtual float GetHealth() const = 0;
 	virtual bool IsStaggered() const = 0;
 	virtual FVector GetThreatLocation() const = 0;
 	virtual void ReportPreparingAttack(APawn* Attacker, bool bActive) = 0;
 	virtual FGameplayTagContainer GetAttitudeTags() const = 0;
+	virtual bool CanSeeThreat(APawn* Target) const = 0;
 
 	FThreatCombatCommonEvent OnEnemyPerformingAttackEvent;
 	FThreatCombatCommonEvent OnEnemyFeintedAttackEvent;

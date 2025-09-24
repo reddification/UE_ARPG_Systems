@@ -17,8 +17,7 @@ EBTNodeResult::Type UBTTask_RunBehaviorDynamicEnhanced::ExecuteTask(UBehaviorTre
 	{
 		if (INpcControllerInterface* NpcController = Cast<INpcControllerInterface>(OwnerComp.GetAIOwner()))
 		{
-			const int32 InstanceStackStartIndex = OwnerComp.GetActiveInstanceIdx();
-			NpcController->InjectDynamicBehaviors(InstanceStackStartIndex);	
+			NpcController->InjectDynamicBehaviors(GetParentNode());	
 		}
 		else
 		{

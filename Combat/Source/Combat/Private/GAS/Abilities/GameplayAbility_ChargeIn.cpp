@@ -45,23 +45,40 @@ void UGameplayAbility_ChargeIn::ActivateAbility(const FGameplayAbilitySpecHandle
 	auto Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
 	auto OwnerTagInterface = Cast<IGameplayTagAssetInterface>(Character);
 	OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
-	UAnimMontage* HitReactMontage = nullptr; 
+	UAnimMontage* ChargeInMontage = nullptr; 
 	for (const auto& ChargeInMontageOption : ChargeInMontageOptions)
 	{
-		if (ChargeInMontageOption.ContextTags.Matches(OwnerTags))
+		if (ChargeInMontageOption.ContextTags.IsEmpty() || ChargeInMontageOption.ContextTags.Matches(OwnerTags))
 		{
-			HitReactMontage = ChargeInMontageOption.Montages[FMath::RandRange(0, ChargeInMontageOption.Montages.Num() - 1)];
+			if (!ChargeInMontageOption.MontagesOptions.IsEmpty())
+				ChargeInMontage = ChargeInMontageOption.MontagesOptions[FMath::RandRange(0, ChargeInMontageOption.MontagesOptions.Num() - 1)].AnimMontage.LoadSynchronous();
+			else if (!ChargeInMontageOption.Montages_Deprecated.IsEmpty())
+				ChargeInMontage = ChargeInMontageOption.Montages_Deprecated[FMath::RandRange(0, ChargeInMontageOption.Montages_Deprecated.Num() - 1)];
+			
 			break;				
 		}
 	}
 	
-	if (ensure(HitReactMontage))
+	if (ensure(ChargeInMontage))
 	{
-		ChargeInMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("ChargeIn"), HitReactMontage);
+		ChargeInMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("ChargeIn"), ChargeInMontage);
 		ChargeInMontageTask->OnCompleted.AddDynamic(this, &UGameplayAbility_ChargeIn::OnChargeInMontageCompleted);
 		ChargeInMontageTask->OnInterrupted.AddDynamic(this, &UGameplayAbility_ChargeIn::OnChargeInMontageInterrupted);
 		ChargeInMontageTask->OnCancelled.AddDynamic(this, &UGameplayAbility_ChargeIn::OnChargeInMontageCancelled);
 		ChargeInMontageTask->ReadyForActivation();
+
+		bool bPushCapsule = ActivationData->Direction != FVector::ZeroVector
+			&& (ActivationData->ForwardImpulse > 0.f || ActivationData->VerticalImpulse > 0.f);
+		bPushCapsule = bPushCapsule && !ChargeInMontage->HasRootMotion();
+		if (bPushCapsule)
+		{
+			if (auto CMC = GetAvatarActorFromActorInfo()->FindComponentByClass<UCharacterMovementComponent>())
+			{
+				FVector ImpulseVector = FVector(ActivationData->Direction.X * ActivationData->ForwardImpulse,
+					ActivationData->Direction.Y * ActivationData->ForwardImpulse, ActivationData->VerticalImpulse);
+				CMC->AddImpulse(ImpulseVector, true);
+			}
+		}
 	}
 	else
 	{

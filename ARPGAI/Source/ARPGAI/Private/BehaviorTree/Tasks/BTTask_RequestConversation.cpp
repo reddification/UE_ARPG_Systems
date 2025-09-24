@@ -8,8 +8,12 @@
 #include "Activities/ActivityInstancesHelper.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Struct.h"
 #include "Components/NpcComponent.h"
+#include "Components/Controller/NpcFlowComponent.h"
 #include "Data/AIGameplayTags.h"
+#include "Data/LogChannels.h"
+#include "StructUtils/StructView.h"
 #include "GameFramework/Character.h"
 #include "Interfaces/Npc.h"
 #include "Kismet/GameplayStatics.h"
@@ -35,11 +39,6 @@ EBTNodeResult::Type UBTTask_RequestConversation::ExecuteTask(UBehaviorTreeCompon
 	if(!ensure(ConversationPartner))
 		return EBTNodeResult::Failed;
 	
-	auto NpcActivityComponent = GetNpcActivityComponent(OwnerComp);
-	auto NpcGoalConversation = Cast<UNpcGoalConversate>(NpcActivityComponent->GetActiveGoal());
-	if (NpcGoalConversation == nullptr)
-		return EBTNodeResult::Failed;
-
 	auto PawnOwner = Cast<APawn>(OwnerComp.GetAIOwner()->GetPawn());
 	auto NpcOwner = Cast<INpc>(PawnOwner);
 	if (!ensure(NpcOwner))
@@ -58,6 +57,7 @@ EBTNodeResult::Type UBTTask_RequestConversation::ExecuteTask(UBehaviorTreeCompon
 		if (ReasonsToHoldConversation.HasTag(RefuseReason) && !BTMemory->bConversationOnHold)
 		{
 			EnterConversationOnHoldState(OwnerComp, BTMemory, ConversationPartner);
+			UE_VLOG(PawnOwner, LogARPGAI, Verbose, TEXT("Requested conversation. Can't start it right now, but entering conversation on hold state"));
 			return EBTNodeResult::InProgress;
 		}
 		else
@@ -67,9 +67,14 @@ EBTNodeResult::Type UBTTask_RequestConversation::ExecuteTask(UBehaviorTreeCompon
 	}
 	
 	auto ConversationPartnerBlackboard = NpcConversationPartner->GetBlackboard();
-
-	const bool bStarted = StartConversation(OwnerBlackboard, NpcGoalConversation, PawnOwner, NpcOwner, ConversationPartner,
-	    ConversationPartnerBlackboard);
+	
+	auto NpcFlowComponent = OwnerComp.GetAIOwner()->FindComponentByClass<UNpcFlowComponent>();
+	const FNpcGoalParameters_Conversate* ConversationParams = NpcFlowComponent->GetParameters<FNpcGoalParameters_Conversate>();
+	if (ConversationParams == nullptr)
+		return EBTNodeResult::Failed;
+	
+	const bool bStarted = StartConversation(OwnerBlackboard, ConversationParams, PawnOwner, NpcOwner, ConversationPartner,
+	                                        ConversationPartnerBlackboard);
 	
 	if (!ensure(bStarted))
 	{
@@ -78,7 +83,7 @@ EBTNodeResult::Type UBTTask_RequestConversation::ExecuteTask(UBehaviorTreeCompon
 		return EBTNodeResult::Failed;
 	}
 
-	BTMemory->bForceConversationPartnerSuspendActivity = NpcGoalConversation->bForceConversationPartnerSuspendActivity;
+	BTMemory->bForceConversationPartnerSuspendActivity = ConversationParams->bForceConversationPartnerSuspendActivity;
 	WaitForMessage(OwnerComp, AIGameplayTags::AI_BrainMessage_Conversation_Completed.GetTag().GetTagName());
 	return EBTNodeResult::InProgress;
 }
@@ -142,11 +147,14 @@ bool UBTTask_RequestConversation::RequestResumeConversation(FBTMemory_Conversati
 
 bool UBTTask_RequestConversation::TryStartConversation(APawn* PawnOwner, UBlackboardComponent* CollocutorBlackboard, UBehaviorTreeComponent* OwnerComp)
 {
-	auto NpcActivityComponent = GetNpcActivityComponent(*OwnerComp);
-	auto NpcGoalConversation = Cast<UNpcGoalConversate>(NpcActivityComponent->GetActiveGoal());
+	auto NpcFlowComponent = OwnerComp->GetAIOwner()->FindComponentByClass<UNpcFlowComponent>();
+	const FNpcGoalParameters_Conversate* ConversationParams = NpcFlowComponent->GetParameters<FNpcGoalParameters_Conversate>();
+	if (ConversationParams == nullptr)
+		return false;
+	
 	auto CollocutorPawn = CollocutorBlackboard->GetBrainComponent()->GetAIOwner()->GetPawn();
-	return StartConversation(OwnerComp->GetBlackboardComponent(), NpcGoalConversation, PawnOwner, Cast<INpc>(PawnOwner),
-		CollocutorPawn, CollocutorBlackboard);
+	return StartConversation(OwnerComp->GetBlackboardComponent(), ConversationParams, PawnOwner, Cast<INpc>(PawnOwner),
+	                         CollocutorPawn, CollocutorBlackboard);
 }
 
 
@@ -162,7 +170,7 @@ void UBTTask_RequestConversation::SetBlackboardConversationState(UBlackboardComp
 }
 
 bool UBTTask_RequestConversation::StartConversation(UBlackboardComponent* OwnerBlackboard,
-                                                    const UNpcGoalConversate* NpcGoalConversation, APawn* PawnOwner,
+                                                    const FNpcGoalParameters_Conversate* ConversationStartParams, APawn* PawnOwner,
                                                     INpc* NpcOwner, APawn* ConversationPartner,
                                                     UBlackboardComponent* ConversationPartnerBlackboard)
 {
@@ -171,11 +179,11 @@ bool UBTTask_RequestConversation::StartConversation(UBlackboardComponent* OwnerB
 
 	TArray<UBlackboardComponent*> SecondaryConversationParticipantsBlackboards;
 	
-	if (!NpcGoalConversation->SecondaryConversationParticipants.IsEmpty())
+	if (!ConversationStartParams->SecondaryConversationParticipants.IsEmpty())
 	{
 		auto NpcSubsystem = UNpcRegistrationSubsystem::Get(PawnOwner);
 		const FVector& PawnOwnerLocation = PawnOwner->GetActorLocation();
-		for (const auto& SecondaryConversationPartner : NpcGoalConversation->SecondaryConversationParticipants)
+		for (const auto& SecondaryConversationPartner : ConversationStartParams->SecondaryConversationParticipants)
 		{
 			TArray<UNpcComponent*> SecondaryNpcs = NpcSubsystem->GetNpcsInRange(SecondaryConversationPartner.CharacterId, PawnOwnerLocation,
 				SecondaryConversationPartner.SearchInRange, SecondaryConversationPartner.Count, &SecondaryConversationPartner.CharacterFilter);
@@ -193,20 +201,21 @@ bool UBTTask_RequestConversation::StartConversation(UBlackboardComponent* OwnerB
 		}
 	}
 
-	if (NpcGoalConversation->bIncludePlayer)
+	if (ConversationStartParams->bIncludePlayer)
 	{
 		auto PlayerCharacter = UGameplayStatics::GetPlayerCharacter(PawnOwner, 0);
 		ConversationParticipants.Add(PlayerCharacter);
 	}
-	
-	const bool bStarted = NpcOwner->StartConversation(NpcGoalConversation->ConversationId, ConversationParticipants, false);
+
+	const bool bStarted = NpcOwner->StartConversation(ConversationStartParams->ConversationId, ConversationParticipants, false);
+	UE_VLOG(PawnOwner, LogARPGAI, Verbose, TEXT("Attempting to start conversation: %s"), bStarted ? TEXT("success") : TEXT("failure"));
 
 	if (bStarted)
 	{
-		SetBlackboardConversationState(OwnerBlackboard, ConversationPartner, NpcGoalConversation->bForceConversationPartnerSuspendActivity, false);
-		SetBlackboardConversationState(ConversationPartnerBlackboard, PawnOwner, NpcGoalConversation->bForceConversationPartnerSuspendActivity, true);
+		SetBlackboardConversationState(OwnerBlackboard, ConversationPartner, ConversationStartParams->bForceConversationPartnerSuspendActivity, false);
+		SetBlackboardConversationState(ConversationPartnerBlackboard, PawnOwner, ConversationStartParams->bForceConversationPartnerSuspendActivity, true);
 		for (auto* SecondaryParticipantBlackboard : SecondaryConversationParticipantsBlackboards)
-			SetBlackboardConversationState(SecondaryParticipantBlackboard, PawnOwner, NpcGoalConversation->bForceConversationPartnerSuspendActivity, true);
+			SetBlackboardConversationState(SecondaryParticipantBlackboard, PawnOwner, ConversationStartParams->bForceConversationPartnerSuspendActivity, true);
 	}
 
 	return bStarted;

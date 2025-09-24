@@ -5,7 +5,7 @@
 
 #include "AIController.h"
 #include "Components/NpcComponent.h"
-#include "Components/NpcPerceptionReactionComponent.h"
+#include "Components/Controller/NpcPerceptionReactionComponent.h"
 #include "ReactionEvaluators/NpcReactionEvaluatorBase.h"
 
 UBTService_ReactionEvaluator::UBTService_ReactionEvaluator()
@@ -19,7 +19,7 @@ void UBTService_ReactionEvaluator::TickNode(UBehaviorTreeComponent& OwnerComp, u
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBTService_ReactionEvaluator::TickNode)
 
-	auto NpcPerceptionReactionComponent = OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcPerceptionReactionComponent>();
+	auto NpcPerceptionReactionComponent = OwnerComp.GetAIOwner()->FindComponentByClass<UNpcPerceptionReactionComponent>();
 	if (!ensure(NpcPerceptionReactionComponent))
 	{
 		SetNextTickTime(NodeMemory, FLT_MAX);

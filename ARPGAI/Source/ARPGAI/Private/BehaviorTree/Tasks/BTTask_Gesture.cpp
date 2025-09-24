@@ -22,8 +22,14 @@ EBTNodeResult::Type UBTTask_Gesture::ExecuteTask(UBehaviorTreeComponent& OwnerCo
 	if (!ActivityGestureBBKey.IsNone())
 	{
 		auto Blackboard = OwnerComp.GetBlackboardComponent();
-		FGameplayTagContainer ActivityGestureTag = Blackboard->GetValue<UBlackboardKeyType_GameplayTag>(ActivityGestureBBKey.GetSelectedKeyID());
-		ActualGestureTag = ActivityGestureTag.First();
+		FGameplayTagContainer ActivityGestureTags = Blackboard->GetValue<UBlackboardKeyType_GameplayTag>(ActivityGestureBBKey.GetSelectedKeyID());
+		const auto& GestureOptionsArray = ActivityGestureTags.GetGameplayTagArray();
+		if (GestureOptionsArray.Num() > 0)
+		{
+			ActualGestureTag = GestureOptionsArray.Num() == 1
+				? GestureOptionsArray[0]
+				: GestureOptionsArray[FMath::RandRange(0, GestureOptionsArray.Num() - 1)];
+		}
 	}
 	
 	if (Npc && Npc->PerformNpcGesture(ActualGestureTag))

@@ -1,9 +1,24 @@
 ﻿#pragma once
+
 #include "Engine/DataTable.h"
+#include "GameplayTagContainer.h"
+#include "StructUtils/InstancedStruct.h"
 #include "WorldLocationDTR.generated.h"
 
+class UWorldLocationComponent;
+
+USTRUCT()
+struct QUESTSYSTEM_API FWorldLocationCrossedHandler
+{
+	GENERATED_BODY()
+
+public:
+	virtual ~FWorldLocationCrossedHandler() = default;
+	virtual void OnLocationCrossed(UWorldLocationComponent* LocationComponent, AActor* CrossedActor, bool bEntered) const {};
+};
+
 USTRUCT(BlueprintType)
-struct FWorldLocationDTR : public FTableRowBase
+struct QUESTSYSTEM_API FWorldLocationDTR : public FTableRowBase
 {
 	GENERATED_BODY()
 
@@ -18,5 +33,11 @@ struct FWorldLocationDTR : public FTableRowBase
 	FText Description;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FGameplayTagContainer LocationTags;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	bool bQuestLocation = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(ExcludeBaseStruct))
+	TArray<TInstancedStruct<FWorldLocationCrossedHandler>> LocationCrossedHandlers;
 };

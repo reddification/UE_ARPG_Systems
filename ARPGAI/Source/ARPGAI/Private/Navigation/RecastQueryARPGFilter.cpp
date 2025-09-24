@@ -320,9 +320,13 @@ void UARPGNavigationQueryFilter::InitializeFilter(const ANavigationData& NavData
 {
 	const AAIController* AsAIController = Cast<AAIController>(Querier);
     const auto AsPawn = AsAIController != nullptr ? AsAIController->GetPawn() : Cast<const APawn>(Querier);
-
-    if (AsPawn != nullptr)
+	
+    if (!ensure(AsPawn != nullptr))
     {
+    	Super::InitializeFilter(NavData, Querier, Filter);
+	    return;
+    }
+		
 #if WITH_RECAST
         SetRecastFilter(Filter);
         const auto danger_avoidance_filter = static_cast<FRecastQueryARPGFilter*>(Filter.GetImplementation());
@@ -339,7 +343,8 @@ void UARPGNavigationQueryFilter::InitializeFilter(const ANavigationData& NavData
         danger_avoidance_filter->NavSys  = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavData.GetWorld());
     	
         danger_avoidance_filter->QuerrierController = AsAIController;
-    	if (auto NpcController = Cast<INpcControllerInterface>(AsAIController))
+    	auto NpcController = Cast<INpcControllerInterface>(AsAIController);
+		if (ensure(NpcController))
     	{
     		// danger_avoidance_filter->NpcController.SetObject(AsAIController);
     		// danger_avoidance_filter->NpcController.SetInterface(NpcController);
@@ -352,7 +357,6 @@ void UARPGNavigationQueryFilter::InitializeFilter(const ANavigationData& NavData
 
 		
 #endif // WITH_RECAST
-    }
 		
     Super::InitializeFilter(NavData, Querier, Filter);
 }

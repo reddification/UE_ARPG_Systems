@@ -5,12 +5,10 @@
 
 #include "AIController.h"
 #include "NavigationSystem.h"
-#include "Activities/ActivityInstancesHelper.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "Components/NpcCombatLogicComponent.h"
-#include "Components/NpcComponent.h"
 #include "Data/LogChannels.h"
 #include "Data/NpcCombatTypes.h"
 
@@ -26,6 +24,8 @@ UBTService_EvaluateDistanceToTarget::UBTService_EvaluateDistanceToTarget()
 	TargetBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_EvaluateDistanceToTarget, TargetBBKey), AActor::StaticClass());
 	OutEvaluatedTargetMoveDirectionBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_EvaluateDistanceToTarget, TargetBBKey),
 		StaticEnum<ENpcTargetDistanceEvaluation>());
+	OutCurrentDistanceBehaviorDurationBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_EvaluateDistanceToTarget, OutCurrentDistanceBehaviorDurationBBKey.SelectedKeyName));
+	OutCurrentDistanceBehaviorDurationBBKey.AllowNoneAsValue(true);
 }
 
 void UBTService_EvaluateDistanceToTarget::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory,
@@ -41,6 +41,15 @@ void UBTService_EvaluateDistanceToTarget::TickNode(UBehaviorTreeComponent& Owner
 	auto Target = Cast<AActor>(Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName));
 	if (Target == nullptr)
 		return;
+
+	ENpcTargetDistanceEvaluation PreviousDistanceEvaluation = static_cast<ENpcTargetDistanceEvaluation>(Blackboard->GetValueAsEnum(OutEvaluatedTargetMoveDirectionBBKey.SelectedKeyName));
+	ENpcTargetDistanceEvaluation NewDistanceEvaluation = PreviousDistanceEvaluation;
+	float CurrentDistanceBehaviorDuration = 0.f;
+	if (!OutCurrentDistanceBehaviorDurationBBKey.IsNone())
+	{
+		CurrentDistanceBehaviorDuration = Blackboard->GetValueAsFloat(OutCurrentDistanceBehaviorDurationBBKey.SelectedKeyName);
+		Blackboard->SetValueAsFloat(OutCurrentDistanceBehaviorDurationBBKey.SelectedKeyName, CurrentDistanceBehaviorDuration + DeltaSeconds);
+	}
 	
 	auto Npc = OwnerComp.GetAIOwner()->GetPawn();
 	const FVector NpcLocation = Npc->GetActorLocation();
@@ -106,17 +115,23 @@ void UBTService_EvaluateDistanceToTarget::TickNode(UBehaviorTreeComponent& Owner
 		
 		if (BTMemory->AccumulatedTargetDeltasCount > AccumulatedTargetDeltasCapacity)
 		{
-			ENpcTargetDistanceEvaluation DistanceEvaluation = ENpcTargetDistanceEvaluation::TargetIsStationary;
+			NewDistanceEvaluation = ENpcTargetDistanceEvaluation::TargetIsStationary;
 			if (BTMemory->AccumulatedTargetDeltaDistance > NonStationaryAccumulatedTargetDeltaDistance)
 			{
-				DistanceEvaluation = ENpcTargetDistanceEvaluation::TargetIsGettingAway;
+				NewDistanceEvaluation = ENpcTargetDistanceEvaluation::TargetIsGettingAway;
 			}
 			else if (BTMemory->AccumulatedTargetDeltaDistance < -NonStationaryAccumulatedTargetDeltaDistance)
 			{
-				DistanceEvaluation = ENpcTargetDistanceEvaluation::TargetIsApproaching;
+				NewDistanceEvaluation = ENpcTargetDistanceEvaluation::TargetIsApproaching;
 			}
 
-			Blackboard->SetValueAsEnum(OutEvaluatedTargetMoveDirectionBBKey.SelectedKeyName, static_cast<uint8>(DistanceEvaluation));
+			if (PreviousDistanceEvaluation != NewDistanceEvaluation)
+			{
+				Blackboard->SetValueAsEnum(OutEvaluatedTargetMoveDirectionBBKey.SelectedKeyName, static_cast<uint8>(NewDistanceEvaluation));
+				if (!OutCurrentDistanceBehaviorDurationBBKey.IsNone())
+					Blackboard->SetValueAsFloat(OutCurrentDistanceBehaviorDurationBBKey.SelectedKeyName, 0.f);
+			}
+			
 			BTMemory->AccumulatedTargetDeltaDistance = 0.f;
 			BTMemory->AccumulatedTargetDeltasCount = 0;
 		}
@@ -155,7 +170,7 @@ void UBTService_EvaluateDistanceToTarget::OnBecomeRelevant(UBehaviorTreeComponen
 			: (Target->GetActorLocation() - NpcPawn->GetActorLocation()).Size();
 		Blackboard->SetValueAsFloat(OutDistanceBBKey.SelectedKeyName, Distance);
 	}
-	
+
 	BTMemory->NpcCombatLogicComponent = OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcCombatLogicComponent>();
 }
 
@@ -177,6 +192,7 @@ void UBTService_EvaluateDistanceToTarget::InitializeFromAsset(UBehaviorTree& Ass
 	if (auto BBData = Asset.GetBlackboardAsset())
 	{
 		UpdateConditionBBKey.ResolveSelectedKey(*BBData);
+		OutCurrentDistanceBehaviorDurationBBKey.ResolveSelectedKey(*BBData);
 	}
 }
 
@@ -203,6 +219,8 @@ FString UBTService_EvaluateDistanceToTarget::GetStaticDescription() const
 		*OutDistanceBBKey.SelectedKeyName.ToString(), *OutEvaluatedTargetMoveDirectionBBKey.SelectedKeyName.ToString(), *TargetBBKey.SelectedKeyName.ToString(),
 		AccumulatedTargetDeltasCapacity, NonStationaryAccumulatedTargetDeltaDistance);
 
+	Result = Result.Append(FString::Printf(TEXT("\n[out]Distance behavior duration BB: %s"), *OutCurrentDistanceBehaviorDurationBBKey.SelectedKeyName.ToString()));
+	
 	if (bUseUpdateCondition)
 		Result = Result.Append(FString::Printf(TEXT("\nUpdate only when %s == true"), *UpdateConditionBBKey.SelectedKeyName.ToString()));
 	

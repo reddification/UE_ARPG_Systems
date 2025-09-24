@@ -3,7 +3,8 @@
 #include "BlackboardKeyType_GameplayTag.h"
 #include "Activities/ActivityInstancesHelper.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Components/Controller/NpcActivityComponent.h"
+#include "Data/AIGameplayTags.h"
+#include "Interfaces/NpcGoalManager.h"
 
 UBTTask_AdvanceNpcGoal::UBTTask_AdvanceNpcGoal()
 {
@@ -15,7 +16,7 @@ UBTTask_AdvanceNpcGoal::UBTTask_AdvanceNpcGoal()
 EBTNodeResult::Type UBTTask_AdvanceNpcGoal::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	auto BlackboardComponent = OwnerComp.GetBlackboardComponent();
-	auto NpcActivityComponent = GetNpcActivityComponent(OwnerComp);
+	INpcGoalManager* NpcActivityComponent = GetNpcGoalManager(OwnerComp);
 	if (!ensure(NpcActivityComponent))
 	{
 		BlackboardComponent->SetValueAsBool(OutGoalAdvancedBBKey.SelectedKeyName, false);
@@ -25,18 +26,16 @@ EBTNodeResult::Type UBTTask_AdvanceNpcGoal::ExecuteTask(UBehaviorTreeComponent& 
 
 	FGameplayTagContainer GoalExecutionResultTags = BlackboardComponent->GetValue<UBlackboardKeyType_GameplayTag>(GoalExecutionResultBBKey.SelectedKeyName);
 	BlackboardComponent->SetValue<UBlackboardKeyType_GameplayTag>(GoalExecutionResultBBKey.SelectedKeyName, FGameplayTagContainer::EmptyContainer);
-	ENpcGoalAdvanceResult NpcGoalAdvanceResult = NpcActivityComponent->AdvanceCurrentGoal(bGoalSucceeded, GoalExecutionResultTags);
+	GoalExecutionResultTags.AddTagFast(bGoalSucceeded ? AIGameplayTags::Activity_Goal_Result_Execution_Success : AIGameplayTags::Activity_Goal_Result_Execution_Failure);
+	ENpcGoalAdvanceResult NpcGoalAdvanceResult = NpcActivityComponent->AdvanceCurrentGoal(GoalExecutionResultTags);
 	if (NpcGoalAdvanceResult == ENpcGoalAdvanceResult::InProgress)
 	{
 		BlackboardComponent->SetValueAsBool(OutGoalAdvancedBBKey.SelectedKeyName, true);
 		BlackboardComponent->SetValue<UBlackboardKeyType_GameplayTag>(GoalExecutionResultBBKey.SelectedKeyName, FGameplayTagContainer::EmptyContainer);
 		return EBTNodeResult::Succeeded;
 	}
-	
-	bool bSuccess = NpcActivityComponent->RequestNextNpcGoal();
-	if (bSuccess)
-		NpcActivityComponent->SetActivityGoalData();
-	
+
+	bool bSuccess = NpcGoalAdvanceResult != ENpcGoalAdvanceResult::Failed;
 	BlackboardComponent->SetValueAsBool(OutGoalAdvancedBBKey.SelectedKeyName, bSuccess);
 	return bSuccess ? EBTNodeResult::Succeeded : EBTNodeResult::Failed;
 }

@@ -6,7 +6,7 @@
 #include "AIController.h"
 #include "GameplayTagAssetInterface.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Components/NpcPerceptionComponent.h"
+#include "Components/Controller/NpcPerceptionComponent.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISense_Sight.h"
 

@@ -2,6 +2,7 @@
 #include "GameplayTagContainer.h"
 #include "Data/QuestSystemLogChannels.h"
 #include "GameFramework/GameModeBase.h"
+#include "Interfaces/QuestCharacter.h"
 #include "Interfaces/QuestNPC.h"
 #include "Interfaces/QuestSystemGameMode.h"
 
@@ -61,9 +62,9 @@ void UQuestNpcSubsystem::AddCustomAttitude(const FGameplayTagContainer& SourceCh
 	for (const auto& SourceCharacterId : SourceCharacterIds)
 	{
 		auto& CustomNpcAttitudes = CustomAttitudes.FindOrAdd(SourceCharacterId);
-		FTimespan ValidUntilGameTime = GameTimeLimit > 0.f
+		FDateTime ValidUntilGameTime = GameTimeLimit > 0.f
 			? QuestSystemGameMode->GetQuestSystemGameTime() + FTimespan::FromHours(GameTimeLimit)
-			: FTimespan::Zero();
+			: FDateTime();
 		CustomNpcAttitudes.Add(FCachedNpcAttitude{ TargetCharacterIds, NewAttitude, ValidUntilGameTime });
 	}
 }
@@ -80,7 +81,7 @@ void UQuestNpcSubsystem::SetCustomAttitudePreset(const FGameplayTagContainer& Fo
 	}
 }
 
-const FGameplayTag& UQuestNpcSubsystem::GetForcedAttitude(const FGameplayTag& NpcIdTag, const FGameplayTagContainer& ActorTags, const FTimespan& GameTime)
+const FGameplayTag& UQuestNpcSubsystem::GetForcedAttitude(const FGameplayTag& NpcIdTag, const FGameplayTagContainer& ActorTags, const FDateTime& GameTime)
 {
 	auto NpcAttitudes = CustomAttitudes.Find(NpcIdTag);
 	if (!NpcAttitudes)
@@ -91,7 +92,7 @@ const FGameplayTag& UQuestNpcSubsystem::GetForcedAttitude(const FGameplayTag& Np
 		auto& NpcAttitude = (*NpcAttitudes)[i];
 		if (NpcAttitude.TargetCharacters.HasAny(ActorTags))
 		{
-			if (!NpcAttitude.ValidUntilGameTime.IsZero() && NpcAttitude.ValidUntilGameTime < GameTime)
+			if (NpcAttitude.ValidUntilGameTime.GetTicks() != 0 && NpcAttitude.ValidUntilGameTime < GameTime)
 			{
 				NpcAttitudes->RemoveAt(i);
 				continue;
@@ -187,6 +188,7 @@ void UQuestNpcSubsystem::ChangeTagsForNpcs(const FGameplayTag& NpcId, const FGam
 bool UQuestNpcSubsystem::TryRunQuestBehavior(const FQuestActionNpcRunBehavior& RunBehaviorData, const FGuid& QuestActionId, const FQuestSystemContext&
                                              QuestSystemContext)
 {
+	bool bSuccess = false;
 	for (const auto& NpcId : RunBehaviorData.NpcIdsTags)
 	{
 		TArray<TScriptInterface<IQuestNPC>> RelevantNPCs;
@@ -194,25 +196,56 @@ bool UQuestNpcSubsystem::TryRunQuestBehavior(const FQuestActionNpcRunBehavior& R
 		if (RelevantNPCs.Num() <= 0)
 			continue;
 
-		for (const auto NPC : RelevantNPCs)
+		if (RunBehaviorData.bFirstOnly && RunBehaviorData.bPickNpcClosestToPlayer)
 		{
-			bool bCanActivateBehavior = true;
-			if (!RunBehaviorData.RequiredTags.IsEmpty())
+			float DistSq = FLT_MAX;
+			TScriptInterface<IQuestNPC> ClosestNpc = nullptr;
+			for (const auto NPC : RelevantNPCs)
 			{
-				FGameplayTagContainer NpcTags = NPC->GetQuestNpcOwnedTags();
-				bCanActivateBehavior = RunBehaviorData.RequiredTags.Matches(NpcTags);
+				bool bCanActivateBehavior = true;
+				if (!RunBehaviorData.RequiredTags.IsEmpty())
+				{
+					FGameplayTagContainer NpcTags = NPC->GetQuestNpcOwnedTags();
+					bCanActivateBehavior = RunBehaviorData.RequiredTags.Matches(NpcTags);
+				}
+			
+				if (bCanActivateBehavior)
+				{
+					float TestSqDistance = FVector::DistSquared(QuestSystemContext.Player->GetCharacterLocation(), NPC->GetQuestNpcLocation());
+					if (TestSqDistance < DistSq)
+					{
+						DistSq = TestSqDistance;
+						ClosestNpc = NPC;
+					}
+				}
 			}
-		
-			if (bCanActivateBehavior)
+
+			if (ClosestNpc != nullptr)
+				bSuccess = RunQuestBehavior(ClosestNpc, RunBehaviorData.NpcQuestBehaviorDescriptor, QuestActionId, QuestSystemContext);
+		}
+		else
+		{
+			for (const auto NPC : RelevantNPCs)
 			{
-				RunQuestBehavior(NPC, RunBehaviorData.NpcQuestBehaviorDescriptor, QuestActionId, QuestSystemContext);
-				if (RunBehaviorData.bFirstOnly)
-					break;
+				bool bCanActivateBehavior = true;
+				if (!RunBehaviorData.RequiredTags.IsEmpty())
+				{
+					FGameplayTagContainer NpcTags = NPC->GetQuestNpcOwnedTags();
+					bCanActivateBehavior = RunBehaviorData.RequiredTags.Matches(NpcTags);
+				}
+			
+				if (bCanActivateBehavior)
+				{
+					// pay attention: order of "||" arguments matter. if it is bSuccess || RunQuestBehavior then RunQuestBehavior won't be executed after bSuccess is set to true once
+					bSuccess = RunQuestBehavior(NPC, RunBehaviorData.NpcQuestBehaviorDescriptor, QuestActionId, QuestSystemContext) || bSuccess;
+					if (RunBehaviorData.bFirstOnly)
+						break;
+				}
 			}
 		}
 	}
 	
-	return true;
+	return bSuccess;
 }
 
 bool UQuestNpcSubsystem::RunQuestBehavior(const TScriptInterface<IQuestNPC>& Npc, const FNpcQuestBehaviorDescriptor& BehaviorDescriptor, const FGuid&
@@ -221,19 +254,10 @@ bool UQuestNpcSubsystem::RunQuestBehavior(const TScriptInterface<IQuestNPC>& Npc
 	FNpcQuestBehaviorEndConditionContainer EndConditionsContainer;
 
 	EndConditionsContainer.bAny = BehaviorDescriptor.bAnyEndConditionIsEnough;
+	EndConditionsContainer.BehaviorTag = BehaviorDescriptor.RequestedBehaviorIdTag;
 	for (const auto& EndCondition : BehaviorDescriptor.QuestBehaviorEndConditions)
 		EndConditionsContainer.EndConditions.Add(EndCondition.Get<FNpcQuestBehaviorEndConditionBase>().MakeProxy(QuestActionId, Npc.GetInterface(), QuestSystemContext));
 
-	if (const auto ActiveQuestBehaviorId = ActiveNpcQuestBehaviorIds.Find(Npc.GetObject()))
-	{
-		const auto* NpcQuestBehaviorEndConditions = QuestBehaviorEndConditions.Find(*ActiveQuestBehaviorId);
-		for (auto* EndCondition : NpcQuestBehaviorEndConditions->EndConditions)
-			EndCondition->Disable();
-		
-		Npc->StopQuestBehavior();
-	}
-
-	ActiveNpcQuestBehaviorIds.Add(Npc.GetObject(), QuestActionId);
 	QuestBehaviorEndConditions.Add(QuestActionId, EndConditionsContainer);
 	Npc->RunQuestBehavior(BehaviorDescriptor.RequestedBehaviorIdTag);
 	return true;
@@ -254,7 +278,6 @@ void UQuestNpcSubsystem::OnQuestBehaviorConditionTriggered(TWeakInterfacePtr<IQu
 			EndCondition->Disable();
 	}
 
-	Npc->StopQuestBehavior();
+	Npc->StopQuestBehavior(NpcQuestBehaviorEndConditions->BehaviorTag);
 	QuestBehaviorEndConditions.Remove(BehaviorActionId);
-	ActiveNpcQuestBehaviorIds.Remove(Npc.GetObject());
 }

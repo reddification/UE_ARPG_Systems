@@ -11,13 +11,14 @@ UBTTask_SetTagCooldownWithDeviation::UBTTask_SetTagCooldownWithDeviation()
 EBTNodeResult::Type UBTTask_SetTagCooldownWithDeviation::ExecuteTask(UBehaviorTreeComponent& OwnerComp,
                                                                      uint8* NodeMemory)
 {
-	float ActualCooldownTime = FMath::Max(0.f,  CooldownDuration + FMath::RandRange(-DeviationTime, +DeviationTime));
+	auto Blackboard = OwnerComp.GetBlackboardComponent();
+	float ActualCooldownTime = FMath::Max(0.f,  CooldownDuration.GetValue(Blackboard) + FMath::RandRange(-DeviationTime, +DeviationTime));
 	OwnerComp.AddCooldownTagDuration(CooldownTag, ActualCooldownTime, bAddToExistingDuration);
 	return EBTNodeResult::Succeeded;
 }
 
 FString UBTTask_SetTagCooldownWithDeviation::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("Set cooldown for tag %s in range [%.2fs; %.2fs]"), *CooldownTag.ToString(),
-		FMath::Max(0, CooldownDuration - DeviationTime), CooldownDuration + DeviationTime);
+	return FString::Printf(TEXT("Set cooldown for tag %s in range %s +- %.2fs"), *CooldownTag.ToString(),
+		*CooldownDuration.ToString(), DeviationTime);
 }

@@ -5,8 +5,9 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/AIDangerousItemStimuliSourceComponent.h"
+#include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
-#include "Components/NpcPerceptionComponent.h"
+#include "Components/Controller/NpcPerceptionComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
@@ -83,10 +84,10 @@ void UBTService_ThreatEvaluator::EvaluateThreats(UBehaviorTreeComponent& OwnerCo
 	APawn* ThisNpc = AIController->GetPawn();
 	UNpcComponent* NpcComponent = ThisNpc->FindComponentByClass<UNpcComponent>();
 	auto NpcCombatLogicComponent = ThisNpc->FindComponentByClass<UNpcCombatLogicComponent>();
-	
+	auto NpcAttitudesComponent = ThisNpc->FindComponentByClass<UNpcAttitudesComponent>();
 	const FNpcDTR* MobDTR = NpcComponent->GetNpcDTR();
 	
-	FCombatEvaluationParameters CombatEvaluationParameters(AIController, NpcComponent, NpcCombatLogicComponent,
+	FCombatEvaluationParameters CombatEvaluationParameters(AIController, NpcComponent, NpcAttitudesComponent, NpcCombatLogicComponent,
 		Cast<const UNpcPerceptionComponent>(AIController->GetAIPerceptionComponent()), ThisNpc, CombatEvaluatorNodeMemory->MaxHealth);
 
 	UE_VLOG(AIController, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Evaluating threats"));
@@ -180,7 +181,7 @@ void UBTService_ThreatEvaluator::ProcessDangerousItemPerception(FCombatEvaluatio
 
 bool UBTService_ThreatEvaluator::IsHostile(const FCombatEvaluationParameters& Parameters, AActor* Actor, EDetectionSource DetectionSource) const
 {
-	const FGameplayTag& Attitude = Parameters.NpcComponent->GetAttitude(Actor);
+	const FGameplayTag& Attitude = Parameters.NpcAttitudesComponent->GetAttitude(Actor);
 	return DetectionSource == EDetectionSource::Damage && Attitude != AIGameplayTags::AI_Attitude_Friendly
 		|| Attitude != AIGameplayTags::AI_Attitude_Neutral && Attitude != AIGameplayTags::AI_Attitude_Friendly; 
 }
@@ -321,7 +322,7 @@ void UBTService_ThreatEvaluator::ProcessCharacterPerception(const FCombatEvaluat
 		PlayerPerceptionData.AddDetectionSource(Damage);
 		PlayerPerceptionData.Distance = FVector::Distance(PerceivedCharacter->GetActorLocation(), Parameters.AIController->GetPawn()->GetActorLocation());;
 		PlayerPerceptionData.PerceptionScore += AIStimulus.Strength / MobMaxHealth * NodeMemory->DamageScoreFactor;
-		Parameters.NpcComponent->SetHostile(PerceivedCharacter);
+		Parameters.NpcAttitudesComponent->SetHostile(PerceivedCharacter, true, true);
 		OutResult.AccumulatedDamagePercent += AIStimulus.Strength / MobMaxHealth;
 
 		UE_VLOG(Parameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Perceived damage from %s. Perception score = %.2f, Accumumulated damage = %.2f"),
@@ -345,7 +346,7 @@ void UBTService_ThreatEvaluator::ProcessCharacterVisualPerception(const FCombatE
 		return;
 	}
 
-	FGameplayTag Attitude = Parameters.NpcComponent->GetAttitude(PerceivedCharacter);
+	FGameplayTag Attitude = Parameters.NpcAttitudesComponent->GetAttitude(PerceivedCharacter);
 	if (!Attitude.MatchesTag(AIGameplayTags::AI_Attitude_Hostile))
 	{
 		UE_VLOG(Parameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Not processing visual perception for %s because attitude is not hostile (%s)"),
@@ -565,7 +566,7 @@ void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResul
 				if (!NpcAliveTarget->IsNpcActorAlive())
 					continue;
 
-			if (CombatEvaluationParameters.NpcComponent->GetAttitude(SharedTarget).MatchesTag(AIGameplayTags::AI_Attitude_Friendly))
+			if (CombatEvaluationParameters.NpcAttitudesComponent->GetAttitude(SharedTarget).MatchesTag(AIGameplayTags::AI_Attitude_Friendly))
 				continue;
 			
 			if (FNpcCombatPerceptionData* MyCommonTargetPerception = CombatEvaluationResult.DangerousActors.Find(SharedTarget))
@@ -584,12 +585,12 @@ void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResul
 						MyScore, *SharedBehaviorUtilityScore.Key.ToString(), SharedBehaviorUtilityScore.Value);
 				}
 
-				MyCommonTargetPerception->AddDetectionSource(Teammate);
+				MyCommonTargetPerception->AddDetectionSource(Ally);
 			}
 			else
 			{
 				FNpcCombatPerceptionData SharedPerception = AllyBestTargetPerception.NpcCombatPerceptionData;
-				SharedPerception.AddDetectionSource(Teammate);
+				SharedPerception.AddDetectionSource(Ally);
 				SharedPerception.PerceptionScore *= CombatEvalulatorNodeMemory->TeammateTargetScoreFactor;
 
 				UE_VLOG(CombatEvaluationParameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose,

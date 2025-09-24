@@ -30,6 +30,14 @@ void UGameplayAbility_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	if (TriggerEventData == nullptr || TriggerEventData->TargetData.Num() == 0)
+	{
+		// @AK 19.06.2025 this is probably because of loading game when this ability was active at save time. TODO handle
+		ensure(false);
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+		return;
+	}
+	
 	const FGameplayAbilityTargetData_Dodge* ActivationData = GetActivationData<FGameplayAbilityTargetData_Dodge>(TriggerEventData->TargetData);
 	if (!ensure(ActivationData))
 	{
@@ -49,7 +57,10 @@ void UGameplayAbility_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	{
 		if (DodgeMontageOption.ContextTags.Matches(OwnerTags))
 		{
-			DodgeMontage = DodgeMontageOption.Montages[FMath::RandRange(0, DodgeMontageOption.Montages.Num() - 1)];
+			if (!DodgeMontageOption.MontagesOptions.IsEmpty())
+				DodgeMontage = DodgeMontageOption.MontagesOptions[FMath::RandRange(0, DodgeMontageOption.MontagesOptions.Num() - 1)].AnimMontage.LoadSynchronous();
+			else if (!DodgeMontageOption.Montages_Deprecated.IsEmpty()) 
+				DodgeMontage = DodgeMontageOption.Montages_Deprecated[FMath::RandRange(0, DodgeMontageOption.Montages_Deprecated.Num() - 1)];
 			break;				
 		}
 	}

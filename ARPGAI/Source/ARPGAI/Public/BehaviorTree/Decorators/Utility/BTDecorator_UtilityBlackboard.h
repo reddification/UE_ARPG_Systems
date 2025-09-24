@@ -38,7 +38,7 @@ public:
 	 * Notify about change in blackboard key.
 	 * Our parent BTComposite_Utility binds and unbinds this for us: see BTComposite_Utility::WatchChildBlackboardKeys()
 	 */
-	virtual EBlackboardNotificationResult OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID);
+	virtual EBlackboardNotificationResult OnUtilityChanged_Obsolete(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID);
 
 protected:
 	/** blackboard key selector */

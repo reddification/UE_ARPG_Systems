@@ -25,8 +25,11 @@ public:
 	virtual void NativeConstruct() override;
 
 	UFUNCTION(BlueprintCallable)
-	void SetNPC(ACharacter* InOwnerCharacter);
+	void SetNPC(APawn* InOwnerCharacter);
 
+	UFUNCTION(BlueprintCallable)
+	APawn* GetNPC() const { return OwnerCharacter.Get(); };
+	
 	void SetHostile(bool bHostile);
 
 	void SetDetailedNpcView(bool bDetailed);
@@ -90,7 +93,7 @@ private:
 
 	void UpdateHostileState();
 	
-	TWeakObjectPtr<ACharacter> OwnerCharacter;
+	TWeakObjectPtr<APawn> OwnerCharacter;
 
 	float Health = 0.f;
 	float MaxHealth = 0.f;

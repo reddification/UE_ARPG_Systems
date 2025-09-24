@@ -159,7 +159,7 @@ bool UNpcMeleeCombatComponent::RequestNextAttack()
 	const FVector Direction = AttackVector.GetSafeNormal();
 	const float ApproachTime = 0.25f; // TODO parametrize
 	FVector Acceleration = bNeedLongRangeAttack ? AttackVector / ApproachTime : FVector::ZeroVector;
-	OwnerCombatant->PerformAttack(NewAttack, Direction, Acceleration);
+	OwnerCombatant->OnAttackRequested(NewAttack, Direction, Acceleration);
 	EAttackStepDirection AttackStepDirection = bNeedLongRangeAttack ? EAttackStepDirection::Forward : EAttackStepDirection::None;
 	UE_VLOG(AIController.Get(), LogCombat, Verbose, TEXT("Npc starting attack %s"), *UEnum::GetValueAsString(NewAttack));
 	RequestedAttacksCount++;

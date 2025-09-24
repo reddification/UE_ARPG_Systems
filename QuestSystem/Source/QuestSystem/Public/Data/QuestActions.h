@@ -41,13 +41,13 @@ struct FNpcQuestBehaviorDescriptor
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="G2VS2.Npc.Activity,Npc.Activity"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(Categories="G2VS2.Npc.Activity,Npc.Activity"))
 	FGameplayTag RequestedBehaviorIdTag;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(ExcludeBaseStruct))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct))
 	TArray<TInstancedStruct<FNpcQuestBehaviorEndConditionBase>> QuestBehaviorEndConditions;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bAnyEndConditionIsEnough = true;	
 };
 
@@ -56,17 +56,20 @@ struct FQuestActionNpcRunBehavior
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="G2VS2.Character.Id,Character.Id"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(Categories="G2VS2.Character.Id,Character.Id"))
 	FGameplayTagContainer NpcIdsTags;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	FNpcQuestBehaviorDescriptor NpcQuestBehaviorDescriptor;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagQuery RequiredTags;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bFirstOnly = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bPickNpcClosestToPlayer = false;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FNpcQuestBehaviorDescriptor NpcQuestBehaviorDescriptor;
 };
 
 USTRUCT(BlueprintType)
@@ -80,7 +83,7 @@ struct FQuestActionSpawnNpcAndSetBehavior : public FQuestSpawnBaseAction
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bSpawnNew = false;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FNpcQuestBehaviorDescriptor OptionalNpcInitialBehavior;
 };
 
@@ -118,17 +121,17 @@ public:
 	FGuid ActionId;
 
 	// Disabled actions are not executed. Useful for debugging purposes
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bEnabled = true;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct))
 	TArray<TInstancedStruct<FQuestRequirementBase>> ExecuteActionQuestRequirements;
 
 	// If both set, StartAtNextTimeOfDay has a priority over GameTimeDelayHours
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(EditCondition="ActionId.IsValid()"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="ActionId.IsValid()"))
 	FGameplayTag StartAtNextTimeOfDay;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(EditCondition="ActionId.IsValid()"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="ActionId.IsValid()"))
 	float GameTimeDelayHours = 0.f;
 	
 	void Execute(const FQuestSystemContext& Context) const;
@@ -145,7 +148,7 @@ class UQuestActionProxy : public UObject, public IDelayedQuestAction
 	
 public:
 	void Initialize(const TInstancedStruct<FQuestActionBase>& Action, const FQuestSystemContext& Context);	
-	virtual void ExecuteDelayedAction(const FQuestSystemContext& QuestSystemContext) override;
+	virtual void StartDelayedAction(const FQuestSystemContext& QuestSystemContext) override;
 	const FGuid& GetActionId() const { return ActionId; };
 	
 private:
@@ -160,7 +163,7 @@ struct FQuestActionRunNpcBehavior : public FQuestActionBase
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FQuestActionNpcRunBehavior QuestActionNpcRunBehavior;
 
 protected:
@@ -173,7 +176,7 @@ struct FQuestActionSpawnNpc : public FQuestActionBase
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FQuestActionSpawnNpcAndSetBehavior SpawnNpcAndSetBehaviorData;
 
 protected:
@@ -209,10 +212,10 @@ struct FQuestActionUpdateCharacterInventory : public FQuestActionBase
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTag CharacterId;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TMap<FGameplayTag, FItemChangeData> ItemsChange;
 
 protected:

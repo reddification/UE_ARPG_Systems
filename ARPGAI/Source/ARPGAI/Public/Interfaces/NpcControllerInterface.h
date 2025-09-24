@@ -27,7 +27,7 @@ class ARPGAI_API INpcControllerInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void InjectDynamicBehaviors(int InstanceStackStartIndex) = 0;
+	virtual void InjectDynamicBehaviors(UBTCompositeNode* StartingNode) = 0;
 	virtual const TMap<FGameplayTag, UBehaviorTree*>* GetDynamicBehaviors() const = 0;
 	virtual bool IsWantToAvoidThreats() const = 0;
 	virtual float GetPathfindingDesiredAvoidThreatsDistance() const = 0;

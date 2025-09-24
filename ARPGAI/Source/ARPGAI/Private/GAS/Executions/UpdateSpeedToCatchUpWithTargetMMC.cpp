@@ -11,9 +11,12 @@ float UUpdateSpeedToCatchUpWithTargetMMC::CalculateBaseMagnitude_Implementation(
 	auto InstigatorActor = Spec.GetEffectContext().GetInstigator();
 	auto Npc = Cast<INpc>(InstigatorActor);
 	if (!ensure(Npc))
-		return 0.f;
+		return InstigatorActor->GetVelocity().Size();
 
 	const AActor* CatchUpTarget = Npc->GetCatchUpTarget();
+	if (ensure(!CatchUpTarget))
+		return InstigatorActor->GetVelocity().Size();
+	
 	auto NpcComponent = InstigatorActor->FindComponentByClass<UNpcComponent>();	
 	auto NpcDTR = NpcComponent->GetNpcDTR();
 	float MaxSpeedUpScale = 1.5f;

@@ -5,7 +5,8 @@
 
 #include "AIController.h"
 #include "GameplayEffectExtension.h"
-#include "Components/EnhancedBehaviorTreeComponent.h"
+#include "Components/NpcAttitudesComponent.h"
+#include "Components/Controller/EnhancedBehaviorTreeComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
 #include "Data/NpcBlackboardDataAsset.h"
@@ -14,7 +15,7 @@
 #include "Interfaces/Threat.h"
 #include "Perception/AISense_Damage.h"
 #include "Settings/NpcCombatSettings.h"
-#include "Subsystems/NpcActivitySquadSubsystem.h"
+#include "Subsystems/NpcSquadSubsystem.h"
 
 // Called when the game starts
 void UNpcCombatLogicComponent::BeginPlay()
@@ -176,7 +177,7 @@ void UNpcCombatLogicComponent::OnDodgeCompleted()
 bool UNpcCombatLogicComponent::TryForgiveReceivingDamage(const APawn* DamageCauser)
 {
 	// 24.12.2024 @AK TODO refactor getting attitude 
-	FGameplayTag Attitude = GetOwner()->FindComponentByClass<UNpcComponent>()->GetAttitude(DamageCauser);
+	FGameplayTag Attitude = GetOwner()->FindComponentByClass<UNpcAttitudesComponent>()->GetAttitude(DamageCauser);
 	int* ForgivableCountOfHits = ForgivableCountOfHitsForAttitude.Find(Attitude);
 	if (ForgivableCountOfHits == nullptr)
 		return false;
@@ -359,7 +360,7 @@ void UNpcCombatLogicComponent::OnNpcDeathStarted(AActor* OwningActor)
 
 TArray<APawn*> UNpcCombatLogicComponent::GetAllies(bool bIgnoreSquadLeader) const
 {
-	return GetWorld()->GetSubsystem<UNpcActivitySquadSubsystem>()->GetAllies(Cast<APawn>(GetOwner()), bIgnoreSquadLeader);
+	return GetWorld()->GetSubsystem<UNpcSquadSubsystem>()->GetAllies(Cast<APawn>(GetOwner()), bIgnoreSquadLeader, true);
 }
 
 void UNpcCombatLogicComponent::SetActiveThreats(const FNpcActiveThreatsContainer& EvaluatedThreats)
@@ -664,6 +665,81 @@ void UNpcCombatLogicComponent::UnsubscribeFromDelegates()
 		auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute();
 		ASC->GetGameplayAttributeValueChangeDelegate(StaminaAttribute).RemoveAll(this);
 	}
+}
+
+
+void UNpcCombatLogicComponent::TrackEnemyAlive(AActor* Actor)
+{
+	if (auto NewTrackedEnemyAlive = Cast<INpcAliveCreature>(Actor))
+	{
+		if (ensure(Actor != TrackedEnemyAlive))
+		{
+			UE_VLOG(this, LogARPGAI, Verbose, TEXT("Tracking new enemy alive state: %s"), *Actor->GetName());
+			
+			NewTrackedEnemyAlive->OnDeathStarted.AddUObject(this, &UNpcCombatLogicComponent::OnEnemyDied);
+			if (TrackedEnemyAlive.IsValid())
+			{
+				auto NpcAliveCreature = Cast<INpcAliveCreature>(TrackedEnemyAlive.Get());
+				NpcAliveCreature->OnDeathStarted.RemoveAll(this);
+			}
+			
+			TrackedEnemyAlive = Actor;
+		}
+	}
+}
+
+void UNpcCombatLogicComponent::ResetTrackingEnemyAlive()
+{
+	if (TrackedEnemyAlive.IsValid())
+	{
+		UE_VLOG(this, LogARPGAI, Verbose, TEXT("Not tracking enemy alive state anymore: %s"), *TrackedEnemyAlive->GetOwner()->GetName());
+		auto AliveCreature = Cast<INpcAliveCreature>(TrackedEnemyAlive.Get());
+		AliveCreature->OnDeathStarted.RemoveAll(this);
+		TrackedEnemyAlive.Reset();
+	}
+}
+
+void UNpcCombatLogicComponent::OnEnemyDied(AActor* Actor)
+{
+	UE_VLOG(this, LogARPGAI, Verbose, TEXT("Active enemy was killed"));
+	
+	if (!TrackedEnemyAlive.IsValid())
+		return;
+
+	auto AliveCreature = Cast<INpcAliveCreature>(Actor);
+	AliveCreature->OnDeathStarted.RemoveAll(this);
+	if (Actor != TrackedEnemyAlive.Get())
+		return;
+	
+	TrackedEnemyAlive.Reset();
+
+	if (ActiveThreats.Num() > 1)
+		return;
+
+	auto NpcDTR = GetNpcDTR();
+	if (!NpcDTR->NpcBlackboardDataAsset->IsAllEnemiesKilledBBKey.SelectedKeyName.IsNone())
+		BlackboardComponent->SetValueAsBool(NpcDTR->NpcBlackboardDataAsset->IsAllEnemiesKilledBBKey.SelectedKeyName, true);
+
+	auto SquadSubsystem = UNpcSquadSubsystem::Get(this);
+	auto Allies = SquadSubsystem->GetAllies(Cast<APawn>(GetOwner()), false, true);
+	// report to allies
+	for (const auto& SquadMember : Allies)
+	{
+		if (SquadMember == GetOwner())
+			continue;
+
+		SquadMember->FindComponentByClass<UNpcCombatLogicComponent>()->ReceiveReportEnemyDied(Actor);
+	}
+}
+
+void UNpcCombatLogicComponent::ReceiveReportEnemyDied(AActor* KilledActor)
+{
+	if (!TrackedEnemyAlive.IsValid() || ActiveThreats.Num() > 1)
+		return;
+
+	auto NpcDTR = GetNpcDTR();
+	if (!NpcDTR->NpcBlackboardDataAsset->IsAllEnemiesKilledBBKey.SelectedKeyName.IsNone())
+		BlackboardComponent->SetValueAsBool(NpcDTR->NpcBlackboardDataAsset->IsAllEnemiesKilledBBKey.SelectedKeyName, true);
 }
 
 void FNpcActiveTargetData::Reset()

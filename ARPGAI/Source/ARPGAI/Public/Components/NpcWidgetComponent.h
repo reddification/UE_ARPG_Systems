@@ -6,7 +6,7 @@
 #include "Components/WidgetComponent.h"
 #include "NpcWidgetComponent.generated.h"
 
-UCLASS(ClassGroup=(GladiusMob), meta=(BlueprintSpawnableComponent))
+UCLASS(meta=(BlueprintSpawnableComponent))
 class ARPGAI_API UNpcWidgetComponent : public UWidgetComponent
 {
 	GENERATED_BODY()

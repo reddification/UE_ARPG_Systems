@@ -24,7 +24,6 @@ class QUESTSYSTEM_API IQuestCharacter
 {
 	GENERATED_BODY()
 
-	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	virtual int GetCountOfItem(const FGameplayTag& ItemTag, const FGameplayTagQuery& ItemFilter) const = 0;
 	virtual bool ItemsSattisfyRequirement(const FGameplayTagQuery& ItemsTagQuery) const = 0;
@@ -38,14 +37,12 @@ public:
 	virtual void AddQuestState(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams) = 0;
 	virtual void RemoveQuestState(const FGameplayTag& StateTag) = 0;
 
-	virtual void OnWorldLocationEntered(const FGameplayTagContainer& WorldLocationTags) = 0;
-	virtual void OnWorldLocationLeft(const FGameplayTagContainer& WorldLocationTags) = 0;
+	virtual void OnWorldLocationEntered(const FGameplayTag& LocationIdTag) = 0;
+	virtual void OnWorldLocationLeft(const FGameplayTag& LocationId) = 0;
 
 	virtual FGameplayTag GetQuestCharacterIdTag() const = 0;
 	virtual FGameplayTagContainer GetQuestCharacterTags() const = 0;
 
-	virtual void GiveXP(int XPReward) = 0;
-	virtual void GrantQuestSystemAbilitySet(const UAbilitySet* GrantedAbilitySet) = 0;
 	virtual void ChangeItemsCount(const FGameplayTag& ItemId, int Count) = 0;
 	virtual bool StartQuestDialogueWithNpc(AActor* Npc, const FGameplayTag& OptionalDialogueId) = 0;
 };

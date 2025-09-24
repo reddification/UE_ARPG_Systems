@@ -129,7 +129,7 @@ void UNpcQuestBehaviorEndConditionProxy_GameTimeDuration::Disable()
 		QuestSystemContext.GameMode->CancelDelayedQuestActionRequest(QuestActionId);
 }
 
-void UNpcQuestBehaviorEndConditionProxy_GameTimeDuration::ExecuteDelayedAction(const FQuestSystemContext& InQuestSystemContext)
+void UNpcQuestBehaviorEndConditionProxy_GameTimeDuration::StartDelayedAction(const FQuestSystemContext& InQuestSystemContext)
 {
 	EndConditionTriggered();
 }

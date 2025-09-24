@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/Controller/NpcActivityComponent.h"
 #include "Data/AiDataTypes.h"
 
 #include "NpcPatrolRoutesSubsystem.generated.h"

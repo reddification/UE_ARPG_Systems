@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTService.h"
-#include "Components/NpcPerceptionComponent.h"
 #include "BTService_LookForInteractionActor.generated.h"
 
 /**

@@ -25,10 +25,10 @@ public:
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float VerticalImpulseStrength = 150.f;
+	float VerticalImpulseStrength = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float ForwardImpulseStrength = 450.f;
+	float ForwardImpulseStrength = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bChargeToTarget = true;	

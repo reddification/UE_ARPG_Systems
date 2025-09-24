@@ -7,7 +7,7 @@
 #include "WeaponNoiseReportComponent.generated.h"
 
 class URangedWeaponInstance;
-UCLASS(ClassGroup=(GladiusMob), meta=(BlueprintSpawnableComponent))
+UCLASS(meta=(BlueprintSpawnableComponent))
 class ARPGAI_API UWeaponNoiseReportComponent : public UGameFrameworkComponent
 {
 	GENERATED_BODY()

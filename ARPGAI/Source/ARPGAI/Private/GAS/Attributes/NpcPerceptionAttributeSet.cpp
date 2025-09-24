@@ -6,5 +6,6 @@
 UNpcPerceptionAttributeSet::UNpcPerceptionAttributeSet()
 {
 	SightRadius = 4000.f;
+	SightHalfAngle = 60.f;
 	HearingRadius = 750.f;
 }

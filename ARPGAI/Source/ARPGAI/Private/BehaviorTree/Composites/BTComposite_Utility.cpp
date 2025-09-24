@@ -1,8 +1,10 @@
 
 #include "BehaviorTree/Composites/BTComposite_Utility.h"
 
+#include "AIController.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "BehaviorTree/Blackboard/BlackboardKeyType_Float.h"
 #include "BehaviorTree/Decorators/Utility/BTDecorator_UtilityBlackboard.h"
 #include "BehaviorTree/Decorators/Utility/BTDecorator_UtilityFunction.h"
 #include "Data/LogChannels.h"
@@ -48,22 +50,23 @@ void UBTComposite_Utility::OrderUtilityScores(FBehaviorTreeSearchData& SearchDat
 void UBTComposite_Utility::EvaluateUtilityScores(FBehaviorTreeSearchData& SearchData, FBTUtilityMemory* UtilityMemory) const
 {
 	uint8 Count = 0;
-	for(int32 Idx = 0; Idx < GetChildrenNum(); ++Idx)
+	for(int32 i = 0; i < GetChildrenNum(); ++i)
 	{
 		if (Count > MAX_UTILITY_NODES)
 		{
 			UE_LOG(LogAIUtility, Warning, TEXT("[%s] BT utility composite contains more than %d utility children. Remaining won't get evaluated"), *GetTreeAsset()->GetName(), MAX_UTILITY_NODES)
-			UtilityMemory->ExecutionUtilityOrdering[Idx].SetInvalid();
+			UtilityMemory->ExecutionUtilityOrdering[i].SetInvalid();
+			break;
 		}
 		
-		if (const UBTDecorator_UtilityFunction* UtilityDecorator = FindChildUtilityDecorator(Idx))
+		if (const UBTDecorator_UtilityFunction* UtilityDecorator = FindChildUtilityDecorator(i))
 		{
 			const float Score = UtilityDecorator
 			   ? UtilityDecorator->WrappedCalculateUtility(SearchData.OwnerComp, UtilityDecorator->GetNodeMemory<uint8>(SearchData))
 			   : 0.0f;
 
-			UtilityMemory->ExecutionUtilityOrdering[Count].ChildIdx = Idx;
-			UtilityMemory->ExecutionUtilityOrdering[Count].UtilityScore = Score;
+			UtilityMemory->ExecutionUtilityOrdering[i].ChildIdx = i;
+			UtilityMemory->ExecutionUtilityOrdering[i].UtilityScore = Score;
 			Count++;
 		}
 		else
@@ -83,20 +86,22 @@ void UBTComposite_Utility::EvaluateUtilityScores(FBehaviorTreeSearchData& Search
 
 void UBTComposite_Utility::WatchChildBlackboardKeys(FBehaviorTreeSearchData& SearchData) const
 {
+	UBlackboardComponent* BlackboardComp = SearchData.OwnerComp.GetBlackboardComponent();
+	if (!ensure(BlackboardComp))
+		return;
+
+	auto MutableThis = const_cast<UBTComposite_Utility*>(this);
 	for (const FBTCompositeChild& Child : Children)
 	{
 		for (UBTDecorator* Decorator : Child.Decorators)
 		{
 			if (UBTDecorator_UtilityBlackboard* BlackboardUtilityDecorator = Cast<UBTDecorator_UtilityBlackboard>(Decorator))
 			{
-				if (UBlackboardComponent* BlackboardComp = SearchData.OwnerComp.GetBlackboardComponent())
-				{
-					FBlackboardKeySelector SelectedBlackboardKeySelector = BlackboardUtilityDecorator->GetSelectedBlackboardKeySelector();
-					FBlackboard::FKey KeyID = SelectedBlackboardKeySelector.GetSelectedKeyID();
-					FOnBlackboardChangeNotification ObserverDelegate = FOnBlackboardChangeNotification::CreateUObject(BlackboardUtilityDecorator,
-						&UBTDecorator_UtilityBlackboard::OnBlackboardKeyValueChange);
-					BlackboardComp->RegisterObserver(KeyID, BlackboardUtilityDecorator, ObserverDelegate);
-				}
+				FBlackboardKeySelector SelectedBlackboardKeySelector = BlackboardUtilityDecorator->GetSelectedBlackboardKeySelector();
+				FBlackboard::FKey KeyID = SelectedBlackboardKeySelector.GetSelectedKeyID();
+				FOnBlackboardChangeNotification ObserverDelegate = FOnBlackboardChangeNotification::CreateUObject(MutableThis,
+					&UBTComposite_Utility::OnUtilityChanged, BlackboardUtilityDecorator->GetChildIndex());
+				BlackboardComp->RegisterObserver(KeyID, BlackboardUtilityDecorator, ObserverDelegate);
 
 				break;
 			}
@@ -137,6 +142,71 @@ void UBTComposite_Utility::CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint
 {
 	// Super::CleanupMemory(OwnerComp, NodeMemory, CleanupType);
 	CleanupNodeMemory<FBTCompositeMemory>(NodeMemory, CleanupType);
+}
+
+EBlackboardNotificationResult UBTComposite_Utility::OnUtilityChanged(const UBlackboardComponent& Blackboard,
+	FBlackboard::FKey Key, uint8 ChildIndex)
+{
+	UBehaviorTreeComponent* BehaviorComp = Cast<UBehaviorTreeComponent>(Blackboard.GetBrainComponent());
+	uint8* BTUtilityMemoryPtr = BehaviorComp->GetNodeMemory(this, BehaviorComp->FindInstanceContainingNode(GetParentNode()));
+	if (!ensure(BTUtilityMemoryPtr))
+		return EBlackboardNotificationResult::RemoveObserver;
+		
+	FBTUtilityMemory* BTUtilityMemory = reinterpret_cast<FBTUtilityMemory*>(BTUtilityMemoryPtr);
+	if (BTUtilityMemory->ActualUtilityNodesCount < 2)
+		return EBlackboardNotificationResult::RemoveObserver;
+
+	float NewUtilityValue = Blackboard.GetValue<UBlackboardKeyType_Float>(Key);
+	auto AIController = BehaviorComp->GetAIOwner();
+	
+	UE_VLOG(AIController, LogARPGAI_Utility, VeryVerbose, TEXT("Utility changed for %s. Child index = %d. New utility value = %.2f"),
+		*Blackboard.GetKeyName(Key).ToString(), ChildIndex, NewUtilityValue);
+
+	// TArray<FIndexedUtilityValue> OldExecutionOrder(BTUtilityMemory->ExecutionUtilityOrdering, BTUtilityMemory->ActualUtilityNodesCount);
+	
+	FIndexedUtilityValue OldExecutionOrder[MAX_UTILITY_NODES] = {};
+	memcpy(OldExecutionOrder, BTUtilityMemory->ExecutionUtilityOrdering, sizeof(BTUtilityMemory->ExecutionUtilityOrdering));
+	
+	for (auto i = 0; i < BTUtilityMemory->ActualUtilityNodesCount; i++)
+	{
+		if (BTUtilityMemory->ExecutionUtilityOrdering[i].ChildIdx == ChildIndex)
+		{
+			BTUtilityMemory->ExecutionUtilityOrdering[i].UtilityScore = NewUtilityValue;
+			break;
+		}
+	}
+
+	Algo::StableSort(BTUtilityMemory->ExecutionUtilityOrdering);
+	if (OldExecutionOrder[0].ChildIdx != BTUtilityMemory->ExecutionUtilityOrdering[0].ChildIdx)
+	{
+		
+#if WITH_EDITOR
+		UE_VLOG(AIController, LogARPGAI_Utility, Verbose, TEXT("Utility order changed:"));
+		for (int i = 0; i < BTUtilityMemory->ActualUtilityNodesCount; i++)
+		{
+			UE_VLOG(AIController, LogARPGAI_Utility, Verbose,
+				TEXT("OldExecutionOrder[%d]: Utility = %.2f, child index = %d"), i, OldExecutionOrder[i].UtilityScore, OldExecutionOrder[i].ChildIdx);
+		}
+
+		for (int i = 0; i < BTUtilityMemory->ActualUtilityNodesCount; i++)
+		{
+			UE_VLOG(AIController, LogARPGAI_Utility, Verbose,
+				TEXT("NewExecutionOrder[%d]: Utility = %.2f, child index = %d"), i, BTUtilityMemory->ExecutionUtilityOrdering[i].UtilityScore, BTUtilityMemory->ExecutionUtilityOrdering[i].ChildIdx);
+		}
+#endif
+		
+		BTUtilityMemory->bUtilityChanged = true;
+		for (auto& Decorator : Children[ChildIndex].Decorators)
+		{
+			if (auto UtilityDecorator = Cast<UBTDecorator_UtilityFunction>(Decorator))
+			{
+				BehaviorComp->RequestExecution(UtilityDecorator);
+				return EBlackboardNotificationResult::ContinueObserving;
+			}
+		}
+	}
+
+	return EBlackboardNotificationResult::ContinueObserving;
 }
 
 int32 UBTComposite_Utility::GetNextChildHandler(FBehaviorTreeSearchData& SearchData, int32 PrevChild, EBTNodeResult::Type LastResult) const

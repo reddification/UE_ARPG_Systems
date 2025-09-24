@@ -22,7 +22,7 @@ private:
 	{
 		FGameplayTagContainer TargetCharacters;
 		FGameplayTag Attitude;
-		FTimespan ValidUntilGameTime;
+		FDateTime ValidUntilGameTime;
 	};
 	
 public:
@@ -45,7 +45,7 @@ public:
 	                       float GameTimeLimit);
 	void SetCustomAttitudePreset(const FGameplayTagContainer& ForCharacterIds, const FGameplayTag& NewAttitude, float GameHoursDuration);
 
-	const FGameplayTag& GetForcedAttitude(const FGameplayTag& NpcIdTag, const FGameplayTagContainer& ActorTags, const FTimespan& GameTime);
+	const FGameplayTag& GetForcedAttitude(const FGameplayTag& NpcIdTag, const FGameplayTagContainer& ActorTags, const FDateTime& GameTime);
 
 	TArray<TScriptInterface<IQuestNPC>> GetNpcs(const FGameplayTag& NpcId, const FGameplayTagQuery* OptionalFilter = nullptr) const;
 	TArray<TScriptInterface<IQuestNPC>> GetNpcsInRange(const FGameplayTag& NpcId, const FVector& QuerierLocation, float Range, const FGameplayTagQuery* OptionalFilter = nullptr) const;
@@ -56,9 +56,6 @@ private:
 
 	UPROPERTY()
 	TMap<FGuid, FNpcQuestBehaviorEndConditionContainer> QuestBehaviorEndConditions;
-
-	UPROPERTY()
-	TMap<TSoftObjectPtr<UObject>, FGuid> ActiveNpcQuestBehaviorIds;
 
 	TMap<FGameplayTag, TArray<FCachedNpcAttitude>> CustomAttitudes;
 };

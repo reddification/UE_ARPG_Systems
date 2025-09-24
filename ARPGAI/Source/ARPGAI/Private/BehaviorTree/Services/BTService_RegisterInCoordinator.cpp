@@ -6,7 +6,7 @@
 
 UBTService_RegisterInCoordinator::UBTService_RegisterInCoordinator()
 {
-	NodeName = "Register in coordinator";
+	NodeName = "Register in combat coordinator";
 	TargetActorBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_RegisterInCoordinator, TargetActorBBKey), AActor::StaticClass());
 	OutInitialMobSquadRoleTypeBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_RegisterInCoordinator, OutInitialMobSquadRoleTypeBBKey),
 		StaticEnum<ENpcSquadRole>());

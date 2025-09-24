@@ -3,6 +3,7 @@
 
 #include "FunctionLibraries/ARPGAIFunctionLibrary.h"
 
+#include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Interfaces/NpcAliveCreature.h"
@@ -14,7 +15,7 @@ bool UARPGAIFunctionLibrary::IsActorEnemyForNpc(AActor* Npc, AActor* TestedActor
 
 FGameplayTag UARPGAIFunctionLibrary::GetNpcAttitude(AActor* Npc, AActor* TestedActor)
 {
-	auto NpcComponent = Npc->FindComponentByClass<UNpcComponent>();
+	auto NpcComponent = Npc->FindComponentByClass<UNpcAttitudesComponent>();
 	if (!NpcComponent)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Red,

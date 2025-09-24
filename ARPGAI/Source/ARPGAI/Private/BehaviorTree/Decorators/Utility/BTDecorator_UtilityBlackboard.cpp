@@ -23,9 +23,9 @@ void UBTDecorator_UtilityBlackboard::InitializeFromAsset(UBehaviorTree& Asset)
 	UtilityValueKey.ResolveSelectedKey(*GetBlackboardAsset());
 }
 
-EBlackboardNotificationResult UBTDecorator_UtilityBlackboard::OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID)
+EBlackboardNotificationResult UBTDecorator_UtilityBlackboard::OnUtilityChanged_Obsolete(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UBTDecorator_UtilityBlackboard::OnBlackboardKeyValueChange)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBTDecorator_UtilityBlackboard::OnUtilityChanged)
 	
 	UBehaviorTreeComponent* BehaviorComp = Cast<UBehaviorTreeComponent>(Blackboard.GetBrainComponent());
 	if (BehaviorComp == nullptr)
@@ -56,7 +56,8 @@ EBlackboardNotificationResult UBTDecorator_UtilityBlackboard::OnBlackboardKeyVal
 	// bool bNeedToUpdate = NewUtilityValue > BTUtilityMemory->ExecutionUtilityOrdering[0].UtilityScore && !bUtilityBranchActive
 	// 	|| bUtilityBranchActive && NewUtilityValue < BTUtilityMemory->ExecutionUtilityOrdering[1].UtilityScore;
 
-	// 29.11.2024 @AK: We don't need to call utility composite reevaluation if new utility value is not greater than current active branch 
+	// 29.11.2024 @AK: We don't need to call utility composite reevaluation if new utility value is not greater than current active branch
+	// bool bNeedToUpdate = NewUtilityValue > BTUtilityMemory->ExecutionUtilityOrdering[0].UtilityScore + ;
 	TArray<FIndexedUtilityValue> OldExecutionOrder(BTUtilityMemory->ExecutionUtilityOrdering, BTUtilityMemory->ActualUtilityNodesCount);
 	for (auto i = 0; i < BTUtilityMemory->ActualUtilityNodesCount; i++)
 	{

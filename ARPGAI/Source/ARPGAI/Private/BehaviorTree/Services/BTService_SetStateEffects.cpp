@@ -22,9 +22,7 @@ UBTService_SetStateEffects::UBTService_SetStateEffects()
 void UBTService_SetStateEffects::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
 	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
-	if (ActivationDelay <= 0.f)
-		ensure(false);
-	
+	ensure(ActivationDelay > 0.f);
 	if (auto NpcComponent = GetNpcComponent(OwnerComp))
 	{
 		FGameplayTag ActualStateTag = GetActualStateTag(OwnerComp);

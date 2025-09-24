@@ -176,17 +176,6 @@ public:
 	TMap<FGameplayTag, int> ForgivableCountOfReceivedHits;
 };
 
-UCLASS()
-class UNpcStatesDataAsset : public UDataAsset
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="AI.State,G2VS2.Character.State"))
-	TMap<FGameplayTag, FGameplayEffectsWrapper> StateEffects;
-};
-
-
 struct FNpcThreatData
 {
 	float RetreatUtilityScore = 0.f;

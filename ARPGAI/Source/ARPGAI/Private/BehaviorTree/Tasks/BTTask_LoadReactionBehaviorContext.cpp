@@ -4,9 +4,7 @@
 #include "BehaviorTree/Tasks/BTTask_LoadReactionBehaviorContext.h"
 
 #include "AIController.h"
-#include "Activities/ActivityInstancesHelper.h"
-#include "Components/NpcComponent.h"
-#include "Components/NpcPerceptionReactionComponent.h"
+#include "Components/Controller/NpcPerceptionReactionComponent.h"
 #include "ReactionEvaluators/NpcReactionEvaluatorBase.h"
 
 UBTTask_LoadReactionBehaviorContext::UBTTask_LoadReactionBehaviorContext()
@@ -16,7 +14,7 @@ UBTTask_LoadReactionBehaviorContext::UBTTask_LoadReactionBehaviorContext()
 
 EBTNodeResult::Type UBTTask_LoadReactionBehaviorContext::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	auto NpcComponent = OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcPerceptionReactionComponent>();
+	auto NpcComponent = OwnerComp.GetAIOwner()->FindComponentByClass<UNpcPerceptionReactionComponent>();
 	auto ReactionEvaluatorData = NpcComponent->GetBestBehaviorPerceptionReactionEvaluatorState(ReactionBehaviorType);
 	if (!ensure(ReactionEvaluatorData))
 		return EBTNodeResult::Failed;

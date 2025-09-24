@@ -52,8 +52,7 @@ public class ARPGAI : ModuleRules
 				"SmartObjectsModule",
 				"GameplayBehaviorsModule",
 				"GameplayBehaviorSmartObjectsModule",
-				"WorldConditions"
-				// ... add other public dependencies that you statically link with here ...
+				"WorldConditions", "Flow", "FlowGraphUtils" 
 			}
 			);
 			

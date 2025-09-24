@@ -36,6 +36,14 @@ struct FQuestProgress
     FDataTableRowHandle QuestDTRH;
 
     UPROPERTY(SaveGame)
+    TArray<FText> JournalLogs;
+    
+    UPROPERTY(SaveGame)
+    EQuestState QuestState;
+    
+    // 06.08.2025 @AK: obsolete properties, TODO remove when FlowGraph is working
+    
+    UPROPERTY(SaveGame)
     TMap<FName, FQuestEventData> PendingQuestEvents;
 
     UPROPERTY(SaveGame)
@@ -43,9 +51,6 @@ struct FQuestProgress
     
     UPROPERTY(SaveGame)
     TMap<FName, FQuestEventData> CompletedQuestEvents;
-
-    UPROPERTY(SaveGame)
-    EQuestState QuestState;
 };
 
 inline bool operator == (const FQuestProgress& First, const FQuestProgress& Other)

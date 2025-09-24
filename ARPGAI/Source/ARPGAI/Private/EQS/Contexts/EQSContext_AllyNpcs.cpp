@@ -2,7 +2,7 @@
 #include "Data/LogChannels.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
-#include "Subsystems/NpcActivitySquadSubsystem.h"
+#include "Subsystems/NpcSquadSubsystem.h"
 
 void UEQSContext_AllyNpcs::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const
 {
@@ -13,8 +13,8 @@ void UEQSContext_AllyNpcs::ProvideContext(FEnvQueryInstance& QueryInstance, FEnv
 	}
 	
 	TArray<AActor*> ResultingActors;
-	auto NpcSquadSubsystem = UNpcActivitySquadSubsystem::Get(QuerierPawn);
-	const TArray<APawn*> NPCs = NpcSquadSubsystem->GetAllies(QuerierPawn, true);
+	auto NpcSquadSubsystem = UNpcSquadSubsystem::Get(QuerierPawn);
+	const TArray<APawn*> NPCs = NpcSquadSubsystem->GetAllies(QuerierPawn, true, true);
 	
 #if WITH_EDITOR
 	for (const auto AllyPawn : NPCs)

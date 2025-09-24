@@ -11,6 +11,7 @@ UBTDecorator_SetState::UBTDecorator_SetState()
 {
 	NodeName = "Set state";
 	bNotifyTick = true;
+	bTickIntervals = true;
 	bNotifyActivation = true;
 	bNotifyDeactivation = true;
 	FlowAbortMode = EBTFlowAbortMode::Self; // must be self in order to ::TickNode to be called
@@ -93,6 +94,10 @@ void UBTDecorator_SetState::OnNodeActivation(FBehaviorTreeSearchData& SearchData
 			NpcStateComponent->SetStateActive(NewStateTag, SetByCallerParams, true);
 			NodeMemory->bStateApplied = true;
 		}
+	}
+	else
+	{
+		ensure(false);
 	}
 }
 

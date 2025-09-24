@@ -22,7 +22,7 @@ bool FQuestEventTriggerBase::AreRequirementsFulfilled(const FQuestSystemContext&
 	for (const auto& QuestEventTriggerRequirementInstancedStruct : EventOccurenceRequirements)
 	{
 		auto QuestEventTriggerRequirement = QuestEventTriggerRequirementInstancedStruct.GetPtr<FQuestRequirementBase>();
-		if (ensure(QuestEventTriggerRequirement))
+		if (ensure(QuestEventTriggerRequirement != nullptr))
 		{
 			if (!QuestEventTriggerRequirement->IsQuestRequirementMet(QuestSystemContext))
 				return false;

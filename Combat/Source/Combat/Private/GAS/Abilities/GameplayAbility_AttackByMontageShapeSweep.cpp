@@ -66,32 +66,25 @@ void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Pa
 	FHitResult HitResult;
 	//@AK 19.09.2024: TODO implement virtual GetAttackDirection(OwnerCharacter) and make UGameplayAbility_NpcAttackByMontageShapeSweep
 	FVector AttackDirection = OwnerCharacter->GetActorForwardVector();
+	auto OwnerCombatant = Cast<ICombatant>(OwnerCharacter);
+	const float AttackRange = OwnerCombatant->GetAttackRange();
 	if (auto AIController = Cast<AAIController>(OwnerCharacter->GetController()))
 		if (auto Target = AIController->GetFocusActor())
 			AttackDirection = (Target->GetActorLocation() - OwnerCharacter->GetActorLocation()).GetSafeNormal();
 	
-	bool bHit = GetWorld()->SweepSingleByProfile(HitResult, StartLocation, StartLocation + AttackDirection * SweepDistance,
+	bool bHit = GetWorld()->SweepSingleByProfile(HitResult, StartLocation, StartLocation + AttackDirection * AttackRange,
 		FQuat::Identity, MeleeCombatSettings->WeaponCollisionProfileName, FCollisionShape::MakeSphere(DamageSphereRadius), CollisionQueryParams);
 
 #if WITH_EDITOR || UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 	if (bDrawSweepDebug)
 	{
-		FVector EndLocation = StartLocation + AttackDirection * SweepDistance;
+		FVector EndLocation = StartLocation + AttackDirection * AttackRange;
 		FVector CapsuleCenter = (StartLocation + EndLocation) * 0.5f;
 		FVector SweepVector = EndLocation - StartLocation;
 		float CapsuleHalfHeight = SweepVector.Size() * 0.5f;
 		FQuat CapsuleRotation = FRotationMatrix::MakeFromZ(SweepVector).ToQuat();
-		DrawDebugCapsule(
-			GetWorld(),
-			CapsuleCenter,
-			CapsuleHalfHeight,
-			DamageSphereRadius,
-			CapsuleRotation,
-			bHit ? FColor::Red : FColor::Green,
-			false,
-			1.0f,
-			0,
-			1.0f
+		DrawDebugCapsule(GetWorld(), CapsuleCenter, CapsuleHalfHeight, DamageSphereRadius, CapsuleRotation,
+			bHit ? FColor::Red : FColor::White, false, 2.0f, 0, 1.0f
 		);
 	}
 #endif

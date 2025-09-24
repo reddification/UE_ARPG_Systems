@@ -1,13 +1,11 @@
 ﻿// 
 
-
 #include "BehaviorTree/Tasks/BTTask_StartDialogueWithPlayer.h"
 
 #include "AIController.h"
-#include "Activities/ActivityInstancesHelper.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/NpcComponent.h"
-#include "Components/Controller/NpcActivityComponent.h"
+#include "Components/Controller/NpcFlowComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Interfaces/Npc.h"
 #include "Subsystems/NpcRegistrationSubsystem.h"
@@ -29,7 +27,9 @@ EBTNodeResult::Type UBTTask_StartDialogueWithPlayer::ExecuteTask(UBehaviorTreeCo
 		return EBTNodeResult::Failed;
 
 	// TODO trace check to prevent starting dialogue through walls?
-
+	// 17.08.2025 (aki): No. I think it should be done in behavior tree with a separate decorator (like can NPC see player)
+	// and if the NPC can't see the player - run EQS where NPC can see the player and make NPC go there and only then start the dialogue
+	
 	switch (Reason)
 	{
 		case ENpcStartDialogueWithPlayerReason::NpcGoal:
@@ -49,20 +49,21 @@ EBTNodeResult::Type UBTTask_StartDialogueWithPlayer::StartDialogueFromNpcGoal(UB
 	auto Npc = Cast<INpc>(Pawn);
 	if (!ensure(Npc))
 		return EBTNodeResult::Failed;
-	
-	auto NpcGoal = Cast<UNpcGoalTalkToPlayer>(GetNpcActivityComponent(OwnerComp)->GetActiveGoal());
-	if (!ensure(NpcGoal != nullptr))
+
+	auto NpcFlowComponent = OwnerComp.GetAIOwner()->FindComponentByClass<UNpcFlowComponent>();
+	const FNpcGoalParameters_TalkToPlayer* Parameters = NpcFlowComponent->GetParameters<FNpcGoalParameters_TalkToPlayer>();
+	if (Parameters == nullptr)
 		return EBTNodeResult::Failed;
 	
 	TArray<AActor*> SecondaryDialogueMembers;
-	if (!NpcGoal->SecondaryConversationParticipants.IsEmpty())
+	if (!Parameters->SecondaryConversationParticipants.IsEmpty())
 	{
 		// 12.10.2024 @AK: currently secondary NPCs-participants of dialogue BT state is not handled, so they might be doing whatever
-		if (!NpcGoal->SecondaryConversationParticipants.IsEmpty())
+		if (!Parameters->SecondaryConversationParticipants.IsEmpty())
 		{
 			auto NpcSubsystem = UNpcRegistrationSubsystem::Get(Pawn);
 			const FVector& PawnOwnerLocation = Pawn->GetActorLocation();
-			for (const auto& SecondaryConversationPartner : NpcGoal->SecondaryConversationParticipants)
+			for (const auto& SecondaryConversationPartner : Parameters->SecondaryConversationParticipants)
 			{
 				TArray<UNpcComponent*> SecondaryNpcs = NpcSubsystem->GetNpcsInRange(SecondaryConversationPartner.CharacterId, PawnOwnerLocation,
 					SecondaryConversationPartner.SearchInRange, SecondaryConversationPartner.Count, &SecondaryConversationPartner.CharacterFilter);
@@ -73,7 +74,7 @@ EBTNodeResult::Type UBTTask_StartDialogueWithPlayer::StartDialogueFromNpcGoal(UB
 		}
 	}
 	
-	bool bDialogueStarted = Npc->StartDialogueWithPlayer(NpcGoal->OptionalDialogueId, SecondaryDialogueMembers, NpcGoal->bInterruptActivePlayerInteraction);
+	bool bDialogueStarted = Npc->StartDialogueWithPlayer(Parameters->OptionalDialogueId, SecondaryDialogueMembers, Parameters->bInterruptActivePlayerInteraction);
 	Blackboard->SetValueAsBool(bOutDialogueActiveBBKey.SelectedKeyName, bDialogueStarted);
 	if (bDialogueStarted)
 	{

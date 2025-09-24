@@ -111,7 +111,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="!bPlayer"))
 	FGameplayTag CharacterId;
 	
-	virtual bool IsQuestRequirementMet(const FQuestSystemContext& QuestSystemContext) const override;;
+	virtual bool IsQuestRequirementMet(const FQuestSystemContext& QuestSystemContext) const override;
 };
 
 USTRUCT()

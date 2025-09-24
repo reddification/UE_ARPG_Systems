@@ -31,16 +31,19 @@ void UPlayerSwingControlCombatComponent::BeginPlay()
 	CurrentPlayerInputs.SetNumZeroed(MeleeCombatParameters.InputBufferSize);
 
 	SetComponentTickInterval(1.f / MeleeCombatParameters.TickRate);
-	
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping { 0.f, EMeleeAttackType::RightMittelhauw });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping { 2.f * PI, EMeleeAttackType::RightMittelhauw });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping { PI / 4.f, EMeleeAttackType::RightOberhauw });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping { PI / 2.f, EMeleeAttackType::Thrust });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping { 3.f * PI / 4.f, EMeleeAttackType::LeftOberhauw });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping { PI, EMeleeAttackType::LeftMittelhauw });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping {  5.f * PI / 4.f, EMeleeAttackType::LeftUnterhauw });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping {  3.f * PI / 2.f, EMeleeAttackType::VerticalSlash });
-	RadiansToAttackMapping.Add(FAttackDirectionToAttackTypeMapping {  7.f * PI / 4.f, EMeleeAttackType::RightUnterhauw });
+
+	RadiansToAttackMapping =
+	{
+		FAttackDirectionToAttackTypeMapping { 0.f, EMeleeAttackType::RightMittelhauw },
+		FAttackDirectionToAttackTypeMapping { 2.f * PI, EMeleeAttackType::RightMittelhauw },
+		FAttackDirectionToAttackTypeMapping { PI / 4.f, EMeleeAttackType::RightOberhauw },
+		FAttackDirectionToAttackTypeMapping { PI / 2.f, EMeleeAttackType::Thrust },
+		FAttackDirectionToAttackTypeMapping { 3.f * PI / 4.f, EMeleeAttackType::LeftOberhauw },
+		FAttackDirectionToAttackTypeMapping { PI, EMeleeAttackType::LeftMittelhauw },
+		FAttackDirectionToAttackTypeMapping {  5.f * PI / 4.f, EMeleeAttackType::LeftUnterhauw },
+		FAttackDirectionToAttackTypeMapping {  3.f * PI / 2.f, EMeleeAttackType::VerticalSlash },
+		FAttackDirectionToAttackTypeMapping {  7.f * PI / 4.f, EMeleeAttackType::RightUnterhauw },
+	};
 }
 
 void UPlayerSwingControlCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType,

@@ -49,7 +49,7 @@ void UQuestActionProxy::Initialize(const TInstancedStruct<FQuestActionBase>& Act
 	CachedQuestSystemContext = Context;
 }
 
-void UQuestActionProxy::ExecuteDelayedAction(const FQuestSystemContext& QuestSystemContext)
+void UQuestActionProxy::StartDelayedAction(const FQuestSystemContext& QuestSystemContext)
 {
 	if (ensure(QuestAction.IsValid()))
 		QuestAction.GetPtr()->Execute(CachedQuestSystemContext);
@@ -193,8 +193,6 @@ void FQuestActionSetPlayerState::ExecuteInternal(const FQuestSystemContext& Cont
 		Context.Player->AddQuestState(StateTag, SetByCallerParams);
 	else
 		Context.Player->RemoveQuestState(StateTag);
-	
-	FQuestActionBase::ExecuteInternal(Context);
 }
 
 void FQuestActionSetNpcState::ExecuteInternal(const FQuestSystemContext& Context) const
@@ -235,13 +233,13 @@ void FQuestActionPlayCutscene::ExecuteInternal(const FQuestSystemContext& Contex
 void FQuestActionGiveXP::ExecuteInternal(const FQuestSystemContext& Context) const
 {
 	Super::ExecuteInternal(Context);
-	Context.Player->GiveXP(XPReward);
+	// Context.Player->GiveXP(XPReward);
 }
 
 void FQuestActionGrantAbilitySet::ExecuteInternal(const FQuestSystemContext& Context) const
 {
 	Super::ExecuteInternal(Context);
-	Context.Player->GrantQuestSystemAbilitySet(GrantedAbilitySet.LoadSynchronous());
+	// Context.Player->GrantQuestSystemAbilitySet(GrantedAbilitySet.LoadSynchronous());
 	GrantedAbilitySet.Reset();
 }
 
@@ -339,7 +337,6 @@ void FQuestActionSendNpcEvent::ExecuteInternal(const FQuestSystemContext& Contex
 	for (auto& Npc : Npcs)
 		Npc->ReceiveQuestEvent(Event);
 }
-
 
 void FQuestActionSetSublevelState::ExecuteInternal(const FQuestSystemContext& Context) const
 {

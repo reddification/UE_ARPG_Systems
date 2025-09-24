@@ -1,28 +1,18 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "NpcSpawnerComponent.h"
 #include "BehaviorTree/Tasks/BTTask_Attack.h"
-#include "Controller/NpcActivityComponent.h"
-#include "Data/AiDataTypes.h"
 #include "Data/NpcDTR.h"
 #include "GAS/Attributes/NpcCombatAttributeSet.h"
-#include "Interfaces/NpcSystemGameMode.h"
 #include "NpcComponent.generated.h"
 
-struct FNpcAttitudes;
+class INpcZone;
+class UBoxComponent;
 class INpcAliveCreature;
 class INpc;
 class INpcControllerInterface;
 
 class UBlackboardComponent;
-struct FBlackboardKeySelector;
-
-struct FTemporaryCharacterAttitudeMemory
-{
-	FGameplayTag AttitudeTag;
-	FTimespan ValidUntilGameTime = 0.f;
-};
 
 UCLASS(meta=(BlueprintSpawnableComponent))
 class ARPGAI_API UNpcComponent : public UActorComponent
@@ -42,29 +32,16 @@ public:
 	
 	FORCEINLINE const FDataTableRowHandle& GetDTRH() const { return NpcDTRH; }
 	
-	FORCEINLINE const UNpcSpawnerComponent* GetDesignatedZone() const { return DesignatedZone.Get(); }
-	FORCEINLINE void SetDesignatedZone(const UNpcSpawnerComponent* InNpcSpawnerZone) { DesignatedZone = InNpcSpawnerZone; }
-	
 	const FNpcDTR* GetNpcDTR() const;
-
-	UFUNCTION(BlueprintCallable)
-	FGameplayTag GetAttitude(const AActor* Actor) const;
 	
 	void OnDamageReceived(float DamageAmount, const FOnAttributeChangeData& ChangeData);
 
 	const FGameplayTag& GetNpcIdTag() const;
 
-	void AddTemporaryCharacterAttitude(const AActor* Character, const FGameplayTag& Attitude);
-
-	void SetAttitudePreset(const FGameplayTag& InAttitudePreset);
-	void SetTemporaryAttitudePreset(const FGameplayTag& InAttitudePreset);
-	void ResetTemporaryAttitudePreset();
-
 	void SetStateActive(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams, bool bInActive);
 	
 	FGameplayTagContainer GetNpcTags() const;
 	const struct FNpcRealtimeDialogueLine* GetDialogueLine(const FGameplayTag& LineTagId) const;
-	const FGameplayTag& GetCurrentAttitudePreset() const;
 
 	FORCEINLINE void SetMovementPaceType(const FGameplayTag& NewMovementPaceType) { CurrentMovementPaceTypeTag = NewMovementPaceType; }
 	FORCEINLINE const FGameplayTag& GetMovementPaceType() const { return CurrentMovementPaceTypeTag; }
@@ -73,6 +50,9 @@ public:
 	bool ExecuteDialogueWalkRequest(const FVector& Location, float AcceptableRadius);
 	bool ExecuteDialogueWalkRequest(const AActor* ToCharacter, float AcceptableRadius);
 
+	void OnNpcEnteredDialogueWithPlayer(ACharacter* Character);
+	void OnNpcExitedDialogueWithPlayer();
+	
 	FORCEINLINE AActor* GetFollowTarget() const { return FollowTarget.Get(); }
 	FORCEINLINE void SetFollowTarget(AActor* NewFollowTarget) { FollowTarget = NewFollowTarget; }
 	FORCEINLINE void ClearFollowTarget() { FollowTarget = nullptr; }
@@ -93,14 +73,13 @@ public:
 	AActor* GetStoredActor(const FGameplayTag& DataTag, bool bConsumeAfterReading = false);
 	FVector GetStoredLocation(const FGameplayTag& DataTag, bool bConsumeAfterReading = false);
 	
-	void SetHostile(AActor* ToActor);
-
 	mutable FNpcCombatStateChanged OnStateChanged;
 	mutable FNpcCombatStateChanged OnBehaviorChanged;
 	mutable FNpcCombatStateChanged OnActiveAbilityChanged;
-	
+
 protected:
 	virtual void BeginPlay() override;
+	virtual void InitializeComponent() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 	virtual void InitializeNpcDTR(const FNpcDTR* NpcDTR);
@@ -110,10 +89,21 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct))
 	TMap<FGameplayTag, TInstancedStruct<FNpcGoalParametersBase>> NpcGoalsParameters;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGuid DesiredSquadId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bRequestSquadLeaderRole = false;
+	
+	bool bDead = false;
+	FGameplayTag CurrentMovementPaceTypeTag = FGameplayTag::EmptyTag;
+	TWeakObjectPtr<AActor> FollowTarget;
+	
+	TMap<FGameplayTag, FVector> StoredLocations;
+	TMap<FGameplayTag, TWeakObjectPtr<AActor>> StoredActors;
 	
 private:
-	void SetAttitudePresetInternal(const FGameplayTag& InAttitudePreset);
-	
 	UPROPERTY()
 	TScriptInterface<INpc> OwnerNPC;
 	
@@ -124,7 +114,7 @@ private:
 	TScriptInterface<INpcAliveCreature> OwnerAliveCreature;
 
 	TWeakObjectPtr<APawn> OwnerPawn;
-	TWeakObjectPtr<const UNpcSpawnerComponent> DesignatedZone;
+	// Areas of interest of NPC: spawn zones, work areas
 	
 	TMap<FGameplayTag, TArray<FActiveGameplayEffectHandle>> ActiveStateEffects;
 	
@@ -132,25 +122,18 @@ private:
 	
 	void EnableRagdoll(ACharacter* Mob) const;
 	void RegisterDeathEvents();
-
+	void ApplyGameplayEffectsForState_Obsolete(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams, bool bInActive, const FGameplayEffectsWrapper* StateEffects);
+	void ApplyGameplayEffectsForState(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams, bool bInActive, const FGameplayEffectsWrapper* StateEffects);
+	
 	UFUNCTION()
 	void OnNpcDeathStarted(AActor* OwningActor);
 
 	UFUNCTION()
 	void OnNpcDeathFinished(AActor* OwningActor);
 
-	bool bDead = false;
 	bool bNpcComponentInitialized = false; // trying to figure out how to handle world partition streaming NPC in and out
 
-	FGameplayTag CurrentAttitudePreset = FGameplayTag::EmptyTag;
-	FGameplayTag CurrentTemporaryAttitudePreset = FGameplayTag::EmptyTag;
-	FGameplayTag CurrentMovementPaceTypeTag = FGameplayTag::EmptyTag;
-	TMap<FGameplayTag, float> NpcAttitudesDurationGameTime;
-	FNpcAttitudes BaseAttitudes;
-	FNpcAttitudes CustomAttitudes;
-	mutable TMap<TWeakObjectPtr<const AActor>, FTemporaryCharacterAttitudeMemory> TemporaryCharacterAttitudes;
-	TWeakObjectPtr<AActor> FollowTarget;
+	int GroupWalkingIndex = -1;
 	
-	TMap<FGameplayTag, FVector> StoredLocations;
-	TMap<FGameplayTag, TWeakObjectPtr<AActor>> StoredActors;
+	FGameplayTag CachedNpcId = FGameplayTag::EmptyTag;
 };

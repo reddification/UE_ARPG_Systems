@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(HideCategories=(FlowControl,Condition))
 class ARPGAI_API UBTDecorator_SetState : public UBTDecorator_Blackboard
 {
 	GENERATED_BODY()

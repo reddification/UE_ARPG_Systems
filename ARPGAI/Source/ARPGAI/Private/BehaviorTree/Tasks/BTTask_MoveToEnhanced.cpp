@@ -36,8 +36,8 @@ EBTNodeResult::Type UBTTask_MoveToEnhanced::PerformMoveTask(UBehaviorTreeCompone
 {
 	if (UBlackboardComponent* Blackboard = OwnerComp.GetBlackboardComponent())
 	{
-		const float InitialAcceptanceRadius = AcceptableRadius;
-		const float InitialBlackboardValueTolerance = ObservedBlackboardValueTolerance;
+		const float InitialAcceptanceRadius = AcceptableRadius.GetValue(Blackboard);
+		const float InitialBlackboardValueTolerance = ObservedBlackboardValueTolerance.GetValue(Blackboard);
 		const float InitialObserverBlackboardChanged = bObserveBlackboardValue;
 		
 		if (ApproachAcceptanceRadiusBBKey.IsSet())

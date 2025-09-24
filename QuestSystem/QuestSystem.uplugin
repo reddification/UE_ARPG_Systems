@@ -20,5 +20,15 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "Flow",
+			"Enabled": true
+		},
+		{
+			"Name": "FlowGraphUtils",
+			"Enabled": true
+		}
 	]
 }

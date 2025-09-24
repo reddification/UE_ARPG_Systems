@@ -18,5 +18,6 @@ public:
 	UBTDecorator_NpcGoalControl();
 
 protected:
+	virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData) override;
 	virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult) override;
 };

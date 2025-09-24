@@ -66,6 +66,8 @@ public:
 	float GetDistanceToTarget() const { return DistanceToTarget; }
 
 	TArray<APawn*> GetAllies(bool bIgnoreSquadLeader) const;
+	void TrackEnemyAlive(AActor* Actor);
+	void ResetTrackingEnemyAlive();
 
 protected:
 	FNpcActiveTargetData CurrentTargetData;
@@ -110,6 +112,7 @@ private:
 	FGameplayTag ActiveThreatLevelTag = FGameplayTag::EmptyTag;
 	TWeakObjectPtr<const AActor> ActiveReactToAttackActor = nullptr;
 	FNpcActiveThreatsContainer ActiveThreats;
+	TWeakObjectPtr<AActor> TrackedEnemyAlive;
 
 	TMap<TWeakObjectPtr<const AActor>, float> IgnoreIncomingAttackUntil;
 	TMap<TWeakObjectPtr<const APawn>, int> ReceivedHitsCountFromCharacters; 
@@ -148,4 +151,6 @@ private:
 	void InitializeNpcCombatLogic(AAIController& AIController);
 
 	void UnsubscribeFromDelegates();
+	void OnEnemyDied(AActor* Actor);
+	void ReceiveReportEnemyDied(AActor* KilledActor);
 };

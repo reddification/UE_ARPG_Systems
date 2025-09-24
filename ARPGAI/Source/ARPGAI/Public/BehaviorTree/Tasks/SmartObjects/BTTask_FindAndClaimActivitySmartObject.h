@@ -33,6 +33,9 @@ protected:
 	FBlackboardKeySelector InteractionActorBBKey;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FBlackboardKeySelector EQSRunModeBBKey;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FBlackboardKeySelector OutSmartObjectSlotLocationBBKey;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

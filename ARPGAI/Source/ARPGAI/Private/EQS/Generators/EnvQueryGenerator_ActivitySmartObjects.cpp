@@ -6,7 +6,8 @@
 #include "EnvQueryItemType_SmartObject.h"
 #include "GameplayTagAssetInterface.h"
 #include "SmartObjectComponent.h"
-#include "Components/Controller/NpcActivityComponent.h"
+#include "Components/Controller/NpcFlowComponent.h"
+#include "Data/NpcActivitiesDataTypes.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 
 UEnvQueryGenerator_ActivitySmartObjects::UEnvQueryGenerator_ActivitySmartObjects()
@@ -21,14 +22,6 @@ void UEnvQueryGenerator_ActivitySmartObjects::GenerateItems(FEnvQueryInstance& Q
 	if (QueryOwner == nullptr || QueryOwner->GetController() == nullptr)
 		return;
 
-	auto NpcActivityComponent = QueryOwner->GetController()->FindComponentByClass<UNpcActivityComponent>();
-	if (!NpcActivityComponent)
-		return;
-
-	auto ActiveSmartObjectGoal = Cast<UNpcGoalUseSmartObject>(NpcActivityComponent->GetActiveGoal());
-	if (!ensure(ActiveSmartObjectGoal))
-		return;
-	
 	UWorld* World = GEngine->GetWorldFromContextObject(QueryOwner, EGetWorldErrorMode::LogAndReturnNull);
 	USmartObjectSubsystem* SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(World);
 
@@ -41,9 +34,13 @@ void UEnvQueryGenerator_ActivitySmartObjects::GenerateItems(FEnvQueryInstance& Q
 	int32 NumberOfSuccessfulQueries = 0;
 	
 	FSmartObjectRequestFilter GoalSmartObjectRequestFilter;
-	auto Parameters = ActiveSmartObjectGoal->GetParameters(QueryOwner);
-	GoalSmartObjectRequestFilter.ActivityRequirements = Parameters.IntentionFilter;
-	FVector QueryBoxExtent(Parameters.LocationSearchRadius);
+	auto NpcGoalManager = QueryOwner->GetController()->FindComponentByClass<UNpcFlowComponent>();
+	const FNpcGoalParameters_UseSmartObject* Parameters = NpcGoalManager->GetParameters<FNpcGoalParameters_UseSmartObject>();
+	if (Parameters == nullptr)
+		return;
+	
+	GoalSmartObjectRequestFilter.ActivityRequirements = Parameters->IntentionFilter;
+	FVector QueryBoxExtent(Parameters->LocationSearchRadius);
 	for (const FVector& Origin : OriginLocations)
 	{
 		FBox QueryBox(Origin - QueryBoxExtent, Origin + QueryBoxExtent);
@@ -66,7 +63,7 @@ void UEnvQueryGenerator_ActivitySmartObjects::GenerateItems(FEnvQueryInstance& Q
 	AllResults.Reserve(FoundSlots.Num());
 
 	FSmartObjectSlotHandle PreviousSlotHandle;
-	bool bCheckSmartObjectActor = !Parameters.SmartObjectActorFilter.IsEmpty();
+	bool bCheckSmartObjectActor = !Parameters->SmartObjectActorFilter.IsEmpty();
 	const auto& SmartObjects = SmartObjectSubsystem->GetSmartObjectContainer();
 	for (const FSmartObjectRequestResult& SlotResult : FoundSlots)
 	{
@@ -86,7 +83,7 @@ void UEnvQueryGenerator_ActivitySmartObjects::GenerateItems(FEnvQueryInstance& Q
 
 			FGameplayTagContainer SmartObjectActorTags;
 			SmartObjectTagActor->GetOwnedGameplayTags(SmartObjectActorTags);
-			if (!Parameters.SmartObjectActorFilter.Matches(SmartObjectActorTags))
+			if (!Parameters->SmartObjectActorFilter.Matches(SmartObjectActorTags))
 				continue;
 		}
 		

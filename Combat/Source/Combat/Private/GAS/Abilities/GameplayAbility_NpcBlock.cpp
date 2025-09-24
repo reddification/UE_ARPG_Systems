@@ -35,7 +35,7 @@ void UGameplayAbility_NpcBlock::ActivateAbility(const FGameplayAbilitySpecHandle
 		{
 			if (BackstepMontageOption.ContextTags.IsEmpty() || BackstepMontageOption.ContextTags.Matches(OwnerTags))
 			{
-				BackstepMontage = BackstepMontageOption.Montages[FMath::RandRange(0, BackstepMontageOption.Montages.Num() - 1)];
+				BackstepMontage = BackstepMontageOption.Montages_Deprecated[FMath::RandRange(0, BackstepMontageOption.Montages_Deprecated.Num() - 1)];
 				break;				
 			}
 		}

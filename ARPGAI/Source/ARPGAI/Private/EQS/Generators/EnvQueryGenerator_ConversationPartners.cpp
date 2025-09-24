@@ -4,6 +4,7 @@
 #include "EQS/Generators/EnvQueryGenerator_ConversationPartners.h"
 
 #include "Components/NpcComponent.h"
+#include "Components/Controller/NpcFlowComponent.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
 #include "Subsystems/NpcRegistrationSubsystem.h"
 
@@ -25,11 +26,11 @@ void UEnvQueryGenerator_ConversationPartners::GenerateItems(FEnvQueryInstance& Q
 	TArray<FGameplayTagQuery> NpcTagsFilters;
 	NpcTagsFilters.Add(GameplayTagQuery);
 	
-	auto NpcActivityComponent = QueryOwner->GetController()->FindComponentByClass<UNpcActivityComponent>();
-	if (ensure(NpcActivityComponent))
-		if (auto NpcGoalConversate = Cast<UNpcGoalConversate>(NpcActivityComponent->GetActiveGoal()))
-			if (!NpcGoalConversate->ConversationPartnerTagsFilter.IsEmpty())
-				NpcTagsFilters.Add(NpcGoalConversate->ConversationPartnerTagsFilter);
+	auto NpcActivityComponent = QueryOwner->GetController()->FindComponentByClass<UNpcFlowComponent>();
+	const FNpcGoalParameters_Conversate* ConversateParameters = NpcActivityComponent->GetParameters<FNpcGoalParameters_Conversate>();
+	if (ConversateParameters)
+		if (!ConversateParameters->ConversationPartnerTagsFilter.IsEmpty())
+			NpcTagsFilters.Add(ConversateParameters->ConversationPartnerTagsFilter);
 	
 	auto NpcSubsystem = QueryOwner->GetWorld()->GetSubsystem<UNpcRegistrationSubsystem>();
 	auto NpcsInRange = NpcSubsystem->GetNpcsInRange(QueryOwner->GetActorLocation(), SearchRange, NpcTagsFilters);

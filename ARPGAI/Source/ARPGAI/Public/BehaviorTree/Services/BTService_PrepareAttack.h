@@ -21,6 +21,7 @@ private:
 	{
 		float Intelligence = 0.f;
 		float AttackRangeSq = 0.f;
+		float TooCloseDistanceSq = 0.f;
 		TWeakObjectPtr<UNpcCombatLogicComponent> NpcCombatComponent = nullptr;
 		FDelegateHandle OnAttackRangeChangedDelegateHandle;
 	};
@@ -60,6 +61,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float LittleExtraAttackRange = 33.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, UIMax = 1.f, ClampMax = 1.f))
+	float TooCloseRangeDistanceCoefficient = 0.7f;
 
 private:
 	EBlackboardNotificationResult OnAttackRangeChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);

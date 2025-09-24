@@ -22,6 +22,7 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Combat_Pursue);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Combat_Retreat);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Combat_Fight);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Combat_Event_LostContact);
 
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Dialogue);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Dialogue_Refuse_Hostile);
@@ -50,11 +51,15 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_State_Conversation_OnHold);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_State_Conversation_MaintainActivity_IgnoreOrientationToInvoker);
 
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_State_DirectVisualContact);
+	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_Shot);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_EnemySpotted);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_Throwable_Bounce);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_Footstep);
-
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_Report_VisualContact_Acquired);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_Report_VisualContact_Lost);
+	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayEvent_Npc_Death);
 
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Ability_Attack_Cooldown)
@@ -102,9 +107,21 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_Time);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_MinSpeed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_MaxSpeed);
-
+	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Activity_Goal_Result_SmartObject_NotFound);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Activity_Goal_Result_SmartObject_InteractionFinished);
+
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Activity_Goal_Result_Execution_Success);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Activity_Goal_Result_Execution_Failure);
+	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Activity_Goal_State_StayInQueue_Enter);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Activity_Goal_State_StayInQueue_Finished);
+
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Activity_Goal_Parameter_LocationId);
+	
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Activity);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Arbitrary);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Spawner);
+	
+	FGameplayTag ;
 }

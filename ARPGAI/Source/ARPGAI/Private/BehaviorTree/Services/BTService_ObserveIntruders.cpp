@@ -71,7 +71,6 @@ APawn* UBTService_ObserveIntruders::GetClosestIntruder(AAIController* AIControll
 				FVector VisualTargetLocation = VisualTarget->GetActorLocation();
 				FCollisionObjectQueryParams CollisionObjectQueryParams;
 				ECollisionChannel GuardZoneCollisionChannel = ECC_Visibility; // TODO do something about it
-				// UEngineTypes::ConvertToCollisionChannel(UEngineTypes::ConvertToObjectType(Gladius_ObjectChannel_GuardZone));
 				CollisionObjectQueryParams.AddObjectTypesToQuery(GuardZoneCollisionChannel);
 				FCollisionQueryParams CollisionQueryParams;
 				TArray<FHitResult> HitResults;

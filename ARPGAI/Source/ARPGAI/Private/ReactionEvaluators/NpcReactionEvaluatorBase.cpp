@@ -3,7 +3,7 @@
 
 #include "BlackboardKeyType_GameplayTag.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Components/NpcPerceptionReactionComponent.h"
+#include "Components/Controller/NpcPerceptionReactionComponent.h"
 
 UNpcReactionEvaluatorBase::UNpcReactionEvaluatorBase()
 {

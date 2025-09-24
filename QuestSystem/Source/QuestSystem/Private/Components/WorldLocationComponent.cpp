@@ -45,15 +45,19 @@ void UWorldLocationComponent::BeginPlay()
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
 			FString::Printf(TEXT("Location tag %s not found in game tags"), *WorldLocationDTRH.RowName.ToString()));
 	}
+
+	auto CollisionComponentsRaw = WorldLocationInterface->GetWorldLocationVolumes();
+	CollisionComponents.Reserve(CollisionComponentsRaw.Num());
+	for (auto* CollisionComponent : CollisionComponentsRaw)
+		CollisionComponents.Emplace(CollisionComponent);
 	
-	CollisionComponent = IWorldLocationInterface::Execute_GetOverlapCollision(GetOwner());
-	if (!ensure(CollisionComponent.IsValid()))
+	if (!ensure(!CollisionComponents.IsEmpty()))
 		return;
 	
 	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UWorldLocationComponent::CheckOverlaps);
 }
 
-void UWorldLocationComponent::BeginDestroy()
+void UWorldLocationComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	auto World = GetWorld();
 	if (World)
@@ -63,40 +67,51 @@ void UWorldLocationComponent::BeginDestroy()
 			WLS->UnregisterWorldLocation(LocationIdTag);
 	}
 	
-	Super::BeginDestroy();
+	Super::EndPlay(EndPlayReason);
 }
 
 void UWorldLocationComponent::OnOverlapped(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                            UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	OnOverlappedActor(OtherActor);
+	OnEnter(OtherActor);
 }
 
 void UWorldLocationComponent::OnExit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int OtherBodyIndex)
 {
-	if (LocationIdTag.IsValid())
+	auto QuestCharacter = Cast<IQuestCharacter>(OtherActor);
+	if (!QuestCharacter)
+		return;
+	
+	if (LocationIdTag.IsValid() && bQuestLocation)
 	{
-		auto QuestCharacter = Cast<IQuestCharacter>(OtherActor);
-		if (!QuestCharacter)
-			return;
-		
-		QuestCharacter->RemoveQuestTags(LocationIdTag.GetSingleTagContainer());
-		if (bQuestLocation)
-		{
-			auto QuestSystem = GetWorld()->GetGameInstance()->GetSubsystem<UQuestSubsystem>();
-			QuestSystem->OnLocationLeft(LocationIdTag, QuestCharacter);    
-		}
+		auto QuestSystem = GetWorld()->GetGameInstance()->GetSubsystem<UQuestSubsystem>();
+		QuestSystem->OnLocationLeft(LocationIdTag, QuestCharacter);    
+	}
+
+	if (LocationIdTag.IsValid())
+		QuestCharacter->OnWorldLocationLeft(LocationIdTag);
+	
+	if (!LocationIndividualTags.IsEmpty())
+		QuestCharacter->RemoveQuestTags(LocationIndividualTags);
+
+	if (auto LocationDTR = GetLocationDTR())
+	{
+		if (LocationDTR->LocationTags.IsValid())
+			QuestCharacter->RemoveQuestTags(LocationDTR->LocationTags);
+
+		for (const auto& LocationCrossedHandler : LocationDTR->LocationCrossedHandlers)
+			LocationCrossedHandler.Get<FWorldLocationCrossedHandler>().OnLocationCrossed(this, OtherActor, false);
 	}
 }
 
-void UWorldLocationComponent::OnOverlappedActor(AActor* EnteredActor)
+void UWorldLocationComponent::OnEnter(AActor* EnteredActor)
 {
 	auto QuestCharacter = Cast<IQuestCharacter>(EnteredActor);
-	if (!ensure(QuestCharacter))
+	if (QuestCharacter == nullptr)
 		return;
-	
-	if (bQuestLocation)
+
+	if (LocationIdTag.IsValid() && bQuestLocation)
 	{
 		auto QuestSystem = GetWorld()->GetGameInstance()->GetSubsystem<UQuestSubsystem>();
 		QuestSystem->OnLocationReached(LocationIdTag, QuestCharacter);    
@@ -106,34 +121,76 @@ void UWorldLocationComponent::OnOverlappedActor(AActor* EnteredActor)
 		QuestGiverComponent->GiveQuests();
 
 	if (LocationIdTag.IsValid())
-		QuestCharacter->AddQuestTags(LocationIdTag.GetSingleTagContainer());
+		QuestCharacter->OnWorldLocationEntered(LocationIdTag);
+	
+	if (!LocationIndividualTags.IsEmpty())
+		QuestCharacter->AddQuestTags(LocationIndividualTags);
+
+	auto LocationDTR = GetLocationDTR();
+	if (LocationDTR != nullptr)
+	{
+		if (LocationDTR->LocationTags.IsValid())
+			QuestCharacter->AddQuestTags(LocationDTR->LocationTags);
+	
+		for (const auto& LocationCrossedHandler : LocationDTR->LocationCrossedHandlers)
+			LocationCrossedHandler.Get<FWorldLocationCrossedHandler>().OnLocationCrossed(this, EnteredActor, true);
+	}
 }
 
 void UWorldLocationComponent::CheckOverlaps()
 {
-	if (!CollisionComponent->OnComponentBeginOverlap.IsBound())
-		CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &UWorldLocationComponent::OnOverlapped);
+	for (auto& CollisionComponent : CollisionComponents)
+	{
+		if (!CollisionComponent->OnComponentBeginOverlap.IsBound())
+			CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &UWorldLocationComponent::OnOverlapped);
 
-	if (!CollisionComponent->OnComponentEndOverlap.IsBound())
-		CollisionComponent->OnComponentEndOverlap.AddDynamic(this, &UWorldLocationComponent::OnExit);
+		if (!CollisionComponent->OnComponentEndOverlap.IsBound())
+			CollisionComponent->OnComponentEndOverlap.AddDynamic(this, &UWorldLocationComponent::OnExit);
+	}
 	
 	TArray<AActor*> InitiallyOverlappyingActors = GetOverlappedActorsInVolume(APawn::StaticClass());
 	if (InitiallyOverlappyingActors.Num() > 0)
 	{
 		for (auto Actor : InitiallyOverlappyingActors)
-			OnOverlappedActor(Actor);
+			OnEnter(Actor);
 	}
 }
 
 TArray<AActor*> UWorldLocationComponent::GetOverlappedActorsInVolume(const TSubclassOf<AActor>& ActorTypeOfInterest) const
 {
 	TArray<AActor*> Result;
-	CollisionComponent->GetOverlappingActors(Result, ActorTypeOfInterest);
+	for (auto& CollisionComponent : CollisionComponents)
+		CollisionComponent->GetOverlappingActors(Result, ActorTypeOfInterest);
+	
 	return Result;
+}
+
+// @AK 12.07.2025: doesn't really belong to quest system domain. perhaps move world location to a separate plugin or make a child component in game module 
+bool UWorldLocationComponent::IsPointWithinArea(const FVector& TestLocation, const float AreaExtent) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldLocationComponent::IsPointWithinArea)
+
+	for (const auto& MarkupVolumeActorComponent : CollisionComponents)
+	{
+		const FVector LocalPoint = MarkupVolumeActorComponent->GetComponentTransform().InverseTransformPosition(TestLocation);
+		const FVector BoxExtent = MarkupVolumeActorComponent->GetScaledBoxExtent() + FVector(AreaExtent);
+		if (FMath::Abs(LocalPoint.X) <= BoxExtent.X &&
+			FMath::Abs(LocalPoint.Y) <= BoxExtent.Y &&
+			FMath::Abs(LocalPoint.Z) <= BoxExtent.Z)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 FVector UWorldLocationComponent::GetRandomLocationInVolume(float FloorOffset) const
 {
+	auto* CollisionComponent = CollisionComponents.Num() > 1
+		? CollisionComponents[FMath::RandRange(0, CollisionComponents.Num() - 1)].Get()
+		: CollisionComponents[0].Get();
+	
 	// TODO shape sweep if you can actually place an actor here
 	FVector ComponentLocation = CollisionComponent->GetComponentLocation();
 	FVector ScaledBoxExtent = CollisionComponent->GetScaledBoxExtent();
@@ -148,4 +205,12 @@ FVector UWorldLocationComponent::GetRandomLocationInVolume(float FloorOffset) co
 	FVector RandomPoint = UKismetMathLibrary::RandomPointInBoundingBox(ComponentLocation, ScaledBoxExtent * 0.9);
 	RandomPoint.Z = ComponentLocation.Z - ScaledBoxExtent.Z + FloorOffset;
 	return RandomPoint;
+}
+
+FVector UWorldLocationComponent::GetWorldLocation(const FVector& QuerierLocation) const
+{
+	if (auto WorldLocationInterface = Cast<IWorldLocationInterface>(GetOwner()))
+		return WorldLocationInterface->GetWorldLocationNavigationLocation(QuerierLocation);
+
+	return GetOwner()->GetActorLocation();
 }

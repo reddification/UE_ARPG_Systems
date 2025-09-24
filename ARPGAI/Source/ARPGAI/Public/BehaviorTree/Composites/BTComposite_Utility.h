@@ -9,6 +9,12 @@ class UBTDecorator_UtilityFunction;
 
 struct FIndexedUtilityValue
 {
+	FIndexedUtilityValue()
+	{
+		ChildIdx = INDEX_NONE;
+		UtilityScore = 0.f;
+	}
+	
 	FIndexedUtilityValue(int32 ChildIndex, float Utility)
 	{
 		ChildIdx = ChildIndex;
@@ -96,5 +102,8 @@ protected:
 	// @AK 12.09.2024 fucking UE 5.4 gone insane and gives some obscure errors which are resolved by overriding some virtual methods with just Super:: invocation
 	virtual void InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const override;
 	virtual void CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryClear::Type CleanupType) const override;
+
+private:
+	EBlackboardNotificationResult OnUtilityChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key, uint8 ChildIndex);
 };
 

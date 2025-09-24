@@ -18,19 +18,23 @@ class QUESTSYSTEM_API UWorldLocationComponent : public UActorComponent
 
 public:
 	const FGameplayTag& GetLocationIdTag() const { return LocationIdTag; }
-	
+
+	bool IsPointWithinArea(const FVector& TestLocation, const float AreaExtent) const;
 	FVector GetRandomLocationInVolume(float FloorOffset = 100.f) const;
-	FVector GetWorldLocation() const { return GetOwner()->GetActorLocation(); }
+	FVector GetWorldLocation(const FVector& QuerierLocation) const;
 	const FWorldLocationDTR* GetLocationDTR() const;
 	
 protected:
 	virtual void BeginPlay() override;
-	virtual void BeginDestroy() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, meta=(RowType="WorldLocationDTR"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(RowType="WorldLocationDTR"))
 	FDataTableRowHandle WorldLocationDTRH;
 
-	TWeakObjectPtr<UBoxComponent> CollisionComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTagContainer LocationIndividualTags;
+
+	TArray<TWeakObjectPtr<UBoxComponent>> CollisionComponents;
 
 	FGameplayTag LocationIdTag;
 	
@@ -46,7 +50,7 @@ private:
 	void OnExit(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int OtherBodyIndex);
 
-	void OnOverlappedActor(AActor* EnteredActor);
+	void OnEnter(AActor* EnteredActor);
 
 	void CheckOverlaps();
 	TArray<AActor*> GetOverlappedActorsInVolume(const TSubclassOf<AActor>& ActorTypeOfInterest) const;

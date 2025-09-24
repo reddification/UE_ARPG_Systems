@@ -17,7 +17,6 @@ float UUpdateSpeedInCombatMMC::CalculateBaseMagnitude_Implementation(const FGame
 
 	auto NpcCombatLogicComponent = InstigatorActor->FindComponentByClass<UNpcCombatLogicComponent>();	
 	auto NpcComponent = InstigatorActor->FindComponentByClass<UNpcComponent>();	
-	auto NpcDTR = NpcComponent->GetNpcDTR();
 
 	float DistanceToTarget = NpcCombatLogicComponent->GetDistanceToTarget();
 	float NewSpeed = Npc->GetMoveSpeed();
@@ -25,6 +24,7 @@ float UUpdateSpeedInCombatMMC::CalculateBaseMagnitude_Implementation(const FGame
 	if (!MovementPaceType.IsValid())
 		return NewSpeed;
 	
+	auto NpcDTR = NpcComponent->GetNpcDTR();
 	auto MoveSpeedDependency = NpcDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.MoveSpeedDependencies.Find(MovementPaceType);
 	if (MoveSpeedDependency)
 	{

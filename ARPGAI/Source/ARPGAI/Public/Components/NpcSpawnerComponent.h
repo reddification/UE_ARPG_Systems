@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "BehaviorTree/BlackboardAssetProvider.h"
+#include "BehaviorTree/BehaviorTreeTypes.h"
 #include "Components/ActorComponent.h"
+
 #include "NpcSpawnerComponent.generated.h"
 
 struct FGameplayTag;
@@ -19,10 +22,14 @@ struct ARPGAI_API FNpcSpawnDescriptor
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(MakeEditWidget))
 	FVector	SpawnRelativeLocation = FVector::ZeroVector;
+
+	// NPCs with same squad id will be registered in a squad.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGuid SquadId;	
 };
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class ARPGAI_API UNpcSpawnerComponent : public USceneComponent
+class ARPGAI_API UNpcSpawnerComponent : public USceneComponent, public IBlackboardAssetProvider
 {
 	GENERATED_BODY()
 
@@ -33,8 +40,7 @@ public:
 	void TriggerSpawn();
 
 	void SpawnNpcs();
-	void ProvideEqsPoints(TArray<FNavLocation>& OutEqsPoints, const float SpaceBetween, const float ExtentScale) const;
-
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -73,18 +79,28 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition=bSpawnerEnabled))
 	FGameplayTag InitialNpcActivity;
-	
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition=bSpawnerEnabled))
+	TSoftObjectPtr<UBlackboardData> NpcBlackboard;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition=bSpawnerEnabled))
+	TMap<FGameplayTag, float> NpcFloatBlackboardParameters;
+
 	// I want to use this with GameplayMessageRouter, but at the same time, the ARPGAI plugin shouldn't be dependent on other plugins
 	// So I guess the core game itself will have to have some actor (or subsystem or even game mode) to register GMS listeners for these spawn triggers  
 	// UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	// FGameplayTagContainer SpawnTriggers;
 	
-private:
 	bool bSpawnedOnStart = false; // to prevent multiple spawns on spawner loading-unloading by world partition streaming
-	TArray<TWeakObjectPtr<AActor>> AliveNpcs;
 	TArray<FNpcSpawnDescriptor> PendingNpcSpawns;
-	int NpcSpawnedThisTick = 0;
-	int PendingNpcSpawnIndex = 0;
+	
+	TArray<TWeakObjectPtr<AActor>> AliveNpcs;
 
+	void AddNpc(AActor* Npc);
+
+private:
 	void OnNpcDied(AActor* Actor);
+
+public: // IBlackboardAssetProvider
+	virtual UBlackboardData* GetBlackboardAsset() const override;
 };

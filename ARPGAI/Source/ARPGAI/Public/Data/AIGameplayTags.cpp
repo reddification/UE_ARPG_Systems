@@ -21,6 +21,7 @@ namespace AIGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Behavior_Combat_Pursue, "AI.Behavior.Combat.Pursue", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Behavior_Combat_Retreat, "AI.Behavior.Combat.Retreat", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Behavior_Combat_Fight, "AI.Behavior.Combat.Fight", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Behavior_Combat_Event_LostContact, "AI.Behavior.Combat.Event.LostContact", "");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Interaction_Dialogue, "AI.Interaction.Dialogue", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Interaction_Dialogue_Refuse_Hostile, "AI.Interaction.Dialogue.Refuse.Hostile", "");
@@ -44,7 +45,9 @@ namespace AIGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Noise_EnemySpotted, "AI.Noise.EnemySpotted", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Noise_Throwable_Bounce, "AI.Noise.Throwable.Bounce", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Noise_Footstep, "AI.Noise.Footstep", "");
-
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Noise_Report_VisualContact_Acquired, "AI.Noise.Report.VisualContact.Acquired", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Noise_Report_VisualContact_Lost, "AI.Noise.Report.VisualContact.Lost", "");
+	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(GameplayEvent_Npc_Death, "GameplayEvent.Npc.Death", "");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_State_Calm, "AI.State.Calm", "");
@@ -57,6 +60,8 @@ namespace AIGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_State_Queue_First, "AI.State.Queue.First", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_State_Conversation_OnHold, "AI.State.Conversation.OnHold", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_State_Conversation_MaintainActivity_IgnoreOrientationToInvoker, "AI.State.Conversation.MaintainActivity.IgnoreOrientationToInvoker", "")
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_State_DirectVisualContact, "AI.State.DirectVisualContact", "");
+
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Ability_ActivationFailed_CantAfford, "AI.BrainMessage.Ability.ActivationFailed.CantAffordCost", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Ability_ActivationFailed_ConditionsNotMet, "AI.BrainMessage.Ability.ActivationFailed.ConditionsNotMet", "");
 	
@@ -103,4 +108,11 @@ namespace AIGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Activity_Goal_Result_SmartObject_InteractionFinished, "AI.Activity.Goal.Result.SmartObject.InteractionFinished", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Activity_Goal_State_StayInQueue_Enter, "AI.Activity.Goal.State.StayInQueue.Enter", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Activity_Goal_State_StayInQueue_Finished, "AI.Activity.Goal.State.StayInQueue.Finished", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Activity_Goal_Result_Execution_Success, "AI.Activity.Goal.Result.Execution.Success", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Activity_Goal_Result_Execution_Failure, "AI.Activity.Goal.Result.Execution.Failure", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Activity_Goal_Parameter_LocationId, "AI.Activity.Goal.Parameter.LocationId", "");
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Location_Activity, "AI.Location.Activity", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Location_Arbitrary, "AI.Location.Arbitrary", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Location_Spawner, "AI.Location.Spawner", "");
 }

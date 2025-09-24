@@ -21,13 +21,17 @@ class ARPGAI_API UNpcPerceptionAttributeSet : public UAttributeSet
 public:
 	UNpcPerceptionAttributeSet();
 	ATTRIBUTE_ACCESSORS(UNpcPerceptionAttributeSet, SightRadius);
+	ATTRIBUTE_ACCESSORS(UNpcPerceptionAttributeSet, SightHalfAngle);
 	ATTRIBUTE_ACCESSORS(UNpcPerceptionAttributeSet, HearingRadius);
 
 protected:
-	UPROPERTY(BlueprintReadOnly, Category = "Gladius|AI|SightRadius", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData SightRadius;
+
+	UPROPERTY(BlueprintReadOnly, Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData SightHalfAngle;
 	
-	UPROPERTY(BlueprintReadOnly, Category = "Gladius|AI|HearingRadius", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData HearingRadius;
 	
 };

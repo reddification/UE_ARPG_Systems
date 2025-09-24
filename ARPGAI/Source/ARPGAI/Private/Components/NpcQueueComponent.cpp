@@ -8,12 +8,18 @@
 UNpcQueueComponent::UNpcQueueComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+	bWantsInitializeComponent = true;
 }
 
 void UNpcQueueComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	if (!ensure(QueueId.IsValid()))
+}
+
+void UNpcQueueComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
+	if (!QueueId.IsValid())
 		return;
 
 	OwnerSplineComponent = GetOwner()->FindComponentByClass<USplineComponent>();
@@ -47,13 +53,9 @@ void UNpcQueueComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-FNpcQueueMemberPosition UNpcQueueComponent::StandInQueue(AActor* NewQueueMember)
+FNpcQueueMemberPosition UNpcQueueComponent::StandInQueue(AActor* NewQueueMember, int StandAtPosition)
 {
 	FNpcQueueMemberPosition Result;
-	Result.bEntered = false;
-	if (LastQueuePlaceIndex >= QueuePoints.Num())
-		return Result;
-
 	if (auto Npc = Cast<INpc>(NewQueueMember))
 	{
 		FGameplayTagContainer QueueTags;
@@ -61,21 +63,60 @@ FNpcQueueMemberPosition UNpcQueueComponent::StandInQueue(AActor* NewQueueMember)
 		QueueTags.AddTagFast(QueueId);
 		QueueTags.AppendTags(CustomQueueTags);
 		
-		if (LastQueuePlaceIndex == 0)
+		if (StandAtPosition == 0)
 			QueueTags.AddTag(AIGameplayTags::AI_State_Queue_First);
 
 		Npc->GiveNpcTags(QueueTags);
 	}
 	
-	QueuePoints[LastQueuePlaceIndex].OccupiedBy = NewQueueMember;
+	QueuePoints[StandAtPosition].OccupiedBy = NewQueueMember;
 	// auto Npc = Cast<INpc>(NewQueueMember);
-	// Npc->SetQueuePosition(QueuePoints[LastQueuePlaceIndex].Location, QueuePoints[LastQueuePlaceIndex].Rotation);
+	// Npc->SetQueuePosition(QueuePoints[StandAtPosition].Location, QueuePoints[StandAtPosition].Rotation);
 
 	Result.bEntered = true;
-	Result.PlaceInQueue = LastQueuePlaceIndex;
-	Result.QueuePointLocation = QueuePoints[LastQueuePlaceIndex].Location + FVector::UpVector * 90.f;
-	Result.QueuePointRotation = QueuePoints[LastQueuePlaceIndex].Rotation;
+	Result.PlaceInQueue = StandAtPosition;
+	Result.QueuePointLocation = QueuePoints[StandAtPosition].Location + FVector::UpVector * 90.f;
+	Result.QueuePointRotation = QueuePoints[StandAtPosition].Rotation;
+	return Result;
+}
+
+FNpcQueueMemberPosition UNpcQueueComponent::StandInQueue(AActor* NewQueueMember)
+{
+	FNpcQueueMemberPosition Result;
+	Result.bEntered = false;
+	if (LastQueuePlaceIndex >= QueuePoints.Num())
+		return Result;
+
+	int StandAtPosition = LastQueuePlaceIndex;
+	Result = StandInQueue(NewQueueMember, StandAtPosition);
 	LastQueuePlaceIndex++;
+	
+	return Result;
+}
+
+FNpcQueueMemberPosition UNpcQueueComponent::StandInQueueAtPosition(AActor* NewQueueMember, int DesiredQueuePosition)
+{
+	FNpcQueueMemberPosition Result;
+	Result.bEntered = false;
+	if (QueuePoints.Num() <= DesiredQueuePosition)
+		return Result;
+
+	if (QueuePoints[DesiredQueuePosition].OccupiedBy.IsValid())
+	{
+		if (LastQueuePlaceIndex < QueuePoints.Num())
+		{
+			DesiredQueuePosition = LastQueuePlaceIndex;
+			LastQueuePlaceIndex++;
+		}
+	}
+	
+	Result = StandInQueue(NewQueueMember, DesiredQueuePosition);
+	// updating next last queue position
+	for (int i = 0; i < QueuePoints.Num(); i++)
+	{
+		if (!QueuePoints[i].OccupiedBy.IsValid())
+			LastQueuePlaceIndex = i;
+	}
 	
 	return Result;
 }
@@ -139,7 +180,9 @@ void UNpcQueueComponent::LeaveQueue(AActor* LeftQueueMember)
 			Index,
 			true,
 		};
-		
+
+		// 09.08.2025 (aki): Kinda stupid to use broadcast delegate here.
+		// TODO think about storing an interface/component IQueueMember/UQueueMemberComponent of a queue member and calling a function SetNewQueueLocation 
 		NpcQueueMemberAdvancedEvent.Broadcast(QueuePoints[Index+1].OccupiedBy.Get(), AdvancedNpcQueueMemberPosition);
 		QueuePoints[Index].OccupiedBy = QueuePoints[Index+1].OccupiedBy;
 		Index++;

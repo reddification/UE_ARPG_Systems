@@ -17,6 +17,7 @@
 #include "GAS/AttributeSets/ProtectionAttributeSet.h"
 #include "GAS/Data/GameplayAbilityTargetData_Clash.h"
 #include "GAS/Data/GameplayAbilityTargetData_ReceivedHit.h"
+#include "Interfaces/CombatAliveCreature.h"
 #include "Interfaces/ICombatant.h"
 
 UGameplayAbility_MeleeWeaponCombat::UGameplayAbility_MeleeWeaponCombat()
@@ -399,6 +400,10 @@ void UGameplayAbility_MeleeWeaponCombat::ApplyCost(const FGameplayAbilitySpecHan
 void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettings* CombatSettings, AActor* OwnerActor, AActor* EnemyActor,
                                                         ICombatant* CombatantOwner, ICombatant* CombatantEnemy, const FHitResult& HitResult, const FVector& SweepDirection)
 {
+	if (auto EnemyAliveCreature = Cast<ICombatAliveCreature>(EnemyActor))
+		if (EnemyAliveCreature->GetCombatantHealth() <= 0.f)
+			return;
+		
 	FAttackDamageEvaluationData AttackerDamageEvaluationData;
 	AttackerDamageEvaluationData.WeaponDamageData = CombatantOwner->GetWeaponDamageData();
 	AttackerDamageEvaluationData.Strength = CombatantOwner->GetStrength();

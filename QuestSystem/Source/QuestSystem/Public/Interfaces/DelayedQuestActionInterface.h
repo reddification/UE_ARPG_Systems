@@ -21,5 +21,5 @@ class QUESTSYSTEM_API IDelayedQuestAction
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual void ExecuteDelayedAction(const FQuestSystemContext& QuestSystemContext) = 0;
+	virtual void StartDelayedAction(const FQuestSystemContext& QuestSystemContext) = 0;
 };

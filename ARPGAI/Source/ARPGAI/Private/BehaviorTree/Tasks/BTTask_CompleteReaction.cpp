@@ -4,9 +4,7 @@
 #include "BehaviorTree/Tasks/BTTask_CompleteReaction.h"
 
 #include "AIController.h"
-#include "Activities/ActivityInstancesHelper.h"
-#include "Components/NpcComponent.h"
-#include "Components/NpcPerceptionReactionComponent.h"
+#include "Components/Controller/NpcPerceptionReactionComponent.h"
 #include "ReactionEvaluators/NpcReactionEvaluatorBase.h"
 
 UBTTask_CompleteReaction::UBTTask_CompleteReaction()
@@ -16,7 +14,7 @@ UBTTask_CompleteReaction::UBTTask_CompleteReaction()
 
 EBTNodeResult::Type UBTTask_CompleteReaction::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	auto NpcComponent = OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcPerceptionReactionComponent>();
+	auto NpcComponent = OwnerComp.GetAIOwner()->FindComponentByClass<UNpcPerceptionReactionComponent>();
 	if (!ensure(NpcComponent))
 		return EBTNodeResult::Failed;
 

@@ -231,7 +231,7 @@ void UMeleeCombatComponent::ResetAttackState()
 {
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("UMeleeCombatComponent::ResetAttackState"));
 	GetWorld()->GetTimerManager().ClearTimer(WeaponCollisionSweepsTimer);
-	OwnerCombatant->SetMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,true);
+	OwnerCombatant->SetCombatantMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,true);
 	CombatAnimInstance->OnAttackFinished();
 	CurrentComboAttacksHitCount = 0;
 	CurrentComboTotalAttacksCount = 0;
@@ -314,7 +314,7 @@ void UMeleeCombatComponent::BeginWindUp(float TotalDuration, const uint32 Animat
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin wind up. Animation id = %d"), AnimationId);
 	SetAttackPhase(EMeleeAttackPhase::WindUp, TotalDuration);
 	ActiveAnimationId = AnimationId;
-	OwnerCombatant->SetMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,false);
+	OwnerCombatant->SetCombatantMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,false);
 	CombatAnimInstance->OnAttackWindUpBegin();
 	ActiveAttackTrajectory = WindupAttackTrajectoryType;
 }

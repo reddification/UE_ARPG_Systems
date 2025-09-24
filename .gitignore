@@ -1,5 +1,9 @@
+# Rider user specific files
+*.DotSettings.user
+
 # Visual Studio 2015 user specific files
 .vs/
+.idea/
 
 # Compiled Object files
 *.slo
@@ -47,7 +51,7 @@ SourceArt/**/*.tga
 
 # Binary Files
 Binaries/*
-Plugins/**/Binaries/*
+**/*/Binaries/*
 
 # Builds
 Build/*
@@ -68,7 +72,10 @@ Saved/*
 
 # Compiled source files for the engine to use
 Intermediate/*
-Plugins/**/Intermediate/*
+**/*/Intermediate/*
+**/*/Content/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+.vsconfig
+*.png

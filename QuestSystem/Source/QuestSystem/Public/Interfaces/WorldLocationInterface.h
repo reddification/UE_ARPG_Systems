@@ -24,8 +24,7 @@ class QUESTSYSTEM_API IWorldLocationInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	UFUNCTION(BlueprintNativeEvent)
-	UBoxComponent* GetOverlapCollision() const;
-
+	virtual TArray<UBoxComponent*> GetWorldLocationVolumes() const = 0;
 	virtual UQuestGiverComponent* GetQuestGiverComponent() const { return nullptr; };
+	virtual FVector GetWorldLocationNavigationLocation(const FVector& QuerierLocation) const = 0;
 };

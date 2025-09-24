@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameplayBehaviorConfig.h"
+#include "GameplayInteractionFunctionBase.h"
 #include "GameplayTagContainer.h"
+#include "StructUtils/InstancedStruct.h"
 #include "GameplayBehaviorConfig_Interaction.generated.h"
 
 UCLASS()
@@ -33,4 +35,7 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	bool bSmartObjectActorChooseSingleRandomGrantedTag = false;
+
+	UPROPERTY(EditAnywhere)
+	TArray<TInstancedStruct<FGameplayInteractionFunctionBase>> InteractionFunctions;	
 };

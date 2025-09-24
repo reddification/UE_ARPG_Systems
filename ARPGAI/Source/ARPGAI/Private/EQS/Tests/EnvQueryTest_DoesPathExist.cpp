@@ -51,7 +51,7 @@ void UEnvQueryTest_DoesPathExist::RunTest(FEnvQueryInstance& QueryInstance) cons
 	}
 
 	const TSubclassOf<UNavigationQueryFilter>& NavQueryFilter =  QueryOwnerController->GetDefaultNavigationFilterClass();
-	FSharedConstNavQueryFilter NavFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, QueryOwner, NavQueryFilter);
+	FSharedConstNavQueryFilter NavFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, QueryOwnerController, NavQueryFilter);
 	NavData->BeginBatchQuery();
 	if (bPathToItem)
 	{

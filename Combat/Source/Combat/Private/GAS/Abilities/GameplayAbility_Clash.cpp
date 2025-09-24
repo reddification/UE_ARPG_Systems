@@ -50,7 +50,7 @@ void UGameplayAbility_Clash::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	{
 		if (HitReactMontageOption.ContextTags.Matches(OwnerTags))
 		{
-			HitReactMontage = HitReactMontageOption.Montages[FMath::RandRange(0, HitReactMontageOption.Montages.Num() - 1)];
+			HitReactMontage = HitReactMontageOption.Montages_Deprecated[FMath::RandRange(0, HitReactMontageOption.Montages_Deprecated.Num() - 1)];
 			break;				
 		}
 	}

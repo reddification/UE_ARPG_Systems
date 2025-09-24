@@ -91,7 +91,10 @@ struct FNpcQuestBehaviorEndConditionContainer
 	TArray<UNpcQuestBehaviorEndConditionProxyBase*> EndConditions;
 
 	UPROPERTY()
-	bool bAny = false;	
+	bool bAny = false;
+
+	UPROPERTY()
+	FGameplayTag BehaviorTag;	
 };
 
 UCLASS()
@@ -142,7 +145,7 @@ class UNpcQuestBehaviorEndConditionProxy_GameTimeDuration : public UNpcQuestBeha
 public:
 	virtual void Initialize(const FGuid& InQuestActionId, TWeakInterfacePtr<IQuestNPC> InNpc, const FQuestSystemContext& InQuestSystemContext) override;
 	virtual void Disable() override;
-	virtual void ExecuteDelayedAction(const FQuestSystemContext& QuestSystemContext) override;
+	virtual void StartDelayedAction(const FQuestSystemContext& QuestSystemContext) override;
 
 	FGameplayTag UntilDayTime;
 	float GameTimeDurationHours = 1.f;

@@ -22,7 +22,7 @@ void UNpcStateWidget::NativeConstruct()
 	// ActiveStateContainer->SetVisibility(ESlateVisibility::Hidden);
 }
 
-void UNpcStateWidget::SetNPC(ACharacter* InOwnerCharacter)
+void UNpcStateWidget::SetNPC(APawn* InOwnerCharacter)
 {
 	OwnerCharacter = InOwnerCharacter;
 

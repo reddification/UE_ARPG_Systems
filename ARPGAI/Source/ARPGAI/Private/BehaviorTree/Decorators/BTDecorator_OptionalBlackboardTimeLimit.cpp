@@ -1,9 +1,7 @@
 ﻿#include "BehaviorTree/Decorators/BTDecorator_OptionalBlackboardTimeLimit.h"
 
-#include "Activities/ActivityInstancesHelper.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Components/Controller/NpcActivityComponent.h"
 
 UBTDecorator_OptionalBlackboardTimeLimit::UBTDecorator_OptionalBlackboardTimeLimit()
 {
@@ -52,14 +50,8 @@ void UBTDecorator_OptionalBlackboardTimeLimit::OnNodeDeactivation(FBehaviorTreeS
 		return;
 	
 	FBTAuxiliaryMemory* DecoratorMemory = GetNodeMemory<FBTAuxiliaryMemory>(SearchData);
-	// 25.11.2024 @AK: this is bullshit, this decorator shouldn't know anything about npc activities and goals and their remaining time.
-	// TODO make a separate decorator to store remaining goal time on abort. For now there's a hack bool bSaveRemainingGoalTime
 	if (NodeResult == EBTNodeResult::Aborted && DecoratorMemory->NextTickRemainingTime > 0.f && bSaveRemainingGoalTime)
-	{
-		auto NpcActivityComponent = GetNpcActivityComponent(SearchData.OwnerComp);
-		NpcActivityComponent->SetRemainingGoalExecutuionTime(DecoratorMemory->NextTickRemainingTime);
 		Blackboard->SetValueAsFloat(TimeLimitBBKey.SelectedKeyName, DecoratorMemory->NextTickRemainingTime);
-	}
 
 	Super::OnNodeDeactivation(SearchData, NodeResult);
 }

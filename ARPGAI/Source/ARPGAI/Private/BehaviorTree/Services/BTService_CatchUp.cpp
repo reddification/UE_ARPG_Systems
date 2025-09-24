@@ -31,10 +31,13 @@ void UBTService_CatchUp::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uin
 
 void UBTService_CatchUp::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
-	if (auto Npc = Cast<INpc>(Pawn))
-		Npc->ResetForcedMoveSpeed();
-
+	if (bUpdateSpeed)
+	{
+		auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
+		if (auto Npc = Cast<INpc>(Pawn))
+			Npc->ResetForcedMoveSpeed();
+	}
+	
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
 }
 

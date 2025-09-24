@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "BehaviorTree/BlackboardAssetProvider.h"
 #include "BehaviorTree/BlackboardData.h"
 #include "UObject/Object.h"
@@ -65,6 +66,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
 	FBlackboardKeySelector DefenseActionBBKey;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
+	FBlackboardKeySelector IsAllEnemiesKilledBBKey;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals")
 	FBlackboardKeySelector RequestResetGoalBBKey;
 
@@ -89,6 +93,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals")
 	FBlackboardKeySelector EqsToRunBBKey;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals")
+	FBlackboardKeySelector EQSRunModeBBKey;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals")
 	FBlackboardKeySelector LocationToGoBBKey;
 
@@ -151,7 +158,7 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Conversation")
 	FBlackboardKeySelector ConversationGoToAcceptableRadiusBBKey;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Queue")
 	FBlackboardKeySelector QueuePointLocationBBKey;
 	
@@ -190,4 +197,12 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Perception Reaction Evaluator")
 	TMap<EReactionBehaviorType, FBlackboardKeySelector> ReactionBehaviorUtilityKeys;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior Evaluator")
+	FBlackboardKeySelector ActiveBehaviorEvaluatorsTagsBBKey;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TMap<FGameplayTag, FBlackboardKeySelector> BlackboardKeysAliases;
+
+	
 };

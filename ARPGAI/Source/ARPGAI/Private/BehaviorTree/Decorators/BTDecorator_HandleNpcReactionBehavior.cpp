@@ -6,7 +6,7 @@
 #include "AIController.h"
 #include "BlackboardKeyType_GameplayTag.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Components/NpcPerceptionReactionComponent.h"
+#include "Components/Controller/NpcPerceptionReactionComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "ReactionEvaluators/NpcReactionEvaluatorBase.h"
 
@@ -20,7 +20,7 @@ UBTDecorator_HandleNpcReactionBehavior::UBTDecorator_HandleNpcReactionBehavior()
 bool UBTDecorator_HandleNpcReactionBehavior::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp,
 	uint8* NodeMemory) const
 {
-	auto NpcComponent = OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcPerceptionReactionComponent>();
+	auto NpcComponent = OwnerComp.GetAIOwner()->FindComponentByClass<UNpcPerceptionReactionComponent>();
 	auto ReactionEvaluatorData = NpcComponent->GetBestBehaviorPerceptionReactionEvaluatorState(ReactionBehaviorType);
 	if (!ensure(ReactionEvaluatorData))
 		return false;
@@ -42,7 +42,7 @@ void UBTDecorator_HandleNpcReactionBehavior::OnNodeDeactivation(FBehaviorTreeSea
 	if (Pawn == nullptr)
 		return;
 	
-	auto NpcComponent = Pawn->FindComponentByClass<UNpcPerceptionReactionComponent>();
+	auto NpcComponent = AIController->FindComponentByClass<UNpcPerceptionReactionComponent>();
 	if (NpcComponent == nullptr)
 		return;
 

@@ -30,6 +30,7 @@ UNpcBlackboardDataAsset::UNpcBlackboardDataAsset()
 	GoalTypeBBKey.AllowNoneAsValue(true);
 	GoalTagsBBKey.AllowNoneAsValue(true);
 	EqsToRunBBKey.AllowNoneAsValue(true);
+	EQSRunModeBBKey.AllowNoneAsValue(true);
 	LocationToGoBBKey.AllowNoneAsValue(true);
 	GestureToPlayBBKey.AllowNoneAsValue(true);
 	ActivityPhrasesBBKey.AllowNoneAsValue(true);
@@ -67,6 +68,14 @@ UNpcBlackboardDataAsset::UNpcBlackboardDataAsset()
 	ActivityPhrasesBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ActivityPhrasesBBKey)));
 	NpcTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, NpcTagsBBKey)));
 	GoalTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, GoalTagsBBKey)));
+
+	IsAllEnemiesKilledBBKey.AllowNoneAsValue(true);
+	IsAllEnemiesKilledBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, IsAllEnemiesKilledBBKey));
+
+	ActiveBehaviorEvaluatorsTagsBBKey.AllowNoneAsValue(true);
+	ActiveBehaviorEvaluatorsTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ActiveBehaviorEvaluatorsTagsBBKey)));
+
+	EQSRunModeBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, EQSRunModeBBKey), StaticEnum<EEnvQueryRunMode::Type>());
 }
 
 UBlackboardData* UNpcBlackboardDataAsset::GetBlackboardAsset() const

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "GameplayTagContainer.h"
 #include "NpcAliveCreature.generated.h"
 
 struct FGameplayAttribute;
@@ -31,7 +32,7 @@ public:
 
 	virtual float GetStamina() const = 0;
 	virtual float GetMaxStamina() const = 0;
-
+	
 	virtual bool IsNpcActorAlive() const = 0;
 	
 	virtual FGameplayAttribute GetHealthAttribute() const = 0;
@@ -41,6 +42,8 @@ public:
 	virtual FGameplayAttribute GetStaminaAttribute() const = 0;
 	virtual FGameplayAttribute GetMaxStaminaAttribute() const = 0;
 
+	virtual FGameplayTag GetNpcAliveCreatureId() const = 0;
+	
 	mutable FNpcDeathEvent OnDeathStarted;
 	mutable FNpcDeathEvent OnDeathFinished;
 };

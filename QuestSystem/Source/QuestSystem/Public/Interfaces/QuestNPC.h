@@ -37,7 +37,7 @@ public:
 	virtual void RemoveNpcQuestTags(const FGameplayTagContainer& GameplayTags) = 0;
 	
 	virtual void RunQuestBehavior(const FGameplayTag& QuestBehaviorIdTag) = 0;
-	virtual void StopQuestBehavior() = 0;
+	virtual void StopQuestBehavior(const FGameplayTag& BehaviorId) = 0;
 	virtual void SayQuestPhrase(const FGameplayTag& PhraseId) = 0;
 	virtual void StartQuestDialogue(const FGameplayTag& DialogueId, TArray<AActor*> DialogueParticipants) = 0;
 	virtual void ReceiveQuestEvent(const FGameplayTag& EventTag) = 0;

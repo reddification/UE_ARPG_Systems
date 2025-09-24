@@ -13,7 +13,6 @@ struct QUESTSYSTEM_API FQuestEventTriggerBase
 {
 	GENERATED_BODY()
 
-	
 public:
 	virtual ~FQuestEventTriggerBase() = default;
 

@@ -4,8 +4,9 @@
 #include "BlackboardKeyType_GameplayTag.h"
 #include "GameplayTagAssetInterface.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcComponent.h"
-#include "Components/NpcPerceptionReactionComponent.h"
+#include "Components/Controller/NpcPerceptionReactionComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "EnvironmentQuery/EnvQuery.h"
@@ -21,7 +22,7 @@ float UNpcReactionEvaluator_ToCharacter::ProcessPerceptionInternal(AAIController
 
 	auto PerceptionComponent = NpcController->GetAIPerceptionComponent();
 
-	auto NpcComponent = NpcController->GetPawn()->FindComponentByClass<UNpcComponent>();
+	auto NpcComponent = NpcController->GetPawn()->FindComponentByClass<UNpcAttitudesComponent>();
 	TArray<FReactionCauserData> ReactionCausers;
 
 	const FVector& NpcPawnLocation = NpcController->GetPawn()->GetActorLocation();
@@ -45,11 +46,13 @@ float UNpcReactionEvaluator_ToCharacter::ProcessPerceptionInternal(AAIController
 				continue;
 		}
 		
-		auto TagsActor = Cast<IGameplayTagAssetInterface>(TargetActor);
-		FGameplayTagContainer PerceivedActorTags;
-		TagsActor->GetOwnedGameplayTags(PerceivedActorTags);
-		if (CharacterTagsFilter.Matches(PerceivedActorTags))
-			ReactionCausers.Add({ TargetActor, DistSq });
+		if (auto TagsActor = Cast<IGameplayTagAssetInterface>(TargetActor))
+		{
+			FGameplayTagContainer PerceivedActorTags;
+			TagsActor->GetOwnedGameplayTags(PerceivedActorTags);
+			if (CharacterTagsFilter.Matches(PerceivedActorTags))
+				ReactionCausers.Add({ TargetActor, DistSq });
+		}
 	}
 
 	if (ReactionCausers.Num() > 1)
@@ -113,8 +116,8 @@ void UNpcReactionEvaluator_ToCharacter::CompleteReaction(UNpcPerceptionReactionC
 	{
 		if (NewAttitudeAfterReactionComplete.IsValid())
 		{
-			auto NpcComponent = NpcPerceptionReactionComponent->GetOwner()->FindComponentByClass<UNpcComponent>();
-			NpcComponent->AddTemporaryCharacterAttitude(Memory->Actor.Get(), NewAttitudeAfterReactionComplete);
+			auto NpcComponent = NpcPerceptionReactionComponent->GetOwner()->FindComponentByClass<UNpcAttitudesComponent>();
+			NpcComponent->AddTemporaryCharacterAttitude(Memory->Actor.Get(), NewAttitudeAfterReactionComplete, false);
 		}
 	}
 	

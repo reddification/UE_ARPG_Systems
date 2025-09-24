@@ -4,9 +4,7 @@
 #include "BlackboardKeyType_SOClaimHandle.h"
 #include "EnvQueryItemType_SmartObject.h"
 #include "SmartObjectComponent.h"
-#include "Activities/ActivityInstancesHelper.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "Components/Controller/NpcActivityComponent.h"
 #include "Data/AiDataTypes.h"
 #include "EnvironmentQuery/EnvQueryManager.h"
 
@@ -19,6 +17,9 @@ UBTTask_FindAndClaimActivitySmartObject::UBTTask_FindAndClaimActivitySmartObject
 	OutSmartObjectClaimHandleBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_SOClaimHandle>(this, GET_MEMBER_NAME_CHECKED(UBTTask_FindAndClaimActivitySmartObject, OutSmartObjectClaimHandleBBKey)));
 	EQSQueryFinishedDelegate = FQueryFinishedSignature::CreateUObject(this, &UBTTask_FindAndClaimActivitySmartObject::OnQueryFinished);
 	EQSRequest.RunMode = EEnvQueryRunMode::RandomBest5Pct;
+	EQSRunModeBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_FindAndClaimActivitySmartObject, EQSRunModeBBKey), StaticEnum<EEnvQueryRunMode::Type>());
+	// OutAttackResultBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_Attack, OutAttackResultBBKey), StaticEnum<ENpcAttackResult>());
+	
 }
 
 // TODO smart object claim handle processing is scattered across NpcActivityInstance and BTTasks. The logic needs to be consolidated in 1 place
@@ -26,9 +27,9 @@ EBTNodeResult::Type UBTTask_FindAndClaimActivitySmartObject::ExecuteTask(UBehavi
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBTTask_FindAndClaimActivitySmartObject::ExecuteTask)
 
-	auto NpcActivityComponent = GetNpcActivityComponent(OwnerComp);
-	if (NpcActivityComponent == nullptr)
-		return EBTNodeResult::Failed;
+	// auto NpcActivityComponent = GetNpcActivityComponent(OwnerComp);
+	// if (NpcActivityComponent == nullptr)
+	// 	return EBTNodeResult::Failed;
 	
 	AAIController* MyController = OwnerComp.GetAIOwner();
 	APawn* Pawn = MyController->GetPawn();
@@ -40,8 +41,8 @@ EBTNodeResult::Type UBTTask_FindAndClaimActivitySmartObject::ExecuteTask(UBehavi
 	{
 		const UBlackboardComponent* BlackboardComponent = OwnerComp.GetBlackboardComponent();
 		auto InitialRunMode = EQSRequest.RunMode;
-		if (const UNpcGoalUseSmartObject* SmartObjectGoal = Cast<UNpcGoalUseSmartObject>(NpcActivityComponent->GetActiveGoal()))
-			EQSRequest.RunMode =  SmartObjectGoal->EqsRunMode;
+		if (!EQSRunModeBBKey.SelectedKeyName.IsNone())
+			EQSRequest.RunMode = static_cast<EEnvQueryRunMode::Type>(BlackboardComponent->GetValueAsEnum(EQSRunModeBBKey.SelectedKeyName));
 		
 		MyMemory->EQSRequestID = EQSRequest.Execute(*Pawn, BlackboardComponent, EQSQueryFinishedDelegate);
 		EQSRequest.RunMode = InitialRunMode;

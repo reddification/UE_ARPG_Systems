@@ -6,6 +6,7 @@
 #include "GameplayTagContainer.h"
 #include "Data/QuestActionStopConditions.h"
 #include "UObject/Interface.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "QuestSystemGameMode.generated.h"
 
 class IDelayedQuestAction;
@@ -25,6 +26,8 @@ class QUESTSYSTEM_API IQuestSystemGameMode
 {
 	GENERATED_BODY()
 
+private:
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FQuestDataLayerStateChangedEvent, const FGameplayTag& DataLayerTag, bool bActive);
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	virtual TScriptInterface<IQuestNPC> SpawnQuestNPC(const FGameplayTag& NpcIdTag, const FVector& SpawnLocation, const FGameplayTagContainer& WithTags) = 0;
@@ -33,8 +36,12 @@ public:
 	virtual void RequestDelayedQuestAction(const FGuid& DelayedQuestActionId, const FGameplayTag& AtTimeOfDay) = 0;
 	virtual void CancelDelayedQuestActionRequest(const FGuid& DelayedQuestActionId) = 0;
 
-	virtual void SetQuestSublevelState(const FGameplayTag& SublevelId, bool bLoaded, const FGameplayTagQuery& PostponeIfPlayerHasTags) = 0;
-	
-	virtual const FTimespan& GetQuestSystemGameTime() const = 0;
+	virtual EDataLayerRuntimeState SetQuestSublevelState(const FGameplayTag& SublevelId, bool bLoaded,
+	                                                     const FGameplayTagQuery& PostponeIfPlayerHasTags) = 0;
+
+	virtual const FDateTime& GetQuestSystemGameTime() const = 0;
 	virtual void ShowScreenText(const FText& Title, const FText& SubTitle, const FGameplayTag& ScreenType, float ShowDuration) const = 0;
+	virtual void OnNewJournalLog() const = 0;
+
+	mutable FQuestDataLayerStateChangedEvent QuestDataLayerStateChangedEvent;
 };

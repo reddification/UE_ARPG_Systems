@@ -29,16 +29,7 @@ void UEnvQueryTest_NpcReadyForInteraction::RunTest(FEnvQueryInstance& QueryInsta
 			continue;
 		
 		FGameplayTag RefuseReason;
-		if(NpcItem->CanConversate(QueryOwner, RefuseReason))
-		{
-			It.SetScore(TestPurpose, FilterType, true, true);
-			//It.ForceItemState(EEnvItemStatus::Passed);	
-		}
-		else
-		{
-			It.SetScore(TestPurpose, FilterType, false, true);
-			//It.ForceItemState(EEnvItemStatus::Failed);
-		}
+		It.SetScore(TestPurpose, FilterType, NpcItem->CanConversate(QueryOwner, RefuseReason), true);
 	}
 }
 

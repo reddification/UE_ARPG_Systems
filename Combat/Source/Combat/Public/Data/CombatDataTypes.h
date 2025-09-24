@@ -2,6 +2,7 @@
 #include "GameplayTagContainer.h"
 #include "CombatDataTypes.generated.h"
 
+struct FMontageData;
 class UNiagaraSystem;
 
 // This enums items order is important since it combines both attack types and attack trajectories
@@ -122,6 +123,22 @@ struct FAttackDamageEvaluationData
 };
 
 USTRUCT(BlueprintType)
+struct FMontageData
+{
+	GENERATED_BODY()
+
+	// Optional. Used for gore-able skeletal meshes upon death
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TSoftObjectPtr<USkeletalMesh> SkeletalMeshOverride;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	bool bRestoreInitialSkeletalMesh = true;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TSoftObjectPtr<UAnimMontage> AnimMontage;	
+};
+
+USTRUCT(BlueprintType)
 struct FContextMontages
 {
 	GENERATED_BODY()
@@ -129,8 +146,12 @@ struct FContextMontages
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTagQuery ContextTags;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<UAnimMontage*> Montages_Deprecated;
+
+	// 20.06.2025 @AK: TODO move all montages from Montages_Deprecated to Montages 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TArray<UAnimMontage*> Montages;
+	TArray<FMontageData> MontagesOptions;
 };
 
 struct FCombatCollisionShapeData
@@ -176,4 +197,12 @@ enum class ECollisionComponentWeaponType : uint8
 	None,
 	MeleeWeapon,
 	Shield
+};
+
+UENUM()
+enum class EPlayerCombatControl : uint8
+{
+	None = 0,
+	Moveset = 1,
+	Manual = 2
 };

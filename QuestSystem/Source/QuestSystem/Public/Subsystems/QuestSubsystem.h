@@ -5,6 +5,8 @@
 #include "Data/QuestDTR.h"
 #include "Data/QuestProgress.h"
 #include "Engine/DataTable.h"
+#include "FlowGraph/Nodes/Actions/FlowNode_QuestAction.h"
+#include "FlowGraph/Nodes/Actions/FlowNode_QuestAction_JournalLog.h"
 #include "QuestSubsystem.generated.h"
 
 class IQuestSystemGameMode;
@@ -47,7 +49,7 @@ public:
 	void OnLocationReached(const FGameplayTag& LocationIdTag, const IQuestCharacter* EnteredQuestCharacter);
 	void OnLocationLeft(const FGameplayTag& LocationIdTag, const IQuestCharacter* EnteredQuestCharacter);
 	void OnNpcKilled(IQuestCharacter* Killer, IQuestCharacter* Killed);
-	void OnNpcGoalCompleted(IQuestCharacter* Npc, const FGameplayTagContainer& GoalTags);
+	void OnNpcGoalCompleted(IQuestCharacter* Npc, const FGameplayTagContainer& GoalTags, const FGameplayTagContainer& GoalExecutionTags);
 	void OnActorInteracted(IQuestCharacter* Interactor, const FGameplayTag& InteractionActorId, const FGameplayTagContainer& InteractionActionsId,
 	                       const FGameplayTagContainer& InteractionActorTags);
 	// void OnNpcInteracted(const FDataTableRowHandle& NpcDTRH, const FGameplayTagContainer& NpcTags);
@@ -68,6 +70,15 @@ public:
 	
 	FORCEINLINE bool IsStateLoaded() const { return bStateLoaded; }
 	FORCEINLINE void SetStateLoaded() { bStateLoaded = true; }
+	
+	void DelayAction(const FGuid& ActionId, const TScriptInterface<IDelayedQuestAction>& DelayedAction, float GameTimeDelayHours);
+	void DelayAction(const FGuid& ActionId, const TScriptInterface<IDelayedQuestAction>& DelayedAction, const FGameplayTag& AtNextDayTime);
+	
+	const FName* GetFlowQuestId(const UFlowAsset* FlowAsset);
+	void CompleteFlowQuest(const FName& QuestId, EQuestState QuestFinalState);
+	void AddJournalLog(const FName& QuestId, const FText& JournalEntry, const FGameplayTagContainer& JournalEntryTags);
+
+	FQuestSystemContext GetQuestSystemContext();
 	
 	mutable FQuestStartedEvent QuestStartedEvent;
 	mutable FQuestCompletedEvent QuestCompletedEvent;
@@ -98,6 +109,8 @@ private:
 	UPROPERTY(SaveGame)
     TMap<FName, FQuestProgress> CompletedQuests;
 
+	TMap<TSoftObjectPtr<UFlowAsset>, FName> FlowAssetToQuestIdLookup;
+	
 	// 17.12.2024 @AK: I'm not sure it's safe to store objects of delayed quest actions as TScriptInterface like this,
 	// even if the TMap has UPROPERTY above it
 	UPROPERTY()
@@ -107,17 +120,12 @@ private:
    
 	void InitializeQuest(const FDataTableRowHandle& QuestDTRH, const FQuestDTR* QuestDTR);
 	
-	FQuestSystemContext GetQuestSystemContext();
-
 	void OnQuestEventOccured(UQuestEventTriggerProxy* QuestEventTrigger);
 	void OnQuestEventCovered(UQuestEventTriggerProxy* QuestEventTrigger);
 	void CompleteQuestEvent(UQuestEventTriggerProxy* QuestEventTrigger, bool bEventCovered);
 
 	void CompleteQuest(FQuestProgress& CompletedQuest, EQuestState QuestFinalState);
 	void ExecuteQuestActions(const FQuestSystemContext& QuestSystemContext, const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions);
-
-	void RequestDelayedAction(const FGuid& ActionId, float DelayInGameHours);
-	void RequestDelayedAction(const FGuid& ActionId, const FGameplayTag& AtNextTimeOfDay);
 
 	bool bStateLoaded = false;
 };

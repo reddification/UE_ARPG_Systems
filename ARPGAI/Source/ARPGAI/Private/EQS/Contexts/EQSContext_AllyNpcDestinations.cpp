@@ -7,8 +7,9 @@
 #include "Data/LogChannels.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
+#include "Interfaces/NpcAliveCreature.h"
 #include "Navigation/PathFollowingComponent.h"
-#include "Subsystems/NpcActivitySquadSubsystem.h"
+#include "Subsystems/NpcSquadSubsystem.h"
 
 void UEQSContext_AllyNpcDestinations::ProvideContext(FEnvQueryInstance& QueryInstance,
                                                      FEnvQueryContextData& ContextData) const
@@ -21,11 +22,14 @@ void UEQSContext_AllyNpcDestinations::ProvideContext(FEnvQueryInstance& QueryIns
 	}
 	
 	TArray<FVector> AlliesDestinations;
-	const UNpcActivitySquadSubsystem* NpcRegistrationSubsystem = UNpcActivitySquadSubsystem::Get(QuerierPawn);
-	const TArray<APawn*> Allies = NpcRegistrationSubsystem->GetAllies(QuerierPawn, true);
+	const UNpcSquadSubsystem* NpcRegistrationSubsystem = UNpcSquadSubsystem::Get(QuerierPawn);
+	const TArray<APawn*> Allies = NpcRegistrationSubsystem->GetAllies(QuerierPawn, true, true);
 	for (const auto AllyPawn : Allies)
 	{
 		auto AllyController = Cast<AAIController>(AllyPawn->GetController());
+		if (AllyController == nullptr)
+			continue;
+		
 		if (AllyController->GetMoveStatus() == EPathFollowingStatus::Type::Idle)
 			continue;
 

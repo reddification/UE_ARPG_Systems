@@ -103,10 +103,26 @@ FNpcPatrolRouteAdvanceResult UNpcPatrolRoutesSubsystem::GetNextPatrolRoutePoint(
 	if (!CurrentRouteDataPtr)
 		return Result;
 
-	CurrentRouteDataPtr->RoutePointIndex = CurrentRouteDataPtr->RoutePointIndex+1 % CurrentRouteDataPtr->PatrolRouteComponent->GetRoutePointsCount();
+	int PreviousRoutePointIndex = CurrentRouteDataPtr->RoutePointIndex;
+	CurrentRouteDataPtr->RoutePointIndex = CurrentRouteDataPtr->bCyclic || !CurrentRouteDataPtr->bGoingForward
+		? (CurrentRouteDataPtr->RoutePointIndex + 1) % CurrentRouteDataPtr->PatrolRouteComponent->GetRoutePointsCount()
+		: CurrentRouteDataPtr->RoutePointIndex == 0
+			? CurrentRouteDataPtr->PatrolRouteComponent->GetRoutePointsCount() - 1
+			: CurrentRouteDataPtr->RoutePointIndex - 1;
+	
 	Result.NextLocation = CurrentRouteDataPtr->PatrolRouteComponent->GetRoutePointLocation(CurrentRouteDataPtr->RoutePointIndex);
 	if (CurrentRouteDataPtr->RoutePointIndex == CurrentRouteDataPtr->InitialPointIndex)
 		Result.LoopCount++;
+
+	bool bNeedToReverse = !CurrentRouteDataPtr->bCyclic &&
+		(CurrentRouteDataPtr->RoutePointIndex == CurrentRouteDataPtr->PatrolRouteComponent->GetRoutePointsCount() - 1
+			|| CurrentRouteDataPtr->RoutePointIndex == 0);
+		
+	if (bNeedToReverse)
+		CurrentRouteDataPtr->bGoingForward = !CurrentRouteDataPtr->bGoingForward;
+	
+	Result.bReachedEdge = PreviousRoutePointIndex != -1
+		&& (CurrentRouteDataPtr->RoutePointIndex == 0 || CurrentRouteDataPtr->RoutePointIndex == CurrentRouteDataPtr->PatrolRouteComponent->GetRoutePointsCount() - 1);
 	
 	return Result;
 }

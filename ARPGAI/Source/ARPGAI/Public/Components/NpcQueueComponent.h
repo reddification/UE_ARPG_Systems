@@ -47,6 +47,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FNpcQueueMemberPosition StandInQueue(AActor* NewQueueMember);
+
+	UFUNCTION(BlueprintCallable)
+	FNpcQueueMemberPosition StandInQueueAtPosition(AActor* NewQueueMember, int DesiredQueuePosition);
 	
 	FNpcQueueMemberPosition GetNpcQueuePosition(const APawn* Pawn) const;
 
@@ -62,8 +65,10 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void InitializeComponent() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	
+	FNpcQueueMemberPosition StandInQueue(AActor* NewQueueMember, int StandAtPosition);
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTag QueueId;
 

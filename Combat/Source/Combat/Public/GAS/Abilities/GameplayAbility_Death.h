@@ -5,13 +5,12 @@
 #include "CoreMinimal.h"
 #include "GameplayAbility_BaseCombat.h"
 #include "Abilities/GameplayAbility.h"
+#include "Data/CombatDataTypes.h"
 #include "UObject/Object.h"
 #include "GameplayAbility_Death.generated.h"
 
 struct FContextMontages;
-/**
- * 
- */
+
 UCLASS()
 class COMBAT_API UGameplayAbility_Death : public UGameplayAbility_BaseCombat
 {
@@ -31,10 +30,13 @@ protected:
 	TArray<FContextMontages> DeathMontages;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UAnimMontage* DefaultDeathMontage;
+	TArray<FMontageData> DefaultDeathMontages;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=DeathOverrides)
-	TMap<TSoftObjectPtr<USkeletalMesh>, TObjectPtr<UAnimSequence>> DeathSkeletonOverride;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<TSoftObjectPtr<UAnimMontage>> DefaultDeathMontageOptions_Deprecated;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=DeathOverrides)
+	TMap<TSoftObjectPtr<USkeletalMesh>, TObjectPtr<UAnimSequence>> DeathSkeletonOverride_Deprecated;
 
 	UPROPERTY()
 	class UAbilityTask_PlayMontageAndWait* MontageTask;
@@ -48,4 +50,6 @@ private:
 
 	UFUNCTION()
 	void OnMontageInterrupted();
+
+	TSoftObjectPtr<USkeletalMesh> InitialSkeletalMesh;
 };

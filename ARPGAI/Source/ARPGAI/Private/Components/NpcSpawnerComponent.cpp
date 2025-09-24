@@ -1,13 +1,18 @@
 ﻿#include "Components/NpcSpawnerComponent.h"
 
 #include "Algo/RandomShuffle.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Components/BoxComponent.h"
+#include "Components/NpcAreasComponent.h"
 #include "Components/NpcComponent.h"
+#include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
+#include "Data/NpcBlackboardDataAsset.h"
 #include "Gameframework/GameModeBase.h"
 #include "Interfaces/NpcAliveCreature.h"
 #include "Interfaces/NpcSystemGameMode.h"
 #include "Interfaces/NpcZone.h"
+#include "Subsystems/NpcSquadSubsystem.h"
 
 UNpcSpawnerComponent::UNpcSpawnerComponent()
 {
@@ -33,7 +38,14 @@ void UNpcSpawnerComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	SpawnNpcs();
-	NpcSpawnedThisTick = 0;
+}
+
+void UNpcSpawnerComponent::AddNpc(AActor* Npc)
+{
+	AliveNpcs.Add(Npc);
+	auto NpcAliveCreature = Cast<INpcAliveCreature>(Npc);
+	if (ensure(NpcAliveCreature))
+		NpcAliveCreature->OnDeathStarted.AddUObject(this, &UNpcSpawnerComponent::OnNpcDied);
 }
 
 void UNpcSpawnerComponent::OnNpcDied(AActor* Actor)
@@ -47,6 +59,11 @@ void UNpcSpawnerComponent::OnNpcDied(AActor* Actor)
 		auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
 		NpcGameMode->TriggerNpcSpawnerWithDelay(this, RespawnAfterAllNpcsKilledDelayGameHours);
 	}
+}
+
+UBlackboardData* UNpcSpawnerComponent::GetBlackboardAsset() const
+{
+	return !NpcBlackboard.IsNull() ? NpcBlackboard.LoadSynchronous() : nullptr;
 }
 
 void UNpcSpawnerComponent::TriggerSpawn()
@@ -66,45 +83,8 @@ void UNpcSpawnerComponent::TriggerSpawn()
 	PendingNpcSpawns = NpcSpawnDescriptors;
 	Algo::RandomShuffle(PendingNpcSpawns);
 	
-	PendingNpcSpawnIndex = 0;
 	SetComponentTickEnabled(true);
 	SpawnNpcs();
-}
-
-void UNpcSpawnerComponent::ProvideEqsPoints(TArray<FNavLocation>& OutEqsPoints, const float Density,
-	const float ExtentScale) const
-{
-	auto NpcZone = Cast<INpcZone>(GetOwner());
-	if (!ensure(NpcZone))
-		return;
-	
-	TArray<UShapeComponent*> ZoneVolumes = INpcZone::Execute_GetZoneCollisionVolumes(GetOwner());
-
-	for (const auto* ZoneVolume : ZoneVolumes)
-	{
-		// TODO handle other volume types
-		const UBoxComponent* BoxComponent = Cast<const UBoxComponent>(ZoneVolume);
-		if (!ensure(BoxComponent))
-			continue;
-		
-		FVector GuardZoneExtent = BoxComponent->GetScaledBoxExtent();
-		FVector Location = GetOwner()->GetActorLocation();
-		FVector ForwardVector = GetOwner()->GetActorForwardVector();
-		FVector RightVector = GetOwner()->GetActorRightVector();
-
-		const int32 ItemCountX = GuardZoneExtent.X * 2.f * ExtentScale / Density;
-		const int32 ItemCountY = GuardZoneExtent.Y * 2.f * ExtentScale / Density;
-	
-		for (int32 IndexX = - ItemCountX / 2; IndexX <= ItemCountX / 2; ++IndexX)
-		{
-			for (int32 IndexY = - ItemCountY / 2; IndexY <= ItemCountY / 2; ++IndexY)
-			{
-				FVector ItemLocation = Location + ForwardVector * Density * IndexX + RightVector * Density * IndexY;
-				const FNavLocation TestPoint = FNavLocation(ItemLocation);
-				OutEqsPoints.Add(TestPoint);
-			}
-		}	
-	}
 }
 
 void UNpcSpawnerComponent::SpawnNpcs()
@@ -115,35 +95,51 @@ void UNpcSpawnerComponent::SpawnNpcs()
 		return;
 	}
 	
-	const int TotalSpawns = FMath::Min(NpcsToSpawnPerActivation, NpcSpawnDescriptors.Num());
 	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
 	if (!ensure(NpcGameMode))
 		return;
 
+	// going reverse order becaouse it's more convenient, but if order matters we can do Algo::Reverse(PendingNpcSpawns);
+	
 	int SpawnedCount = 0;
-	while (NpcSpawnedThisTick < MaxSpawnsPerTick && PendingNpcSpawnIndex + NpcSpawnedThisTick < TotalSpawns )
+	auto NpcSquadSubsystem = UNpcSquadSubsystem::Get(GetWorld());
+	for (int i = PendingNpcSpawns.Num() - 1; i >= 0 && SpawnedCount < MaxSpawnsPerTick; --i, ++SpawnedCount)
 	{
-		const auto& SpawnDescriptor = PendingNpcSpawns[PendingNpcSpawnIndex + NpcSpawnedThisTick];
+		const auto& SpawnDescriptor = PendingNpcSpawns[i];
 		FVector SpawnWorldLocation = GetOwner()->GetTransform().TransformPosition(SpawnDescriptor.SpawnRelativeLocation);
 		UE_VLOG_LOCATION(this, LogARPGAI, Verbose, SpawnWorldLocation, 1, FColor::Cyan, TEXT("Spawning %s"), *SpawnDescriptor.NpcId.ToString());
 		auto SpawnedNpc = NpcGameMode->SpawnNpc(SpawnDescriptor.NpcId, SpawnWorldLocation, SpawnNpcWithTags);
-
-		AliveNpcs.Add(SpawnedNpc);
-		auto NpcAliveCreature = Cast<INpcAliveCreature>(SpawnedNpc);
-		if (ensure(NpcAliveCreature))
-			NpcAliveCreature->OnDeathStarted.AddUObject(this, &UNpcSpawnerComponent::OnNpcDied);
+		
+		AddNpc(SpawnedNpc);
 
 		if (bRegisterAsDesignatedZoneForNpc)
 		{
-			auto NpcComponent = SpawnedNpc->FindComponentByClass<UNpcComponent>();
-			NpcComponent->SetDesignatedZone(this);
-		}
-		
-		++NpcSpawnedThisTick;
-		++SpawnedCount;
-	}
+			auto NpcAreasComponent = SpawnedNpc->FindComponentByClass<UNpcAreasComponent>();
+			if (auto OwnerNpcZoneInterface = Cast<INpcZone>(GetOwner()))
+			{
+				TScriptInterface<INpcZone> NpcZone;
+				NpcZone.SetObject(GetOwner());
+				NpcZone.SetInterface(OwnerNpcZoneInterface);
+				NpcAreasComponent->AddAreaOfInterest(AIGameplayTags::Location_Spawner, NpcZone);
+			}
 	
-	PendingNpcSpawnIndex += SpawnedCount;
-	if (PendingNpcSpawnIndex >= TotalSpawns)
+			if (!NpcFloatBlackboardParameters.IsEmpty())
+			{
+				auto NpcComponent = SpawnedNpc->FindComponentByClass<UNpcComponent>();
+				auto BlackboardKeys = NpcComponent->GetNpcDTR()->NpcBlackboardDataAsset;
+				auto Blackboard = SpawnedNpc->GetController()->FindComponentByClass<UBlackboardComponent>();
+				for (const auto& BlackboardParameter : NpcFloatBlackboardParameters)
+					if (auto BlackboardAlias = BlackboardKeys->BlackboardKeysAliases.Find(BlackboardParameter.Key))
+						Blackboard->SetValueAsFloat(BlackboardAlias->SelectedKeyName, BlackboardParameter.Value);
+			}
+		}
+
+		if (SpawnDescriptor.SquadId.IsValid())
+			NpcSquadSubsystem->JoinSquad(SpawnedNpc, SpawnDescriptor.SquadId);
+
+		PendingNpcSpawns.RemoveAt(i);
+	}
+
+	if (PendingNpcSpawns.IsEmpty())
 		SetComponentTickEnabled(false);
 }

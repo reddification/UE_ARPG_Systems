@@ -3,8 +3,10 @@
 #include "GameplayTagContainer.h"
 #include "SmartObjectTypes.h"
 #include "AITypes.h"
+#include "CommonTypes.h"
 #include "AiDataTypes.generated.h"
 
+class INpcZone;
 class UNpcPatrolRouteComponent;
 
 #define AI_BRAINMESSAGE_FLAG_IMMEDIATE 0x01
@@ -88,6 +90,8 @@ struct FNpcPatrolRouteData
 	FVector RoutePointLocation = FVector::ZeroVector;
 	int RoutePointIndex = -1;
 	int InitialPointIndex = -1;
+	bool bGoingForward = true;
+	bool bCyclic = true;
 	TWeakObjectPtr<const UNpcPatrolRouteComponent> PatrolRouteComponent;
 	
 	// this field is used only to pick the best route and can contain both squared distance from point to querier (NPC) at the moment of search and regular distance, depending on the test type (pathfinding or regular)  
@@ -103,9 +107,59 @@ struct FNpcPatrolRouteAdvanceResult
 {
 	FVector NextLocation = FVector::ZeroVector;
 	int LoopCount = 0;
+	bool bReachedEdge = false;
 	
 	FORCEINLINE bool IsValid() const
 	{
 		return NextLocation != FVector::ZeroVector && NextLocation != FAISystem::InvalidLocation;
 	}
+};
+
+USTRUCT()
+struct ARPGAI_API FTemporaryCharacterAttitudeMemory
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FGameplayTag AttitudeTag;
+
+	UPROPERTY()
+	FDateTime ValidUntilGameTime = 0.f;
+
+	UPROPERTY()
+	bool bShareableWithAllies = false;
+};
+
+USTRUCT()
+struct FNpcAreasContainer
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<TScriptInterface<INpcZone>> NpcAreas;
+};
+
+UCLASS()
+class UNpcStatesDataAsset : public UDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="AI.State,G2VS2.Character.State"))
+	TMap<FGameplayTag, FGameplayEffectsWrapper> StateEffects;
+};
+
+USTRUCT(BlueprintType)
+struct FBehaviorEvaluatorBlockRequest
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTag BehaviorEvaluatorTag;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bIndefinitely = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="bIndefinitely==false"))
+	float Duration = 10.f;
 };
