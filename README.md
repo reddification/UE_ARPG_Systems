@@ -4,3 +4,6 @@ Most of these plugins are not standalone i.e. they either depend on some other o
 
 A playable example that contains code from these plugins:
 https://drive.google.com/file/d/1KApU119drF9e9YoBEHwdSESmTLB8TnoN/view?usp=sharing
+
+P.S. In that build (and project) I developed only gameplay part. I didn't make any of 3d/art/environment/music/SFXs/VFXs. 
+Used plugins: FlowGraph, DialogueTree by Unraed, EMS, Ultra Dynamic Sky and Weather, Advanced Third Person Camera, NPC optimizer
