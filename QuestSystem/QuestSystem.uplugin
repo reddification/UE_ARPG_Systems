@@ -29,6 +29,14 @@
 		{
 			"Name": "FlowGraphUtils",
 			"Enabled": true
+		},
+		{
+			"Name": "GameFeatureHelpers",
+			"Enabled": true
+		},
+		{
+			"Name": "StructUtils",
+			"Enabled": true
 		}
 	]
 }

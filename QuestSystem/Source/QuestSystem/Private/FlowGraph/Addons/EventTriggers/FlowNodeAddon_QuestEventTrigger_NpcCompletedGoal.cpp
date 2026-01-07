@@ -28,7 +28,7 @@ void UFlowNodeAddon_QuestEventTrigger_NpcCompletedGoal::OnNpcGoalCompleted(IQues
 	if (!AreRequirementsFulfilled())
 		return;
 	
-	if (ensure(!NpcGoalTagsFilter.IsEmpty()))
+	if (!ensure(!NpcGoalTagsFilter.IsEmpty()))
 		return;
 	
 	if (NpcId.IsValid() && Npc->GetQuestCharacterIdTag() != NpcId)
