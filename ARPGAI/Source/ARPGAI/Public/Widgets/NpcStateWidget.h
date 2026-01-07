@@ -24,7 +24,7 @@ class ARPGAI_API UNpcStateWidget : public UUserWidget
 public:
 	virtual void NativeConstruct() override;
 
-	UFUNCTION(BlueprintCallable)
+	UFUNCTION(BlueprintNativeEvent)
 	void SetNPC(APawn* InOwnerCharacter);
 
 	UFUNCTION(BlueprintCallable)

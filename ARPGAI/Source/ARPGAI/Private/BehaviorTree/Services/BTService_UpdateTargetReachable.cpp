@@ -7,6 +7,7 @@
 #include "NavigationSystem.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "NavFilters/NavigationQueryFilter.h"
 
 UBTService_UpdateTargetReachable::UBTService_UpdateTargetReachable()
 {

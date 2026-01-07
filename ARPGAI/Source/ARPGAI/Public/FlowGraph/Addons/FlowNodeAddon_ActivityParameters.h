@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "AddOns/FlowNodeAddOn.h"
 #include "Addons/FlowNodeAddOnStateful.h"
+#include "NavFilters/NavigationQueryFilter.h"
 #include "UObject/SoftObjectPtr.h"
 #include "FlowNodeAddon_ActivityParameters.generated.h"
 

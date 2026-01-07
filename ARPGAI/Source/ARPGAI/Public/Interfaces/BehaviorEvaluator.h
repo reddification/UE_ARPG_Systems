@@ -24,4 +24,5 @@ class ARPGAI_API IBehaviorEvaluator
 public:
 	virtual void InitiateBehaviorState(UBehaviorTreeComponent* BTComponent) const = 0;
 	virtual void FinalizeBehaviorState(UBehaviorTreeComponent* BTComponent) const = 0;
+	virtual void SetCooldown(UBehaviorTreeComponent* BTComponent, float Cooldown) const = 0;
 };

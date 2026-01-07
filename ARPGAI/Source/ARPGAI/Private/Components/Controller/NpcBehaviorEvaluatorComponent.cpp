@@ -163,6 +163,15 @@ void UNpcBehaviorEvaluatorComponent::Initialize(UBehaviorTreeComponent* InBTComp
 	BlackboardKeys = NpcDTR->NpcBlackboardDataAsset;
 }
 
+bool UNpcBehaviorEvaluatorComponent::SetBehaviorEvaluatorCooldown(const FGameplayTag& EvaluatorTag, float Cooldown)
+{
+	if (!BehaviorEvaluators.Contains(EvaluatorTag) || !RequestedActiveEvaluators.Contains(EvaluatorTag))
+		return false;
+
+	BehaviorEvaluators[EvaluatorTag]->SetCooldown(BTComponent.Get(), Cooldown);
+	return true;
+}
+
 void UNpcBehaviorEvaluatorComponent::UpdateActiveEvaluators()
 {
 	auto Blackboard = BTComponent->GetBlackboardComponent();

@@ -3,6 +3,7 @@
 #include "AIController.h"
 #include "BlackboardKeyType_GameplayTag.h"
 #include "GameplayTagAssetInterface.h"
+#include "Activities/ActivityInstancesHelper.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcComponent.h"
@@ -116,8 +117,12 @@ void UNpcReactionEvaluator_ToCharacter::CompleteReaction(UNpcPerceptionReactionC
 	{
 		if (NewAttitudeAfterReactionComplete.IsValid())
 		{
-			auto NpcComponent = NpcPerceptionReactionComponent->GetOwner()->FindComponentByClass<UNpcAttitudesComponent>();
-			NpcComponent->AddTemporaryCharacterAttitude(Memory->Actor.Get(), NewAttitudeAfterReactionComplete, false);
+			auto BTComponent = Cast<UBehaviorTreeComponent>(Blackboard->GetBrainComponent());
+			if (ensure(BTComponent))
+			{
+				auto NpcComponent = GetNpcAttitudesComponent(*BTComponent);
+				NpcComponent->AddTemporaryCharacterAttitude(Memory->Actor.Get(), NewAttitudeAfterReactionComplete, false);
+			}
 		}
 	}
 	

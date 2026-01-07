@@ -43,8 +43,6 @@ public class ARPGAI : ModuleRules
 				"Networking",
 				"NetCore",
 				"UMG",
-				"GameFeatures",
-				"DataRegistry",
 				"CommonUI",
 				"GameFeatureHelpers",
 				"GameplayBehaviorsModule", 
@@ -52,7 +50,7 @@ public class ARPGAI : ModuleRules
 				"SmartObjectsModule",
 				"GameplayBehaviorsModule",
 				"GameplayBehaviorSmartObjectsModule",
-				"WorldConditions", "Flow", "FlowGraphUtils" 
+				"Flow", "FlowGraphUtils" 
 			}
 			);
 			

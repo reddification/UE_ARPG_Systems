@@ -164,6 +164,11 @@ void UBTService_BehaviorEvaluator_Base::FinalizeBehaviorState(UBehaviorTreeCompo
 	BTMemory->bActive = false;
 }
 
+void UBTService_BehaviorEvaluator_Base::SetCooldown(UBehaviorTreeComponent* BTComponent, float Cooldown) const
+{
+	SetNextTickTime(BTComponent->GetNodeMemory(this, BTComponent->FindInstanceContainingNode(this)), Cooldown);
+}
+
 void UBTService_BehaviorEvaluator_Base::InitializeFromAsset(UBehaviorTree& Asset)
 {
 	Super::InitializeFromAsset(Asset);

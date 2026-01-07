@@ -1,12 +1,9 @@
-﻿// 
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "BehaviorTree/Decorators/BTDecorator_LoadBehaviorContext.h"
 #include "Components/ActorComponent.h"
+#include "GameplayTagContainer.h"
 #include "NpcBehaviorEvaluatorComponent.generated.h"
-
 
 class UBehaviorTreeComponent;
 class IBehaviorEvaluator;
@@ -33,7 +30,8 @@ public:
 	void RequestEvaluatorBlocked(const FGameplayTag& EvaluatorTag, float Duration);
 	
 	void Initialize(UBehaviorTreeComponent* InBTComponent, const struct FNpcDTR* NpcDTR);
-
+	bool SetBehaviorEvaluatorCooldown(const FGameplayTag& EvaluatorTag, float Cooldown);
+	
 protected:
 	virtual void BeginPlay() override;
 	

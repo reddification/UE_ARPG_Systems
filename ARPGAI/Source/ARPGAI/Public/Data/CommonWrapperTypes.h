@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "GameplayTagContainer.h"
-#include "CommonTypes.generated.h"
+#include "CommonWrapperTypes.generated.h"
 
 class UGameplayEffect;
 

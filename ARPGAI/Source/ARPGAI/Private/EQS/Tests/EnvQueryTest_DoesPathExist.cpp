@@ -3,6 +3,7 @@
 #include "AIController.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
+#include "NavFilters/NavigationQueryFilter.h"
 
 #define LOCTEXT_NAMESPACE "EnvQueryGenerator"
 

@@ -3,7 +3,7 @@
 #include "GameplayTagContainer.h"
 #include "SmartObjectTypes.h"
 #include "AITypes.h"
-#include "CommonTypes.h"
+#include "CommonWrapperTypes.h"
 #include "AiDataTypes.generated.h"
 
 class INpcZone;

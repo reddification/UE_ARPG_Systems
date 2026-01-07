@@ -2,8 +2,6 @@
 
 #include "GameplayTagContainer.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
-#include "NavFilters/NavigationQueryFilter.h"
-
 #include "NpcActivitiesDataTypes.generated.h"
 
 class UNpcPerceptionReactionEvaluatorsDataAsset;
@@ -59,13 +57,6 @@ struct FNpcConversationSecondaryParticipantData
 	// How many characters with this tag id to include if there's more than one
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int Count = 1;
-};
-
-enum EActivityOriginType
-{
-	None,
-	Lifecycle,
-	Quest
 };
 
 // This basically should set the score for following EQS dot product test

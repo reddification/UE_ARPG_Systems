@@ -3,7 +3,7 @@
 #include "AiDataTypes.h"
 #include "GameplayTagContainer.h"
 #include "CombatEvaluationData.h"
-#include "CommonTypes.h"
+#include "CommonWrapperTypes.h"
 #include "NpcCombatTypes.generated.h"
 
 class UNpcReactionEvaluatorBase;

@@ -34,6 +34,7 @@ void UBTDecorator_SetState::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* N
 		if (auto* NpcComponent = GetNpcComponent(OwnerComp))
 		{
 			NpcComponent->SetStateActive(NewStateTag, SetByCallerParams, true);
+			DecoratorMemory->bStateApplied = true;
 		}
 	}
 }

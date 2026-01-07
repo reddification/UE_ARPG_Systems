@@ -39,11 +39,18 @@ UNpcFlowComponent* GetNpcFlowComponent(const UBehaviorTreeComponent& OwnerComp)
 	return nullptr;
 }
 
-class UNpcAttitudesComponent* GetNpcAttitudesComponent(const UBehaviorTreeComponent& OwnerComp)
+UNpcAttitudesComponent* GetNpcAttitudesComponent(const UBehaviorTreeComponent& OwnerComp)
 {
 	if (auto AIController = OwnerComp.GetAIOwner())
-		if (auto Pawn = AIController->GetPawn())
-			return Pawn->FindComponentByClass<UNpcAttitudesComponent>();
+		return GetNpcAttitudesComponent(AIController);
+	
+	return nullptr;
+}
+
+UNpcAttitudesComponent* GetNpcAttitudesComponent(const AAIController* AIController)
+{
+	if (auto Pawn = AIController->GetPawn())
+		return Pawn->FindComponentByClass<UNpcAttitudesComponent>();
 
 	return nullptr;
 }
