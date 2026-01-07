@@ -41,6 +41,11 @@ void UNpcMeleeCombatComponent::EndRecover(const uint32 AnimationId)
 	// PreviousAttack = EMeleeAttackType::None;
 }
 
+const TMap<int, FMeleeAttackPhaseSpeedModifier>& UNpcMeleeCombatComponent::GetAttackPhasePlayRates() const
+{
+	return CachedMeleeCombatSettings->NpcWeaponMasteryAttackPhaseSpeedScales;
+}
+
 void UNpcMeleeCombatComponent::ResetPreviousAttack()
 {
 	PreviousAttack = EMeleeAttackType::None;
@@ -164,7 +169,7 @@ bool UNpcMeleeCombatComponent::RequestNextAttack()
 	UE_VLOG(AIController.Get(), LogCombat, Verbose, TEXT("Npc starting attack %s"), *UEnum::GetValueAsString(NewAttack));
 	RequestedAttacksCount++;
 	CombatAnimInstance->SetAttack(NewAttack, Acceleration, AttackStepDirection, RequestedAttacksCount);
-
+	OnAttackStartedEvent.Broadcast(NewAttack);
 	if (NewAttack <= EMeleeAttackType::SpinRightOberhauw)
 		ActiveAttackTrajectory = NewAttack;
 	

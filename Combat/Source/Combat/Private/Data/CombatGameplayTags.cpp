@@ -53,6 +53,7 @@ namespace CombatGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_ChargeIn_Event_Activate, "Combat.Ability.ChargeIn.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_ChargeIn_Event_Abort, "Combat.Ability.ChargeIn.Event.Abort", "");
 	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Block, "Combat.Ability.Block", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Block_Event_Activate, "Combat.Ability.Block.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Block_Event_Stop, "Combat.Ability.Block.Event.Stop", "");
 	

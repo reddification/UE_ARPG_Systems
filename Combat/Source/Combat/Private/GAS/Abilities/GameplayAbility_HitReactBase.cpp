@@ -37,11 +37,16 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 	OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
 	OwnerTags.AddTagFast(ActivationData->HitDirectionTag);
 	UAnimMontage* HitReactMontage = nullptr; 
-	for (const auto& HitReactMontageOption : HitReacts)
+	for (int i = 0; i < HitReacts.Num(); i++)
 	{
-		if (HitReactMontageOption.ContextTags.Matches(OwnerTags))
+		const auto& HitReactMontageOption = HitReacts[i];
+		if (HitReactMontageOption.ContextTags.Matches(OwnerTags) || HitReactMontageOption.ContextTags.IsEmpty() && i == HitReacts.Num() - 1)
 		{
-			HitReactMontage = HitReactMontageOption.Montages_Deprecated[FMath::RandRange(0, HitReactMontageOption.Montages_Deprecated.Num() - 1)];
+			if (!HitReactMontageOption.MontagesOptions.IsEmpty())
+				HitReactMontage = HitReactMontageOption.MontagesOptions[FMath::RandRange(0, HitReactMontageOption.MontagesOptions.Num() - 1)].AnimMontage.LoadSynchronous();
+			else
+				HitReactMontage = HitReactMontageOption.Montages_Deprecated[FMath::RandRange(0, HitReactMontageOption.Montages_Deprecated.Num() - 1)];
+				
 			break;				
 		}
 	}
@@ -67,7 +72,7 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 	ReceivedHitData.HealthDamage = ActivationData->HealthDamage;
 	ReceivedHitData.PoiseDamage = ActivationData->PoiseDamage;
 	ReceivedHitData.HitResult = ActivationData->HitResult;
-	
+	ReceivedHitData.HitTypeTag = HitTypeTag;
 	CombatantOwner->TakeHit(ReceivedHitData);
 }
 

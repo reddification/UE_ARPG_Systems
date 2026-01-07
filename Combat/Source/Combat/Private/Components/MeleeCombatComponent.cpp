@@ -14,7 +14,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundCue.h"
 
-UMeleeCombatComponent::UMeleeCombatComponent(const FObjectInitializer& ObjectInitializer)
+UMeleeCombatComponent::UMeleeCombatComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;	
@@ -33,16 +33,14 @@ void UMeleeCombatComponent::BeginPlay()
 		ensure(IsValid(CombatAnimInstance.GetObject()));
 	}
 
-	if (auto CombatSettings = GetDefault<UMeleeCombatSettings>())
-	{
-		WeaponCollisionSweepsPerSecond = CombatSettings->WeaponCollisionSweepsPerSeconds;
-		WeaponCollisionProfileName = CombatSettings->WeaponCollisionProfileName;
-		CombatCollisionName = CombatSettings->CombatCollisionName;
-		CombatCollisionCenterSocketName = CombatSettings->CombatCollisionCenterSocketName;
-		ConsequitiveComboAttackWindUpSpeedScale = CombatSettings->ConsequitiveComboAttackWindUpSpeedScale;
-		HeavyAttackWindupSpeedModifier = CombatSettings->HeavyAttackWindupSpeedModifier;
-		KeepWeaponReadyAfterAttackDelay = CombatSettings->KeepWeaponReadyAfterAttackDelay;
-	}
+	CachedMeleeCombatSettings = GetDefault<UMeleeCombatSettings>();
+	WeaponCollisionSweepsPerSecond = CachedMeleeCombatSettings->WeaponCollisionSweepsPerSeconds;
+	WeaponCollisionProfileName = CachedMeleeCombatSettings->WeaponCollisionProfileName;
+	CombatCollisionName = CachedMeleeCombatSettings->CombatCollisionName;
+	CombatCollisionCenterSocketName = CachedMeleeCombatSettings->CombatCollisionCenterSocketName;
+	ConsequitiveComboAttackWindUpSpeedScale = CachedMeleeCombatSettings->ConsequitiveComboAttackWindUpSpeedScale;
+	HeavyAttackWindupSpeedModifier = CachedMeleeCombatSettings->HeavyAttackWindupSpeedModifier;
+	KeepWeaponReadyAfterAttackDelay = CachedMeleeCombatSettings->KeepWeaponReadyAfterAttackDelay;
 }
 
 void UMeleeCombatComponent::SetDamageCollisionsEnabled(bool bEnabled)
@@ -245,7 +243,8 @@ float UMeleeCombatComponent::GetAttackPhasePlayRate(EMeleeAttackPhase NewAttackP
 {
 	const int WeaponMastery = OwnerCombatant->GetActiveWeaponMasteryLevel();
 	float Result = 1.f;
-	if (auto AttackPhasesSpeedScales = GetDefault<UMeleeCombatSettings>()->WeaponMasteryAttackPhaseSpeedScales.Find(WeaponMastery))
+	const auto& AttachPhaseSpeedScalesMap = GetAttackPhasePlayRates();
+	if (auto AttackPhasesSpeedScales = AttachPhaseSpeedScalesMap.Find(WeaponMastery))
 	{
 		if (const float* SpeedScalePtr = AttackPhasesSpeedScales->AttackPhaseSpeed.Find(NewAttackPhase))
 		{
@@ -485,11 +484,21 @@ void UMeleeCombatComponent::OnWeaponOverlap(AActor* OtherActor, UPrimitiveCompon
 			else if (WeaponType == ECollisionComponentWeaponType::MeleeWeapon && !OtherCombatant->IsUsingShield() || WeaponType == ECollisionComponentWeaponType::Shield)
 			{
 				auto EnemyBlockComponent = OtherActor->FindComponentByClass<UMeleeBlockComponent>();
-				EBlockResult BlockResult = EnemyBlockComponent->BlockAttack(SweepDirection,OtherCombatant->GetStrength());
+				
+				FMeleeAttackDebugInfo AttackDebugInfo; 
+				AttackDebugInfo.HitResult = SweepResult;
+				AttackDebugInfo.Rotation = WeaponCollisionsComponents[0]->GetComponentQuat();
+				AttackDebugInfo.HalfHeight = WeaponCollisionShapes[0].HalfHeight;
+				AttackDebugInfo.Radius = WeaponCollisionShapes[0].Radius;
+				AttackDebugInfo.Attacker = GetOwner();
+				
+				EBlockResult BlockResult = EnemyBlockComponent->BlockAttack(SweepDirection, OwnerCombatant->GetStrength(), AttackDebugInfo);
 				if (BlockResult == EBlockResult::Block)
 					OnWeaponHitEvent.Broadcast(OtherComp, SweepResult, EWeaponHitSituation::AttackBlocked, SweepDirection);
 				else if (BlockResult == EBlockResult::Parry)
 					OnWeaponHitEvent.Broadcast(OtherComp, SweepResult, EWeaponHitSituation::AttackParried, SweepDirection);
+				else 
+					OtherCombatant->FlinchWeapon(SweepDirection);
 			}
 			
 			FXSourceTag = CombatGameplayTags::Combat_FX_Hit_Steel;
@@ -567,8 +576,10 @@ void UMeleeCombatComponent::SweepWeaponCollisions()
 		// FVector TrueEnd = CurrentTransform.TransformPosition(WeaponCollisionShapes[i].Center);
 
 		const float HandAdjustment = 15.f;
-		FVector TrueStart = PreviousTransform.GetLocation() + PreviousTransform.GetUnitAxis(EAxis::Type::Z) * (WeaponCollisionShapes[i].HalfHeight + HandAdjustment);
-		FVector TrueEnd = CurrentTransform.GetLocation() + CurrentTransform.GetUnitAxis(EAxis::Type::Z) * (WeaponCollisionShapes[i].HalfHeight + HandAdjustment);
+		// FVector TrueStart = PreviousTransform.GetLocation() + PreviousTransform.GetUnitAxis(EAxis::Type::Z) * (WeaponCollisionShapes[i].HalfHeight + HandAdjustment);
+		// FVector TrueEnd = CurrentTransform.GetLocation() + CurrentTransform.GetUnitAxis(EAxis::Type::Z) * (WeaponCollisionShapes[i].HalfHeight + HandAdjustment);
+		FVector TrueStart = PreviousTransform.GetLocation() + PreviousTransform.GetUnitAxis(EAxis::Type::Z) * (HandAdjustment);
+		FVector TrueEnd = CurrentTransform.GetLocation() + CurrentTransform.GetUnitAxis(EAxis::Type::Z) * (HandAdjustment);
 		
 		bool bHit = GetWorld()->SweepSingleByProfile(HitResult, TrueStart, TrueEnd, Rotation,
 			WeaponCollisionProfileName, CollisionShape, CollisionQueryParams);
@@ -601,6 +612,11 @@ void UMeleeCombatComponent::SweepWeaponCollisions()
 		
 		PreviousWeaponCollisionTransform[i] = CurrentTransform;
 	}
+}
+
+const TMap<int, FMeleeAttackPhaseSpeedModifier>& UMeleeCombatComponent::GetAttackPhasePlayRates() const
+{
+	return CachedMeleeCombatSettings->PlayerWeaponMasteryAttackPhaseSpeedScales;
 }
 
 void UMeleeCombatComponent::ReportAttackWhiffed()

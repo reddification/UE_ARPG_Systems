@@ -74,7 +74,7 @@ public:
 	virtual void ChargeInFinished() = 0;
 	virtual void ChargeInCanceled() = 0;
 
-	virtual void DodgeStarted() = 0;
+	virtual void DodgeStarted(const FVector& DodgeDirectionWorld) = 0;
 	virtual void DodgeFinished() = 0;
 	virtual void DodgeCanceled() = 0;
 
@@ -83,6 +83,7 @@ public:
 	virtual USkeletalMeshComponent* GetBlockCollisionsComponent() const = 0;
 	virtual void SetBlocking(bool bEnabled) = 0;
 	virtual bool IsBlocking() const = 0;
+	virtual void OnBlockPeakReached(const FVector2D& BlockDirection) = 0;
 
 	virtual const FWeaponFX* GetWeaponFX(const FGameplayTag& FXSourceTag) const = 0;
 	virtual void PlayCombatSound(const FGameplayTag& SoundTag) const = 0;
@@ -101,4 +102,5 @@ public:
 	virtual USkeletalMeshComponent* GetCombatantSkeletalMeshComponent() const = 0;
 
 	virtual void ActivateCombatantRagdoll() = 0;
+	virtual void FlinchWeapon(const FVector& HitDirectionWorld) = 0;
 };

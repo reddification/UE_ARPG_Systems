@@ -26,5 +26,5 @@ public:
 	virtual void OnAttackRecoveryAfterHitTarget() = 0;
 	virtual void BlockCompleted() const = 0;
 	virtual float GetReaction() const = 0;
-	virtual void ReportSuccessfulParry(AActor* ParriedActor) = 0;
+	virtual void ReportSuccessfulParry() = 0;
 };

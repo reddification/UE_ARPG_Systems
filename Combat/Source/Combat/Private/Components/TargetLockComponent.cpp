@@ -1,6 +1,7 @@
 ﻿#include "Components/TargetLockComponent.h"
 
 #include "Data/MeleeCombatSettings.h"
+#include "Engine/OverlapResult.h"
 #include "Interfaces/CombatAliveCreature.h"
 #include "Interfaces/LockableTarget.h"
 #include "Perception/AISightTargetInterface.h"

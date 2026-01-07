@@ -10,6 +10,7 @@
 #include "Data/CombatGameplayTags.h"
 #include "GAS/Data/GameplayAbilityTargetData_ReceivedHit.h"
 #include "Interfaces/ICombatant.h"
+#include "Interfaces/PlayerCombat.h"
 
 UGameplayAbility_Block::UGameplayAbility_Block()
 {
@@ -94,12 +95,11 @@ void UGameplayAbility_Block::OnGiveAbility(const FGameplayAbilityActorInfo* Acto
 {
 	Super::OnGiveAbility(ActorInfo, Spec);
 	auto OwnerBlockComponent = ActorInfo->AvatarActor->FindComponentByClass<UMeleeBlockComponent>();
-	OwnerBlockComponent->OnAttackParriedEvent.BindUObject(this, &UGameplayAbility_Block::OnAttackParried);
+	OwnerBlockComponent->OnAttackParriedEvent.AddUObject(this, &UGameplayAbility_Block::OnAttackParried);
 	OwnerBlockComponent->OnAttackBlockedEvent.BindUObject(this, &UGameplayAbility_Block::OnAttackBlocked);
 }
 
-void UGameplayAbility_Block::OnAttackParried(UActorComponent* ActorComponent, const FHitResult& HitResult,
-	const FVector& Vector)
+void UGameplayAbility_Block::OnAttackParried()
 {
 	if (AttackParriedEffect)
 	{
@@ -109,20 +109,6 @@ void UGameplayAbility_Block::OnAttackParried(UActorComponent* ActorComponent, co
 		auto EffectSpec = ASC->MakeOutgoingSpec(AttackParriedEffect, Combatant->GetActiveWeaponMasteryLevel(), EffectContext);
 		ASC->ApplyGameplayEffectSpecToSelf(*EffectSpec.Data);
 	}
-	
-	auto EnemyActor = ActorComponent->GetOwner();
-	FGameplayEventData OwnerPayload;
-	FGameplayAbilityTargetData_ReceivedHit* OwnerData = new FGameplayAbilityTargetData_ReceivedHit();
-	OwnerData->HitDirectionTag = CombatGameplayTags::Combat_HitDirection_Front;
-	OwnerData->HitLocation = HitResult.ImpactPoint;
-	OwnerData->HealthDamage = 0;
-	OwnerData->PoiseDamage = 0;
-	OwnerData->HitResult = HitResult;
-	OwnerPayload.TargetData.Add(OwnerData);
-
-	FGameplayTag HitReactAbilityTag = CombatGameplayTags::Combat_Ability_Stagger_Event_Activate;
-
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(EnemyActor, HitReactAbilityTag, OwnerPayload);
 }
 
 void UGameplayAbility_Block::ApplyInstantEffect(const TSubclassOf<UGameplayEffect>& EffectClass)
@@ -149,8 +135,8 @@ void UGameplayAbility_Block::OnAttackBlocked(float ConsumptionScale)
 	// ApplyInstantEffect(AttackBlockedEffect);
 
 	auto AbilityOwner = GetCurrentActorInfo()->AvatarActor.Get();
-	auto Combatant = Cast<ICombatant>(AbilityOwner);
-	const float CurrentPoise = Combatant->GetPoise();
+	auto CombatantOwner = Cast<ICombatant>(AbilityOwner);
+	const float CurrentPoise = CombatantOwner->GetPoise();
 	if (CurrentPoise <= 0.f)
 	{
 		// guard break
@@ -169,13 +155,16 @@ void UGameplayAbility_Block::OnAttackBlocked(float ConsumptionScale)
 		FGameplayTagContainer OwnerTags;
 		auto OwnerTagInterface = Cast<IGameplayTagAssetInterface>(ActorInfo->AvatarActor.Get());
 		OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
-	
 		UAnimMontage* HitReactMontage = nullptr; 
 		for (const auto& HitReactMontageOption : HitReacts)
 		{
 			if (HitReactMontageOption.ContextTags.IsEmpty() || HitReactMontageOption.ContextTags.Matches(OwnerTags))
 			{
-				HitReactMontage = HitReactMontageOption.Montages_Deprecated[FMath::RandRange(0, HitReactMontageOption.Montages_Deprecated.Num() - 1)];
+				if (!HitReactMontageOption.MontagesOptions.IsEmpty())
+					HitReactMontage = HitReactMontageOption.MontagesOptions[FMath::RandRange(0, HitReactMontageOption.MontagesOptions.Num() - 1)].AnimMontage.LoadSynchronous();
+				else
+					HitReactMontage = HitReactMontageOption.Montages_Deprecated[FMath::RandRange(0, HitReactMontageOption.Montages_Deprecated.Num() - 1)];
+				
 				break;				
 			}
 		}
@@ -185,6 +174,10 @@ void UGameplayAbility_Block::OnAttackBlocked(float ConsumptionScale)
 			auto AnimInstance = ActorInfo->AnimInstance.IsValid() ? ActorInfo->AnimInstance.Get() : ActorInfo->GetAnimInstance();
 			AnimInstance->Montage_Play(HitReactMontage);
 		}
+		
+		// TODO refactor: either separate GameplayAbility_Block_Player or call GA_HitReact with "is from blocking" parameter
+		if (auto PlayerCombatant = Cast<IPlayerCombatant>(AbilityOwner))
+			PlayerCombatant->PlayCameraShake_Combat(CombatGameplayTags::Combat_Ability_Block);
 	}
 }
 

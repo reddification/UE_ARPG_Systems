@@ -46,13 +46,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSubclassOf<UGameplayEffect> EffectForOwnerWhenItsAttackBlockedClass;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TSubclassOf<UGameplayEffect> EffectForEnemyWhenItBlockedAttackClass;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TSubclassOf<UGameplayEffect> ParryRewardForEnemyEffectClass;
-	
-	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float DirectionDotProductThreshold = 0.75f;
 
@@ -87,9 +80,9 @@ private:
 	                    ICombatant* CombatantOwner, ICombatant* CombatantEnemy, const FHitResult& HitResult, const FVector& SweepDirection);
 	void HandleWeaponsCollide(const UMeleeCombatSettings* CombatSettings, AActor* OwnerActor, AActor* EnemyActor,
 	                          ICombatant* CombatantOwner, ICombatant* CombatantEnemy, const FVector& SweepDirection);
-	void HandleAttackBlocked(AActor* EnemyActor, ICombatant* Combatant, ICombatant* CombatantEnemy, const FVector& Vector, const
+	void HandleAttackBlocked(AActor* EnemyActor, const FVector& Vector, const
 	                         FHitResult& HitResult);
-	void HandleAttackParried(AActor* Actor, AActor* EnemyActor);
+	void HandleAttackParried(AActor* Actor);
 	
 	void ApplyEffect(const TSubclassOf<UGameplayEffect>& EffectClass, float EffectLevel);
 	

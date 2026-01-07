@@ -32,6 +32,10 @@ private:
 		EMeleeAttackType Attack = EMeleeAttackType::LeftMittelhauw;
 	};
 	
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FAttackInputProgressUpdatedEvent, EMeleeAttackType AttackType, float NewProgress);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FAttackStepDirectionUpdatedEvent, EAttackStepDirection StepDirection);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FRegisteringAttackStateChangedEvent, bool bEnabled);
+		
 public:
 	UPlayerSwingControlCombatComponent(const FObjectInitializer& ObjectInitializer);
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -47,9 +51,13 @@ public:
 	virtual void BeginRelease(float TotalDuration, const uint32 AttackAnimationId) override;
 	virtual void BeginRecover(float TotalDuration, const uint32 AttackAnimationId) override;
 	virtual void ResetAttackState() override;
-
+	virtual void EndRecover(const uint32 AnimationId) override;
+	
 	virtual bool Feint() override;
 	
+	mutable FAttackInputProgressUpdatedEvent AttackInputProgressUpdatedEvent;
+	mutable FAttackStepDirectionUpdatedEvent AttackStepDirectionUpdatedEvent;
+	mutable FRegisteringAttackStateChangedEvent RegisteringAttackStateChangedEvent;
 protected:
 	virtual void BeginPlay() override;
 
@@ -72,7 +80,10 @@ private:
 	void RegisterNewInput(const FVector2d& Input);
 	EMeleeAttackType GetAttackType(float Radians) const;
 	
-	void FindAttackCombination(const TArray<FAccumulatedAttackVector>& AccumulatedVectors, EMeleeAttackType& FinalAttackType) const;
+	EMeleeAttackType GetBasicAccumulatedAttack(TArray<FAccumulatedAttackVector>& AccumulatedVectors) const;
+	EAttackStepDirection GetAttackStepDirection(const FVector& NormalizedAcceleration, const FVector& ForwardVector) const;
+	int GetAttackActivationInputsCount() const;
+	void DeduceComplexAttackInput(const TArray<FAccumulatedAttackVector>& AccumulatedVectors, EMeleeAttackType& FinalAttackType) const;
 	
 	void SetRegisteringAttack(bool bEnabled);
 	void Attack();

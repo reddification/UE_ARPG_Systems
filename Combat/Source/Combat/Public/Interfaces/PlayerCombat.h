@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "UObject/Interface.h"
 #include "PlayerCombat.generated.h"
 
@@ -28,10 +29,11 @@ public:
 	virtual ECollisionChannel GetTargetCollisionChannel() const = 0;
 	virtual FVector GetCombatMovementDirection() const = 0;
 	virtual FVector ConsumeCombatMovementRawInput() const = 0;
-	virtual void SetLookDampering(float MaxCameraRotationAngleDuringAttack, float LookDamperingRatio) = 0;
-	virtual void ResetLookDampering() = 0;
+	virtual void EnableAttackCameraDampering(float MaxCameraRotationAngleDuringAttack, float LookDamperingRatio) = 0;
+	virtual void DisableAttackCameraDampering() = 0;
 	virtual void SetCombatFocus(AActor* FocusedActor) = 0;
 	virtual void ResetCombatFocus() = 0;
 	virtual FRotator GetPlayerCombatantViewDirection() const = 0;
 	virtual void SetOrientationFollowsAttack(bool bActive) = 0;
+	virtual void PlayCameraShake_Combat(const FGameplayTag& CameraShakeTag) = 0;
 };

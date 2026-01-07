@@ -172,6 +172,10 @@ struct FMeleeCombatDirectionalInputParameters
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 1, ClampMin = 1))
 	int AttackFrameAccumulation = 5;
 
+	// key - weapon mastery, value - how many inputs in accumulated vector are required for activation 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TMap<int, int> WeaponMasteryToMinAttackInputs;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 1, ClampMin = 1))
 	int MinInputsToAttack = 8;
 
@@ -360,7 +364,10 @@ public:
 	bool bDrawDebugSweeps = true;
 
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
-	TMap<int, FMeleeAttackPhaseSpeedModifier> WeaponMasteryAttackPhaseSpeedScales;
+	TMap<int, FMeleeAttackPhaseSpeedModifier> PlayerWeaponMasteryAttackPhaseSpeedScales;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	TMap<int, FMeleeAttackPhaseSpeedModifier> NpcWeaponMasteryAttackPhaseSpeedScales;
 
 	// It is expected that skeletal meshes physics asset primitives have a box primitive with this name that must be used as the combat collision (or just 1 box primitive with any name)
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)

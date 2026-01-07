@@ -26,6 +26,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TArray<FContextMontages> HitReacts;
 	
+	// routed to ICombatant. Can be used to distinguish between hit reacts, staggers, guard breaks, etc
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FGameplayTag HitTypeTag;
+
 	UPROPERTY()
 	class UAbilityTask_PlayMontageAndWait* HitReactMontageTask;
 

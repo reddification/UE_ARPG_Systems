@@ -4,6 +4,7 @@
 #include "Components/MeleeBlockComponent.h"
 #include "Data/CombatLogChannels.h"
 #include "Data/MeleeCombatSettings.h"
+#include "Helpers/CombatCommonHelpers.h"
 #include "Interfaces/ICombatant.h"
 
 UMeleeBlockComponent::UMeleeBlockComponent()
@@ -31,9 +32,11 @@ void UMeleeBlockComponent::BeginPlay()
 void UMeleeBlockComponent::StartBlocking()
 {
 	bRegisteringBlock = true;
+	bBlockPeakNotified = false;
 	AccumulatedBlock = FVector2d::ZeroVector;
 	SetComponentTickEnabled(true);
 	OwnerCombatant->SetBlocking(true);
+	OnBlockActiveChangedEvent.Broadcast(true);
 	const UMeleeCombatSettings* MeleeCombatSettings = GetDefault<UMeleeCombatSettings>();
 	float StaminaRatio = OwnerCombatant->GetStaminaRatio();
 	if (auto BlockStaminaAccumulationScaleDependency = MeleeCombatSettings->BlockStaminaAccumulationScaleDependency.GetRichCurveConst())
@@ -41,34 +44,83 @@ void UMeleeBlockComponent::StartBlocking()
 	else
 		BlockInputAccumulationScale = 0.15f;
 
-	BlockStrength = 1.f;
+	BlockStrength = BlockStrengthToParry + 0.1f;
+	OnBlockAccumulationChangedEvent.Broadcast(AccumulatedBlock, BlockStrength);
+	OnParryWindowActiveChangedEvent.Broadcast(true);
 	CurrentDecayDelay = DecayDelay;
 }
 
 void UMeleeBlockComponent::StopBlocking()
 {
 	bRegisteringBlock = false;
+	BlockStrength = 0.f;
 	SetComponentTickEnabled(false);
 	OwnerCombatant->SetBlocking(false);
+	OnBlockActiveChangedEvent.Broadcast(false);
 }
 
-EBlockResult UMeleeBlockComponent::BlockAttack(const FVector& AttackDirection, float AttackerStrength) const
+EBlockResult UMeleeBlockComponent::BlockAttack(const FVector& AttackDirection, float AttackerStrength, FMeleeAttackDebugInfo AttackDebugInfo) const
 {
 	if (!bRegisteringBlock)
 		return EBlockResult::None;
 
-	// FVector2D AccumulatedBlockVector = GetAccumulatedBlockVector();
-	FVector ProjectedDirection = FVector::VectorPlaneProject(-GetOwner()->GetActorForwardVector(), AttackDirection);
-	FVector2D ProjectedDirection2D = FVector2D(ProjectedDirection.Y, ProjectedDirection.Z);
-	bool bAttackAndBlockAreNonCollinear = (ProjectedDirection2D.GetSafeNormal() | AccumulatedBlock.GetSafeNormal()) < -0.5f;
-	if (!bAttackAndBlockAreNonCollinear)
+	FVector AccumulatedBlock3DRelative = FVector(1.f, AccumulatedBlock.X, AccumulatedBlock.Y);
+	FVector AccumulatedBlock3D = GetOwner()->GetTransform().TransformVectorNoScale(AccumulatedBlock3DRelative).GetSafeNormal();
+	const float dp = AttackDebugInfo.HitResult.ImpactNormal | AccumulatedBlock3D;
+	bool bBlockDirectionBlocksAttack = dp >= -0.5f;
+
+	auto OwnerLocal = GetOwner();
+	
+#if WITH_EDITOR
+	UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Attempting block:\nBlock strength = %.2f\nAttack direction: %s\nImpact normal: %s\nBlock input 3D: %s\ndp3=%.2f"),
+		BlockStrength, *AttackDirection.ToString(), *AttackDebugInfo.HitResult.ImpactNormal.ToString(),
+		*AccumulatedBlock3D.ToString(), dp);
+	
+	auto BlockCollisionSkelMesh = OwnerCombatant->GetBlockCollisionsComponent();
+	TArray<USkeletalMeshComponent*> BlockCollisionMeshes = { BlockCollisionSkelMesh };
+	auto CollisionShapeInfos = GetCombatCollisionShapes(FName("CombatCollision"), BlockCollisionMeshes, OwnerLocal);
+	UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, BlockCollisionSkelMesh->GetComponentLocation(), CollisionShapeInfos[0].HalfHeight, CollisionShapeInfos[0].Radius,
+		BlockCollisionSkelMesh->GetComponentQuat(), FColor::Cyan, TEXT("Block collision"));
+	// UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.TraceStart + AttackDebugInfo.Rotation.Vector() * AttackDebugInfo.HalfHeight, AttackDebugInfo.HalfHeight, AttackDebugInfo.Radius,
+	// 	AttackDebugInfo.Rotation, FColor::Orange, TEXT("Sweep start"));
+	// UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.TraceEnd + AttackDebugInfo.Rotation.Vector() * AttackDebugInfo.HalfHeight, AttackDebugInfo.HalfHeight, AttackDebugInfo.Radius,
+	// 	AttackDebugInfo.Rotation, FColor::Orange, TEXT("Sweep end"));
+	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.TraceStart, AttackDebugInfo.Radius, FColor::Orange, TEXT("Sweep start"));
+	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.TraceEnd, AttackDebugInfo.Radius, FColor::Orange, TEXT("Sweep end"));
+	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.ImpactPoint, 5.f, FColor::Red, TEXT("Hit impact point"));
+	UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.Attacker->GetActorLocation() - FVector::UpVector * 90.f, 90.f, 25.f,
+		FQuat::Identity, FColor::Black, TEXT("Attacker"));
+	UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, OwnerLocal->GetActorLocation() - FVector::UpVector * 90.f, 90.f, 25.f,
+		FQuat::Identity, FColor::White, TEXT("Defender"));
+	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.Attacker->GetActorLocation(), AttackDebugInfo.Attacker->GetActorLocation() + AttackDebugInfo.Attacker->GetActorForwardVector() * 100.f,
+		FColor::Black, TEXT("Attacker FV"));
+	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, OwnerLocal->GetActorLocation(), OwnerLocal->GetActorLocation() + OwnerLocal->GetActorForwardVector() * 100.f,
+		FColor::White, TEXT("Defender FV"));
+	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.ImpactPoint, AttackDebugInfo.HitResult.ImpactPoint + AttackDebugInfo.HitResult.ImpactNormal * 100.f,
+		FColor::White, TEXT("Hit impact normal"));
+	// UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.ImpactPoint, AttackDebugInfo.HitResult.ImpactPoint + AttackDebugInfo.HitResult.Normal * 100.f,
+	// 	FColor::White, TEXT("Hit Normal"));
+	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, BlockCollisionSkelMesh->GetComponentLocation(), BlockCollisionSkelMesh->GetComponentLocation() + AccumulatedBlock3D * 100.f,
+		FColor::White, TEXT("Block input"));
+	
+#endif
+	
+	if (!bBlockDirectionBlocksAttack)
+	{
+		UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Attack not blocked"));
 		return EBlockResult::None;
+	}
 	
 	if (BlockStrength >= BlockStrengthToParry)
+	{
+		UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Attack parried, [%.2f >= %.2f]"), BlockStrength, BlockStrengthToParry);
+		OnAttackParriedEvent.Broadcast();
 		return EBlockResult::Parry;
-
-	float BlockScaledOwnerStrength = OwnerCombatant->GetStrength() * BlockStrength;
+	}
+	
+	float BlockScaledOwnerStrength = OwnerCombatant->GetStrength() * FMath::Max(BlockStrength, MinHeldBlockStrength);
 	const float StrengthRatio = AttackerStrength * AttackerStrengthScaleWhenHitBlock / BlockScaledOwnerStrength;
+	UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Attack just blocked, [%.2f < %.2f]"), BlockStrength, BlockStrengthToParry);
 	OnAttackBlockedEvent.ExecuteIfBound(StrengthRatio);
 	return EBlockResult::Block;
 }
@@ -80,67 +132,79 @@ void UMeleeBlockComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	if (!ensure(bRegisteringBlock))
 		return;
 
+	float PreviousBlockStrength = BlockStrength;
 	AddBlockInput(GetBlockInput(DeltaTime), DeltaTime);
+	OnBlockAccumulationChangedEvent.Broadcast(AccumulatedBlock, BlockStrength);
+	if (BlockStrength >= BlockStrengthToParry && PreviousBlockStrength < BlockStrengthToParry)
+		OnParryWindowActiveChangedEvent.Broadcast(true);
+	else if (BlockStrength < BlockStrengthToParry && PreviousBlockStrength >= BlockStrengthToParry)
+		OnParryWindowActiveChangedEvent.Broadcast(false);
+	
 	CombatAnimInstance->SetBlockPosition(AccumulatedBlock);
-
-	GEngine->AddOnScreenDebugMessage(123, 5.f, FColor::Cyan, FString::Printf(TEXT("Block: %s [%.2f]"), *AccumulatedBlock.ToString(), BlockStrength));
-	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("Current block position = %s"), *AccumulatedBlock.ToString());
+	if (!bBlockPeakNotified && AccumulatedBlock.SizeSquared() >= 1)
+	{
+		bBlockPeakNotified = true;
+		OwnerCombatant->OnBlockPeakReached(AccumulatedBlock);
+	}
+	
+	UE_VLOG(GetOwner(), LogCombat_Block, VeryVerbose, TEXT("Current block position = %s"), *AccumulatedBlock.ToString());
 }
 
 void UMeleeBlockComponent::AddBlockInput(const FVector2D& BlockInput, float DeltaTime)
 {
 	FVector2D NewInputDirection = BlockInput.GetSafeNormal();
 	FVector2D CurrentBlockDirection = AccumulatedBlock.GetSafeNormal();
-	const float NewInputDotProduct = CurrentBlockDirection | NewInputDirection;
+	const float NewInputDotProduct =  CurrentBlockDirection | NewInputDirection;
 	bool bDirectionCollinear = !BlockInput.IsNearlyZero() && !CurrentBlockDirection.IsNearlyZero() && NewInputDotProduct > CollinearBlockInputsDotProductThreshold;
 	float BlockStrengthScore = NewInputDotProduct - CollinearBlockInputsDotProductThreshold;
 	FVector2D AccumulatedBlockPreChange = AccumulatedBlock;
 
-	UE_LOG(LogCombat, Log, TEXT("Block ==========="))
-	UE_LOG(LogCombat, Log, TEXT("Block input = %s"), *BlockInput.ToString());
-	UE_LOG(LogCombat, Log, TEXT("Current block direction = %s"), *CurrentBlockDirection.ToString());
-	UE_LOG(LogCombat, Log, TEXT("New input dot product = %.2f"), NewInputDotProduct);
-	UE_LOG(LogCombat, Log, TEXT("Direction collinear = %s"), bDirectionCollinear ? TEXT("true") : TEXT("false"));
-	UE_LOG(LogCombat, Log, TEXT("Block strength score = %.2f"), BlockStrengthScore);
-	UE_LOG(LogCombat, Log, TEXT("Accumulated block pre change = %s"), *AccumulatedBlock.ToString());
+	UE_LOG(LogCombat_Block, Log, TEXT("Block ==========="))
+	UE_LOG(LogCombat_Block, Log, TEXT("Block input = %s"), *BlockInput.ToString());
+	UE_LOG(LogCombat_Block, Log, TEXT("Current block direction = %s"), *CurrentBlockDirection.ToString());
+	UE_LOG(LogCombat_Block, Log, TEXT("New input dot product = %.2f"), NewInputDotProduct);
+	UE_LOG(LogCombat_Block, Log, TEXT("Direction collinear = %s"), bDirectionCollinear ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogCombat_Block, Log, TEXT("Block strength score = %.2f"), BlockStrengthScore);
+	UE_LOG(LogCombat_Block, Log, TEXT("Accumulated block pre change = %s"), *AccumulatedBlock.ToString());
 	
 	AccumulatedBlock = AccumulatedBlock + BlockInput;
 	AccumulatedBlock = AccumulatedBlock.ClampAxes(-1.f, 1.f);
 
-	UE_LOG(LogCombat, Log, TEXT("Accumulated block post change = %s"), *AccumulatedBlock.ToString());
+	UE_LOG(LogCombat_Block, Log, TEXT("Accumulated block post change = %s"), *AccumulatedBlock.ToString());
 
 	const float DeltaBlockStrength = (AccumulatedBlock - AccumulatedBlockPreChange).Size();
-	UE_LOG(LogCombat, Log, TEXT("Delta block strength = %.2f"), DeltaBlockStrength);
+	UE_LOG(LogCombat_Block, Log, TEXT("Delta block strength = %.2f"), DeltaBlockStrength);
 
 	if (DeltaBlockStrength > KINDA_SMALL_NUMBER && bDirectionCollinear)
 	{
 		BlockStrength = BlockStrength + DeltaBlockStrength * DeltaTime * BlockStrengthScore * BlockStrengthAccumulationScale;
 		CurrentDecayDelay = DecayDelay;
 	}
-	else if (NewInputDotProduct > 0.25f)
+	else if (NewInputDotProduct < -0.1)
+	{
+		UE_VLOG(GetOwner(), LogCombat_Block, VeryVerbose, TEXT("Resetting block strength"));
+		BlockStrength = 0.f;
+	}
+	else
 	{
 		if (CurrentDecayDelay > 0.f)
 			CurrentDecayDelay -= BlockStrengthDecayRate * DeltaTime;
 		else 
 			BlockStrength = FMath::Max(MinHeldBlockStrength, BlockStrength - BlockStrengthDecayRate * DeltaTime);
 		
-		UE_LOG(LogCombat, Log, TEXT("Block strength decaying"));
-	}
-	else
-	{
-		BlockStrength = 0.f;
+		UE_LOG(LogCombat_Block, Log, TEXT("Block strength decaying"));
 	}
 
 #if WITH_EDITOR
-	if (BlockStrength > 0.5f)
-	{
-		DrawDebugSphere(GetWorld(), GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * 50.f, 25, 16, FColor::Cyan, false);
-	}
+	// if (BlockStrength > 0.5f)
+	// {
+		// DrawDebugSphere(GetWorld(), GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * 50.f, 25, 16, FColor::Cyan, false);
+	// }
 #endif
 	
-	UE_LOG(LogCombat, Log, TEXT("New block strength = %.2f"), BlockStrength);
+	UE_LOG(LogCombat_Block, Log, TEXT("New block strength = %.2f"), BlockStrength);
 	
-	// UE_LOG(LogCombat, Log, TEXT("Accumulated block = %s; Strength = %.2f"), *AccumulatedBlock.ToString(), BlockStrength);
+	// UE_LOG(LogCombat_Block, Log, TEXT("Accumulated block = %s; Strength = %.2f"), *AccumulatedBlock.ToString(), BlockStrength);
 }
 
 FVector UMeleeBlockComponent::GetIncomingAttackDirection(const AActor* AttackingActor, EMeleeAttackType IncomingAttackType)

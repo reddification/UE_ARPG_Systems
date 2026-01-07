@@ -226,6 +226,9 @@ void UGameplayAbility_MeleeWeaponCombat::OnWeaponHit(UPrimitiveComponent* OtherA
 	auto CombatantEnemy = Cast<ICombatant>(EnemyActor);
 
 	UE_VLOG(OwnerActor, LogCombat, VeryVerbose, TEXT("UGameplayAbility_MeleeWeaponCombat::OnWeaponHit"));
+
+	if (WeaponHitSituation != EWeaponHitSituation::Body)
+		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 	
 	switch (WeaponHitSituation)
 	{
@@ -234,10 +237,10 @@ void UGameplayAbility_MeleeWeaponCombat::OnWeaponHit(UPrimitiveComponent* OtherA
 			HandleWeaponsCollide(CombatSettings, OwnerActor, EnemyActor, CombatantOwner, CombatantEnemy, SweepDirection);
 		break;
 		case EWeaponHitSituation::AttackBlocked:
-			HandleAttackBlocked(EnemyActor, CombatantOwner, CombatantEnemy, SweepDirection, HitResult);
+			HandleAttackBlocked(EnemyActor, SweepDirection, HitResult);
 			break;
 		case EWeaponHitSituation::AttackParried:
-			HandleAttackParried(OwnerActor, EnemyActor);
+			HandleAttackParried(OwnerActor);
 			break;
 		case EWeaponHitSituation::Body:
 			HandleEnemyHit(CombatSettings, OwnerActor, EnemyActor, CombatantOwner, CombatantEnemy, HitResult, SweepDirection);
@@ -280,19 +283,8 @@ void UGameplayAbility_MeleeWeaponCombat::HandleWeaponsCollide(const UMeleeCombat
 	}
 }
 
-void UGameplayAbility_MeleeWeaponCombat::HandleAttackBlocked(AActor* EnemyActor, ICombatant* CombatantOwner, ICombatant* CombatantEnemy, const FVector& SweepDirection, const FHitResult& HitResult)
+void UGameplayAbility_MeleeWeaponCombat::HandleAttackBlocked(AActor* EnemyActor, const FVector& SweepDirection, const FHitResult& HitResult)
 {
-	if (ensure(IsValid(EffectForEnemyWhenItBlockedAttackClass)))
-	{
-		auto OwnerASC = CurrentActorInfo->AbilitySystemComponent.Get();
-		auto EffectContext = OwnerASC->MakeEffectContext();
-		float EnemyBlockedHitEffectLevel = CombatantOwner->GetActiveWeaponMasteryLevel() * CombatantOwner->GetStrength()
-			/ (CombatantEnemy->GetActiveWeaponMasteryLevel() * CombatantEnemy->GetStrength());
-		auto EnemyBlockedHitEffectSpec = OwnerASC->MakeOutgoingSpec(EffectForEnemyWhenItBlockedAttackClass, EnemyBlockedHitEffectLevel, EffectContext);
-		auto EnemyASC = EnemyActor->FindComponentByClass<UAbilitySystemComponent>();
-		OwnerASC->ApplyGameplayEffectSpecToTarget(*EnemyBlockedHitEffectSpec.Data, EnemyASC);
-	}
-
 	ApplyEffect(EffectForOwnerWhenItsAttackBlockedClass, 1.f);
 
 	FGameplayEventData OwnerPayload; // TODO strike data
@@ -305,21 +297,21 @@ void UGameplayAbility_MeleeWeaponCombat::HandleAttackBlocked(AActor* EnemyActor,
 	OwnerPayload.TargetData.Add(OwnerData);
 
 	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(CurrentActorInfo->AvatarActor.Get(), CombatGameplayTags::Combat_Ability_HitReact_Event_Activate, OwnerPayload);
-	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(EnemyActor, CombatGameplayTags::Combat_Ability_HitReact_Event_Activate, OwnerPayload);
-	
-	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
+	// UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(EnemyActor, CombatGameplayTags::Combat_Ability_HitReact_Event_Activate, OwnerPayload);
 }
 
-void UGameplayAbility_MeleeWeaponCombat::HandleAttackParried(AActor* OwnerActor, AActor* EnemyActor)
+void UGameplayAbility_MeleeWeaponCombat::HandleAttackParried(AActor* OwnerActor)
 {
-	if (IsValid(ParryRewardForEnemyEffectClass))
-	{
-		auto EnemyASC = EnemyActor->FindComponentByClass<UAbilitySystemComponent>();
-		auto EffectSpec = EnemyASC->MakeOutgoingSpec(ParryRewardForEnemyEffectClass, 1.f, EnemyASC->MakeEffectContext()); 
-		EnemyASC->ApplyGameplayEffectSpecToSelf(*EffectSpec.Data);
-	}
+	FGameplayEventData OwnerPayload;
+	FGameplayAbilityTargetData_ReceivedHit* OwnerData = new FGameplayAbilityTargetData_ReceivedHit();
+	OwnerData->HitDirectionTag = CombatGameplayTags::Combat_HitDirection_Front;
+	OwnerData->HealthDamage = 0;
+	OwnerData->PoiseDamage = 0;
+	OwnerPayload.TargetData.Add(OwnerData);
 
-	TriggerClashAbility(OwnerActor, EClashSource::Parry, -OwnerActor->GetActorForwardVector());
+	FGameplayTag HitReactAbilityTag = CombatGameplayTags::Combat_Ability_ReceiveGuardBreak_Event_Activate;
+
+	UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(OwnerActor, HitReactAbilityTag, OwnerPayload);
 }
 
 void UGameplayAbility_MeleeWeaponCombat::ApplyEffect(const TSubclassOf<UGameplayEffect>& EffectClass, float EffectLevel)

@@ -87,14 +87,13 @@ void UGameplayAbility_NpcBlock::EndAbility(const FGameplayAbilitySpecHandle Hand
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
-void UGameplayAbility_NpcBlock::OnAttackParried(UActorComponent* ActorComponent, const FHitResult& HitResult,
-	const FVector& Vector)
+void UGameplayAbility_NpcBlock::OnAttackParried()
 {
-	Super::OnAttackParried(ActorComponent, HitResult, Vector);
+	Super::OnAttackParried();
 	auto NpcCombatant = Cast<INpcCombatant>(GetCurrentActorInfo()->AvatarActor.Get());
 	if (ensure(NpcCombatant))
 	{
-		NpcCombatant->ReportSuccessfulParry(ActorComponent->GetOwner());
+		NpcCombatant->ReportSuccessfulParry();
 		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 	}
 }

@@ -5,6 +5,7 @@
 
 #include "Data/CombatLogChannels.h"
 #include "Data/MeleeCombatSettings.h"
+#include "Engine/OverlapResult.h"
 #include "Interfaces/CombatAnimInstance.h"
 #include "Interfaces/ICombatant.h"
 #include "Interfaces/LockableTarget.h"

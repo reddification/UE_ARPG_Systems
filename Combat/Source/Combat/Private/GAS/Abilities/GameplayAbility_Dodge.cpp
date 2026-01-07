@@ -46,8 +46,8 @@ void UGameplayAbility_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	}
 
 	auto OwnerActor = Cast<AActor>(ActorInfo->AvatarActor.Get());
-	FGameplayTag RelativeDirectionTag = GetActorRelativeDirectionTag(OwnerActor, (ActivationData->DodgeLocation - OwnerActor->GetActorLocation()).GetSafeNormal(),
-		DirectionDotProductThreshold);
+	const FVector& DodgeDirection = (ActivationData->DodgeLocation - OwnerActor->GetActorLocation()).GetSafeNormal();
+	FGameplayTag RelativeDirectionTag = GetActorRelativeDirectionTag(OwnerActor, DodgeDirection, DirectionDotProductThreshold);
 	FGameplayTagContainer OwnerTags;
 	auto OwnerTagInterface = Cast<IGameplayTagAssetInterface>(OwnerActor);
 	OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
@@ -98,7 +98,7 @@ void UGameplayAbility_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	auto Combatant = Cast<ICombatant>(OwnerActor);
 	FGameplayTagContainer OptionalTags;
 	CommitAbility(Handle, ActorInfo, ActivationInfo, &OptionalTags);
-	Combatant->DodgeStarted();
+	Combatant->DodgeStarted(DodgeDirection);
 	Combatant->PlayCombatSound(CombatGameplayTags::Combat_FX_Sound_Grunt);
 	
 	if (ensure(DodgeEffectClass))

@@ -71,7 +71,7 @@ void UPlayerSwingControlCombatComponent::TickComponent(float DeltaTime, ELevelTi
 
 		CurrentAcceleration = FVector::ZeroVector;
 	}
-
+	
 	if (bRegisteringAttack)
 	{
 		// UpdateFocus(DeltaTime);
@@ -86,6 +86,15 @@ void UPlayerSwingControlCombatComponent::TickComponent(float DeltaTime, ELevelTi
 			RegisterNewInput(NewAttackDirectionInput);
 		}
 	}
+	
+	EAttackStepDirection CurrentAttackStepDirection = GetAttackStepDirection(CurrentAcceleration.GetSafeNormal2D(), GetOwner()->GetActorForwardVector());
+	AttackStepDirectionUpdatedEvent.Broadcast(CurrentAttackStepDirection);
+	
+	TArray<FAccumulatedAttackVector> Dump;
+	EMeleeAttackType CurrentlyAccumulatedAttack = GetBasicAccumulatedAttack(Dump);
+	float x = (GetAttackActivationInputsCount() + MeleeCombatParameters.InputBufferSize) / 2.f;
+	float CurrentAccumulationProgress = static_cast<float>(CurrentAttackFrames) / x;
+	AttackInputProgressUpdatedEvent.Broadcast(CurrentlyAccumulatedAttack, CurrentAccumulationProgress);
 }
 
 // Not used for now
@@ -178,7 +187,12 @@ void UPlayerSwingControlCombatComponent::RequestReleaseAttack()
 void UPlayerSwingControlCombatComponent::RequestReactivateAttack()
 {
 	Super::RequestReactivateAttack();
-	ensure(!bPlayerRequestsAttack);
+	if (!ensure(!bPlayerRequestsAttack))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
+			TEXT("UPlayerSwingControlCombatComponent::RequestReactivateAttack: bPlayerRequestsAttack == true when expected false"));
+	}
+	// ensure(!bPlayerRequestsAttack);
 	bPlayerRequestsAttack = true;
 	if (bComboWindowActive)
 		SetRegisteringAttack(true);
@@ -215,11 +229,15 @@ void UPlayerSwingControlCombatComponent::BeginWindUp(float TotalDuration, const 
 	// so just route it through
 	Super::BeginWindUp(TotalDuration, AttackAnimationId, ActiveAttack);
 	OwnerPlayerCombat->SetLookEnabled(true);
-	OwnerPlayerCombat->SetLookDampering(MeleeCombatParameters.MaxCameraRotationAngleDuringAttack, MeleeCombatParameters.InitialLookRatioDuringAttack);
+	// OwnerPlayerCombat->SetOrientationFollowsAttack(true);
+	OwnerPlayerCombat->EnableAttackCameraDampering(MeleeCombatParameters.MaxCameraRotationAngleDuringAttack, MeleeCombatParameters.InitialLookRatioDuringAttack);
 }
 
 void UPlayerSwingControlCombatComponent::BeginRelease(float TotalDuration, const uint32 AttackAnimationId)
 {
+	// if (AttackPhase != EMeleeAttackPhase::WindUp)
+	// 	OwnerPlayerCombat->SetOrientationFollowsAttack(true);
+	
 	Super::BeginRelease(TotalDuration, AttackAnimationId);
 	// OwnerPlayerCombat->SetLookEnabled(true);
 	// OwnerPlayerCombat->SetLookDampering(MaxCameraRotationAngleDuringAttack, LookDamperingRatio);
@@ -232,7 +250,15 @@ void UPlayerSwingControlCombatComponent::BeginRecover(float TotalDuration, const
 	// 	SetRegisteringAttack(true);
 
 	OwnerPlayerCombat->SetLookEnabled(false);
-	OwnerPlayerCombat->ResetLookDampering();
+	OwnerPlayerCombat->DisableAttackCameraDampering();
+}
+
+void UPlayerSwingControlCombatComponent::EndRecover(const uint32 AnimationId)
+{
+	// if (AttackPhase == EMeleeAttackPhase::Recover)
+	// 	OwnerPlayerCombat->SetOrientationFollowsAttack(false);
+	
+	Super::EndRecover(AnimationId);
 }
 
 void UPlayerSwingControlCombatComponent::ResetAttackState()
@@ -240,7 +266,8 @@ void UPlayerSwingControlCombatComponent::ResetAttackState()
 	Super::ResetAttackState();
 	SetRegisteringAttack(false);
 	OwnerPlayerCombat->SetLookEnabled(true);
-	OwnerPlayerCombat->ResetLookDampering();
+	// OwnerPlayerCombat->SetOrientationFollowsAttack(false);
+	OwnerPlayerCombat->DisableAttackCameraDampering();
 	bPlayerRequestsAttack = false;
 	LastDistSqBetweenFocusedEnemyAndOwner = 0.f;
 }
@@ -299,26 +326,13 @@ void UPlayerSwingControlCombatComponent::RegisterNewInput(const FVector2d& Input
 	}
 }
 
-void UPlayerSwingControlCombatComponent::Attack()
+EMeleeAttackType UPlayerSwingControlCombatComponent::GetBasicAccumulatedAttack(TArray<FAccumulatedAttackVector>& AccumulatedVectors) const
 {
-	if (!ensure(CurrentPlayerInputs.Num() == MeleeCombatParameters.InputBufferSize))
-		return;
-
-	if (CurrentAttackFrames < MeleeCombatParameters.InputBufferSize / MeleeCombatParameters.MinInputsToAttack)
-	{
-		if (AttackPhase == EMeleeAttackPhase::None)
-			FinalizeAttack();
-		
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("Not enough inputs to perform an attack"));
-		return;
-	}
-	
-	TArray<FAccumulatedAttackVector> AccumulatedVectors;
 	int a = 0;
 	while (a < MeleeCombatParameters.InputBufferSize)
 	{
 		FAccumulatedAttackVector AttackVector;
-		for (int i = 0; i < MeleeCombatParameters.AttackFrameAccumulation; i++, a++)
+		for (int i = 0; i < MeleeCombatParameters.AttackFrameAccumulation && a < MeleeCombatParameters.InputBufferSize; i++, a++)
 		{
 			int index = CurrentRegisteredInputIndex - a < 0
 				? CurrentRegisteredInputIndex - a + (MeleeCombatParameters.InputBufferSize - 1)
@@ -327,47 +341,33 @@ void UPlayerSwingControlCombatComponent::Attack()
 		}
 
 		if (AttackVector.RawInput.IsNearlyZero())
-		{
 			break;
-		}
 
 		AttackVector.NormalizedDirection = AttackVector.RawInput.GetSafeNormal();
 		AttackVector.AngleRadians = FMath::Acos(AttackVector.NormalizedDirection | FVector2d(1.f, 0.f));
 		if (AttackVector.RawInput.Y < 0)
 			AttackVector.AngleRadians = 2.f * PI - AttackVector.AngleRadians;
 		
-		// AttackVector.AngleDegrees = FMath::UnwindDegrees(FMath::RadiansToDegrees(AttackVector.AngleRadians));
 		AttackVector.AngleDegrees = FMath::RadiansToDegrees(AttackVector.AngleRadians);
 		AttackVector.RawInputSize = AttackVector.RawInput.Size();
 		
 		AccumulatedVectors.Add(AttackVector);
 	}
 
-	if (!ensure(AccumulatedVectors.Num() > 0))
-		return;
+	if (AccumulatedVectors.IsEmpty())
+		return EMeleeAttackType::None;
 
-	// TArray<FAccumulatedAttackVector> Debug_PreMergeAccumulatedVectors = AccumulatedVectors;
-	// MergeAttacks(AccumulatedVectors);
 	for (int i = 0; i < AccumulatedVectors.Num(); i++)
-	{
 		AccumulatedVectors[i].AttackType = GetAttackType(AccumulatedVectors[i].AngleRadians);
-	}
 	
-	EMeleeAttackType FinalAttackType = AccumulatedVectors[0].AttackType;
-	
-	FindAttackCombination(AccumulatedVectors, FinalAttackType);
-	
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, FString::Printf(TEXT("Performing attack: %s"),
-		*UEnum::GetValueAsString(FinalAttackType)));
-	
-	// OwnerCombatant->PerformAttack(FinalAttackType, AttackDirection, CurrentAcceleration * CurrentAccelerationSignificance);
+	return AccumulatedVectors[0].AttackType;
+}
+
+EAttackStepDirection UPlayerSwingControlCombatComponent::GetAttackStepDirection(const FVector& NormalizedAcceleration, const FVector& ForwardVector) const
+{
 	EAttackStepDirection AttackStepDirection = EAttackStepDirection::None;
-	
-	FVector NormalizedAcceleration = CurrentAcceleration.GetSafeNormal();
-	FVector RelativeAttackAcceleration = CurrentAcceleration * CurrentAccelerationSignificance;
 	if (CurrentAccelerationSignificance > MeleeCombatParameters.AccelerationSignificanceThreshold)
 	{
-		FVector ForwardVector = GetOwner()->GetActorForwardVector();
 		const float Acc2FVDotProduct = ForwardVector | NormalizedAcceleration;
 		if (Acc2FVDotProduct > MeleeCombatParameters.AccelerationToMoveDirectionMatchDotProductThreshold)
 			AttackStepDirection = EAttackStepDirection::Forward;
@@ -383,12 +383,57 @@ void UPlayerSwingControlCombatComponent::Attack()
 				AttackStepDirection = EAttackStepDirection::Left;
 		}
 	}
+	return AttackStepDirection;
+}
+
+int UPlayerSwingControlCombatComponent::GetAttackActivationInputsCount() const
+{
+	int AccumulatedVectorActivationInputsCount = 8;
+	int WeaponMastery = OwnerCombatant->GetActiveWeaponMasteryLevel();
+	if (MeleeCombatParameters.WeaponMasteryToMinAttackInputs.Contains(WeaponMastery))
+		AccumulatedVectorActivationInputsCount = MeleeCombatParameters.WeaponMasteryToMinAttackInputs[WeaponMastery];
+	
+	return AccumulatedVectorActivationInputsCount;
+}
+
+void UPlayerSwingControlCombatComponent::Attack()
+{
+	if (!ensure(CurrentPlayerInputs.Num() == MeleeCombatParameters.InputBufferSize))
+		return;
+
+	const int AccumulatedVectorActivationInputsCount = GetAttackActivationInputsCount();
+	if (CurrentAttackFrames < AccumulatedVectorActivationInputsCount)
+	{
+		if (AttackPhase == EMeleeAttackPhase::None)
+			FinalizeAttack();
+		
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("Not enough inputs to perform an attack"));
+		return;
+	}
+	
+	TArray<FAccumulatedAttackVector> AccumulatedVectors;
+	EMeleeAttackType FinalAttackType = GetBasicAccumulatedAttack(AccumulatedVectors);
+	if (FinalAttackType == EMeleeAttackType::None && AttackPhase == EMeleeAttackPhase::None)
+	{
+		FinalizeAttack();
+		return;
+	}
+	
+	DeduceComplexAttackInput(AccumulatedVectors, FinalAttackType);
+	
+	// OwnerCombatant->PerformAttack(FinalAttackType, AttackDirection, CurrentAcceleration * CurrentAccelerationSignificance);
+	
+	FVector NormalizedAcceleration = CurrentAcceleration.GetSafeNormal();
+	FVector RelativeAttackAcceleration = CurrentAcceleration * CurrentAccelerationSignificance;
+	FVector ForwardVector = GetOwner()->GetActorForwardVector();
+	EAttackStepDirection AttackStepDirection = GetAttackStepDirection(NormalizedAcceleration, ForwardVector);
 
 	ActiveAttack = FinalAttackType;
 	ActiveAttackTrajectory = FinalAttackType;
 	
+	OwnerCombatant->OnAttackRequested(FinalAttackType, ForwardVector, RelativeAttackAcceleration);
 	CombatAnimInstance->SetAttack(FinalAttackType, RelativeAttackAcceleration, AttackStepDirection, CurrentComboTotalAttacksCount);
-	
+	OnAttackStartedEvent.Broadcast(FinalAttackType);
 	SetRegisteringAttack(false);
 }
 
@@ -423,7 +468,7 @@ EMeleeAttackType UPlayerSwingControlCombatComponent::GetAttackType(float Radians
 	return EMeleeAttackType::LeftMittelhauw;
 }
 
-void UPlayerSwingControlCombatComponent::FindAttackCombination(const TArray<FAccumulatedAttackVector>& AccumulatedVectors, EMeleeAttackType& FinalAttackType) const
+void UPlayerSwingControlCombatComponent::DeduceComplexAttackInput(const TArray<FAccumulatedAttackVector>& AccumulatedVectors, EMeleeAttackType& FinalAttackType) const
 {
 	auto CombatSettings = GetDefault<UMeleeCombatSettings>();
 	for (const auto& MultiAttackMapping : CombatSettings->MultipleAttacksToAttackCombination)
@@ -464,6 +509,8 @@ void UPlayerSwingControlCombatComponent::SetRegisteringAttack(bool bEnabled)
 	bRegisteringAttack = bEnabled;
 	// SetComponentTickEnabled(bEnabled);
 	OwnerPlayerCombat->SetLookEnabled(false);
-	if (bEnabled)
+	if (!bEnabled)
 		ResetAttackAccumulationData();
+	
+	RegisteringAttackStateChangedEvent.Broadcast(bEnabled);
 }

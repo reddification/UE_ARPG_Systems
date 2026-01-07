@@ -27,7 +27,7 @@ public:
 protected:
 	virtual bool StartBlocking(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayEventData* TriggerEventData);
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
-	virtual void OnAttackParried(UActorComponent* ActorComponent, const FHitResult& HitResult, const FVector& Vector);
+	virtual void OnAttackParried();
 	virtual void OnAttackBlocked(float ConsumptionScale);
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)

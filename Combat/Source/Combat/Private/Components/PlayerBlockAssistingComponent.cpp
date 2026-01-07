@@ -3,6 +3,7 @@
 #include "Components/PlayerBlockAssistingComponent.h"
 
 #include "Data/CombatGameplayTags.h"
+#include "Engine/OverlapResult.h"
 #include "Interfaces/ICombatant.h"
 
 void UPlayerBlockAssistingComponent::StartBlocking()

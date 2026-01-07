@@ -14,14 +14,17 @@ class COMBAT_API UMeleeBlockComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-	DECLARE_DELEGATE_ThreeParams(FOnAttackParriedEvent, UActorComponent* OtherComponent, const FHitResult& SweepResult, const FVector& ParryDirection)
+	DECLARE_MULTICAST_DELEGATE(FOnAttackParriedEvent)
 	DECLARE_DELEGATE_OneParam(FOnAttackBlockedEvent, float BlockConsumption)
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBlockAccumulationChangedEvent, FVector2D AccumulatedBlock, float BlockStrength);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBlockActiveChangedEvent, bool bActive);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParryWindowActiveChangedEvent, bool bActive);
 	
 public:
 	UMeleeBlockComponent();
 	virtual void StartBlocking();
 	virtual void StopBlocking();
-	EBlockResult BlockAttack(const FVector& AttackDirection, float AttackerStrength) const;
+	EBlockResult BlockAttack(const FVector& AttackDirection, float AttackerStrength, FMeleeAttackDebugInfo AttackDebugInfo) const;
 	bool IsBlocking() const { return bRegisteringBlock; };
 
 protected:
@@ -32,7 +35,10 @@ public:
 
 	mutable FOnAttackParriedEvent OnAttackParriedEvent;
 	mutable FOnAttackBlockedEvent OnAttackBlockedEvent;
-
+	mutable FOnBlockAccumulationChangedEvent OnBlockAccumulationChangedEvent;
+	mutable FOnBlockActiveChangedEvent OnBlockActiveChangedEvent;
+	mutable FOnParryWindowActiveChangedEvent OnParryWindowActiveChangedEvent;
+	
 protected:
 	virtual FVector2D GetBlockInput(float DeltaTime) const { unimplemented(); return FVector2D::ZeroVector; };
 	virtual void AddBlockInput(const FVector2D& BlockInput, float DeltaTime);
@@ -47,6 +53,7 @@ protected:
 
 private:
 	bool bRegisteringBlock = false;
+	bool bBlockPeakNotified = false;
 	float CollinearBlockInputsDotProductThreshold = 0.85f;
 	float StrongBlockActivationThreshold = 0.8f;
 	float BlockStrength = 0.f;

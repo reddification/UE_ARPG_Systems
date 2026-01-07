@@ -83,7 +83,11 @@ struct FReceivedHitData
 	FHitResult HitResult;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTag HitTypeTag;	
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bHardHit = false;	
+	
 };
 
 UENUM(BlueprintType)
@@ -205,4 +209,13 @@ enum class EPlayerCombatControl : uint8
 	None = 0,
 	Moveset = 1,
 	Manual = 2
+};
+
+struct FMeleeAttackDebugInfo
+{
+	FHitResult HitResult;
+	FQuat Rotation = FQuat::Identity;
+	float HalfHeight = 0.f;
+	float Radius = 0.f;
+	AActor* Attacker = nullptr;
 };

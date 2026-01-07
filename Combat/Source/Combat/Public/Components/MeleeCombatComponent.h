@@ -19,7 +19,7 @@ private:
 	DECLARE_MULTICAST_DELEGATE(FOnAttackEndedEvent);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAttackActivePhaseChangedEvent, EMeleeAttackPhase OldAttackPhase, EMeleeAttackPhase NewAttackPhase);
 	DECLARE_MULTICAST_DELEGATE_FourParams(FOnWeaponHitEvent, UPrimitiveComponent* OverlappedComponent, const FHitResult& SweepResult, EWeaponHitSituation HitSituation, const FVector& SweepDirection);
-	DECLARE_MULTICAST_DELEGATE(FOnAttackStartedEvent)
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAttackStartedEvent, EMeleeAttackType AttackType)
 	DECLARE_MULTICAST_DELEGATE(FOnAttackFeintedEvent)
 	DECLARE_MULTICAST_DELEGATE(FOnAttackWhiffedEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnAttackCommitedEvent);
@@ -123,6 +123,7 @@ protected:
 	void CacheCollisionShapes();
 	void SweepWeaponCollisions();
 
+	virtual const TMap<int, FMeleeAttackPhaseSpeedModifier>& GetAttackPhasePlayRates() const;
 	float GetAttackPhasePlayRate(EMeleeAttackPhase NewAttackPhase) const;
 	void ReportAttackWhiffed();
 
@@ -133,5 +134,5 @@ protected:
 	uint32 ActiveAnimationId = 0;
 	uint32 ActiveComboWindowId = 0;
 	float HeavyAttackWindupSpeedModifier = 0.7f;
-
+	TWeakObjectPtr<const UMeleeCombatSettings> CachedMeleeCombatSettings;
 };

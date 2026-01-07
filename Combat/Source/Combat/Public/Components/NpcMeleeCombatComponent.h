@@ -25,6 +25,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void EndRecover(const uint32 AnimationId) override;
 	
+	virtual const TMap<int, FMeleeAttackPhaseSpeedModifier>& GetAttackPhasePlayRates() const override;
+	
 private:
 	TWeakObjectPtr<AAIController> AIController;
 	TScriptInterface<INpcCombatant> OwnerNPCCombatant;
