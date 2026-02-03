@@ -24,6 +24,7 @@ public:
 	virtual EFlowAddOnAcceptResult AcceptFlowNodeAddOnChild_Implementation(const UFlowNodeAddOn* AddOnTemplate,
 		const TArray<UFlowNodeAddOn*>& AdditionalAddOnsToAssumeAreChildren) const override;
 
+	// Called by one of many possible triggers. quest event node must check if all the other triggers are in the right state
 	void OnEventTriggerOccured();
 	
 protected:

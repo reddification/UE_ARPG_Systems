@@ -23,7 +23,7 @@ struct QUESTSYSTEM_API FWorldLocationDTR : public FTableRowBase
 	GENERATED_BODY()
 
 	// Conventience attribute just for the ease of naming the RowName just as Location Id Tag 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="Location.Id,G2VS2.Location.Id"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag LocationIdTag;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)

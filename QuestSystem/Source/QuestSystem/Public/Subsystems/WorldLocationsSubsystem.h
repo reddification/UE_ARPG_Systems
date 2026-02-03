@@ -18,8 +18,9 @@ public:
 	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
-	UWorldLocationComponent* GetWorldLocationRandom(const FGameplayTag& QuestLocationTag) const;
-    
+	UWorldLocationComponent* GetWorldLocationRandom(const FGameplayTag& WorldLocationTag) const;
+    TArray<UWorldLocationComponent*> GetWorldLocations(const FGameplayTag& WorldLocationTag) const;
+	
 	const UWorldLocationComponent* GetClosestQuestLocationSimple(const FGameplayTag& LocationIdTag,
 	                                                             const FVector& QuerierLocation) const;
 	const UWorldLocationComponent* GetClosestQuestLocationComplex(const FGameplayTag& QuestLocationTag,

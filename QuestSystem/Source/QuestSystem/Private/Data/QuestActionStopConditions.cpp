@@ -5,6 +5,7 @@
 
 #include "Interfaces/QuestSystemGameMode.h"
 #include "Subsystems/QuestNpcSubsystem.h"
+#include "Subsystems/QuestSubsystem.h"
 #include "Subsystems/WorldStateSubsystem.h"
 
 UNpcQuestBehaviorEndConditionProxyBase* FNpcQuestBehaviorEndConditionBase::MakeProxy(const FGuid& InQuestActionId,
@@ -34,6 +35,13 @@ UNpcQuestBehaviorEndConditionProxyBase* FNpcQuestBehaviorEndCondition_GameTimeDu
 	auto Proxy = NewObject<UNpcQuestBehaviorEndConditionProxy_GameTimeDuration>(OwnerObject);
 	Proxy->UntilDayTime = UntilDayTime;
 	Proxy->GameTimeDurationHours = GameTimeDurationHours;
+	return Proxy;
+}
+
+UNpcQuestBehaviorEndConditionProxyBase* FNpcQuestBehaviorEndCondition_UntilPlayerDied::MakeProxyInternal(
+	UObject* OwnerObject) const
+{
+	auto Proxy = NewObject<UNpcQuestBehaviorEndConditionProxy_UntilPlayerDied>(OwnerObject);
 	return Proxy;
 }
 
@@ -130,6 +138,25 @@ void UNpcQuestBehaviorEndConditionProxy_GameTimeDuration::Disable()
 }
 
 void UNpcQuestBehaviorEndConditionProxy_GameTimeDuration::StartDelayedAction(const FQuestSystemContext& InQuestSystemContext)
+{
+	EndConditionTriggered();
+}
+
+void UNpcQuestBehaviorEndConditionProxy_UntilPlayerDied::Initialize(const FGuid& InQuestActionId,
+	TWeakInterfacePtr<IQuestNPC> InNpc, const FQuestSystemContext& InQuestSystemContext)
+{
+	Super::Initialize(InQuestActionId, InNpc, InQuestSystemContext);
+	QuestSystemContext.QuestSubsystem->PlayerDiedEvent.AddUObject(this, &UNpcQuestBehaviorEndConditionProxy_UntilPlayerDied::EndConditionTriggered);
+}
+
+void UNpcQuestBehaviorEndConditionProxy_UntilPlayerDied::Disable()
+{
+	Super::Disable();
+	QuestSystemContext.QuestSubsystem->PlayerDiedEvent.RemoveAll(this);
+}
+
+void UNpcQuestBehaviorEndConditionProxy_UntilPlayerDied::StartDelayedAction(
+	const FQuestSystemContext& InQuestSystemContext)
 {
 	EndConditionTriggered();
 }

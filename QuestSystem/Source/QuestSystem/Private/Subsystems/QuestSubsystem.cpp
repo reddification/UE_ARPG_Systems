@@ -65,6 +65,11 @@ void UQuestSubsystem::OnPlayerHeard(const FGameplayTag& NpcIdTag, const FGamepla
 	QuestDialogueLineHeardEvent.Broadcast(NpcIdTag, NpcPhraseId);
 }
 
+void UQuestSubsystem::OnPlayerDied()
+{
+	PlayerDiedEvent.Broadcast();
+}
+
 void UQuestSubsystem::StartQuest(const FDataTableRowHandle& QuestDTRH)
 {
 	if (!CanStartQuest(QuestDTRH))

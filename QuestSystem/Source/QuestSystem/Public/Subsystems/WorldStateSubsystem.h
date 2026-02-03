@@ -15,8 +15,14 @@ public:
 	static UWorldStateSubsystem* Get(const UObject* WorldContextObject);
 	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	
+	UFUNCTION(BlueprintCallable)
 	void ChangeWorldState(const FGameplayTagContainer& TagsContainer, bool bAdd = true, bool bBroadcastChanges = true);
+	
+	UFUNCTION(BlueprintCallable)
 	bool IsAtWorldState(const FGameplayTagQuery& TestWorldState) const;
+	
+	UFUNCTION(BlueprintCallable)
 	const FGameplayTagContainer& GetWorldState() const { return WorldState; }
 
 	void Load();

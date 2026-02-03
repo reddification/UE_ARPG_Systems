@@ -26,18 +26,25 @@ void UWorldLocationsSubsystem::UnregisterWorldLocation(const FGameplayTag& Locat
 	QuestLocationsMap.Remove(LocationIdTag);
 }
 
-UWorldLocationComponent* UWorldLocationsSubsystem::GetWorldLocationRandom(const FGameplayTag& QuestLocationTag) const
+UWorldLocationComponent* UWorldLocationsSubsystem::GetWorldLocationRandom(const FGameplayTag& WorldLocationTag) const
 {
 	TArray<UWorldLocationComponent*> QuestLocationsArray;
-	QuestLocationsMap.MultiFind(QuestLocationTag, QuestLocationsArray);
+	QuestLocationsMap.MultiFind(WorldLocationTag, QuestLocationsArray);
 	if (QuestLocationsArray.Num() == 0)
 		return nullptr;
 
 	return QuestLocationsArray[FMath::RandRange(0, QuestLocationsArray.Num() - 1)];
 }
 
+TArray<UWorldLocationComponent*> UWorldLocationsSubsystem::GetWorldLocations(const FGameplayTag& WorldLocationTag) const
+{
+	TArray<UWorldLocationComponent*> WorldLocationsArray;
+	QuestLocationsMap.MultiFind(WorldLocationTag, WorldLocationsArray);
+	return WorldLocationsArray;
+}
+
 const UWorldLocationComponent* UWorldLocationsSubsystem::GetClosestQuestLocationSimple(const FGameplayTag& LocationIdTag,
-	const FVector& QuerierLocation) const
+                                                                                       const FVector& QuerierLocation) const
 {
 	TArray<UWorldLocationComponent*> QuestLocationsArray;
 	QuestLocationsMap.MultiFind(LocationIdTag, QuestLocationsArray);

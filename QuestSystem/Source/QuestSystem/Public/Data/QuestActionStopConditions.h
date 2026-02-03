@@ -25,7 +25,7 @@ public:
 
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, DisplayName = "Until world state")
 struct FNpcQuestBehaviorEndCondition_UntilWorldState : public FNpcQuestBehaviorEndConditionBase
 {
 	GENERATED_BODY()
@@ -36,7 +36,7 @@ struct FNpcQuestBehaviorEndCondition_UntilWorldState : public FNpcQuestBehaviorE
 	virtual UNpcQuestBehaviorEndConditionProxyBase* MakeProxyInternal(UObject* OwnerObject) const override;
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, DisplayName = "Until character state")
 struct FNpcQuestBehaviorEndCondition_UntilCharacterState : public FNpcQuestBehaviorEndConditionBase
 {
 	GENERATED_BODY()
@@ -47,7 +47,7 @@ struct FNpcQuestBehaviorEndCondition_UntilCharacterState : public FNpcQuestBehav
 	virtual UNpcQuestBehaviorEndConditionProxyBase* MakeProxyInternal(UObject* OwnerObject) const override;
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, DisplayName = "Game time duration")
 struct FNpcQuestBehaviorEndCondition_GameTimeDuration : public FNpcQuestBehaviorEndConditionBase
 {
 	GENERATED_BODY()
@@ -57,6 +57,14 @@ struct FNpcQuestBehaviorEndCondition_GameTimeDuration : public FNpcQuestBehavior
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.01f, ClampMin = 0.01f, EditCondition = "UntilDayTime.IsValid() == false"))
 	float GameTimeDurationHours = 1.f;
+
+	virtual UNpcQuestBehaviorEndConditionProxyBase* MakeProxyInternal(UObject* OwnerObject) const override;
+};
+
+USTRUCT(BlueprintType, DisplayName = "Until player died")
+struct FNpcQuestBehaviorEndCondition_UntilPlayerDied : public FNpcQuestBehaviorEndConditionBase
+{
+	GENERATED_BODY()
 
 	virtual UNpcQuestBehaviorEndConditionProxyBase* MakeProxyInternal(UObject* OwnerObject) const override;
 };
@@ -149,5 +157,18 @@ public:
 
 	FGameplayTag UntilDayTime;
 	float GameTimeDurationHours = 1.f;
+};
+
+UCLASS()
+class UNpcQuestBehaviorEndConditionProxy_UntilPlayerDied : public UNpcQuestBehaviorEndConditionProxyBase, public IDelayedQuestAction
+{
+	GENERATED_BODY()
+
+	friend struct FNpcQuestBehaviorEndCondition_UntilPlayerDied;
+	
+public:
+	virtual void Initialize(const FGuid& InQuestActionId, TWeakInterfacePtr<IQuestNPC> InNpc, const FQuestSystemContext& InQuestSystemContext) override;
+	virtual void Disable() override;
+	virtual void StartDelayedAction(const FQuestSystemContext& InQuestSystemContext) override;
 };
 

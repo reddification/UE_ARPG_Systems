@@ -5,8 +5,6 @@
 #include "Data/QuestDTR.h"
 #include "Data/QuestProgress.h"
 #include "Engine/DataTable.h"
-#include "FlowGraph/Nodes/Actions/FlowNode_QuestAction.h"
-#include "FlowGraph/Nodes/Actions/FlowNode_QuestAction_JournalLog.h"
 #include "QuestSubsystem.generated.h"
 
 class IQuestSystemGameMode;
@@ -32,6 +30,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FQuestPlayerHeardPhraseEvent, const FGamepl
 DECLARE_MULTICAST_DELEGATE_OneParam(FQuestArbitraryEvent, const FGameplayTag& ArbitraryEventId);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FQuestCharacterKnockdownedEvent, IQuestCharacter* KnockdownedBy, IQuestCharacter* KnockdownedCharacter);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FQuestNpcGoalCompletedEvent, IQuestCharacter* Npc, const FGameplayTagContainer& GoalTags);
+DECLARE_MULTICAST_DELEGATE(FPlayerDiedEvent)
 
 UCLASS()
 class QUESTSYSTEM_API UQuestSubsystem : public UGameInstanceSubsystem
@@ -54,7 +53,11 @@ public:
 	                       const FGameplayTagContainer& InteractionActorTags);
 	// void OnNpcInteracted(const FDataTableRowHandle& NpcDTRH, const FGameplayTagContainer& NpcTags);
 	void OnPlayerHeard(const FGameplayTag& NpcIdTag, const FGameplayTag& NpcPhraseId);
+	void OnPlayerDied();
+	
+	UFUNCTION(BlueprintCallable)
 	void StartQuest(const FDataTableRowHandle& QuestDTRH);
+	
 	void ExecuteDelayedAction(const FGuid& DelayedActionId);
 
 	FQuestNavigationGuidance GetNavigationGuidance(const FName& RowName);
@@ -79,7 +82,7 @@ public:
 	void AddJournalLog(const FName& QuestId, const FText& JournalEntry, const FGameplayTagContainer& JournalEntryTags);
 
 	FQuestSystemContext GetQuestSystemContext();
-	
+
 	mutable FQuestStartedEvent QuestStartedEvent;
 	mutable FQuestCompletedEvent QuestCompletedEvent;
 	mutable FQuestEventOccuredEvent QuestEventOccuredEvent;
@@ -92,6 +95,8 @@ public:
 	mutable FQuestPlayerHeardPhraseEvent QuestDialogueLineHeardEvent;
 	mutable FQuestCharacterKnockdownedEvent QuestCharacterKnockdownedEvent;
 	mutable FQuestNpcGoalCompletedEvent QuestNpcGoalCompletedEvent;
+	
+	mutable FPlayerDiedEvent PlayerDiedEvent;
 	
 	UFUNCTION(BlueprintCallable)
 	void Load();
