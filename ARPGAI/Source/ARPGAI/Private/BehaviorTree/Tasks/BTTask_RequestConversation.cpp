@@ -5,7 +5,7 @@
 
 #include "AIController.h"
 #include "BlackboardKeyType_GameplayTag.h"
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Struct.h"
@@ -212,10 +212,15 @@ bool UBTTask_RequestConversation::StartConversation(UBlackboardComponent* OwnerB
 
 	if (bStarted)
 	{
-		SetBlackboardConversationState(OwnerBlackboard, ConversationPartner, ConversationStartParams->bForceConversationPartnerSuspendActivity, false);
-		SetBlackboardConversationState(ConversationPartnerBlackboard, PawnOwner, ConversationStartParams->bForceConversationPartnerSuspendActivity, true);
+		SetBlackboardConversationState(OwnerBlackboard, ConversationPartner, 
+			ConversationStartParams->bForceConversationPartnerSuspendActivity, false);
+		SetBlackboardConversationState(ConversationPartnerBlackboard, PawnOwner, 
+			ConversationStartParams->bForceConversationPartnerSuspendActivity, true);
 		for (auto* SecondaryParticipantBlackboard : SecondaryConversationParticipantsBlackboards)
-			SetBlackboardConversationState(SecondaryParticipantBlackboard, PawnOwner, ConversationStartParams->bForceConversationPartnerSuspendActivity, true);
+		{
+			SetBlackboardConversationState(SecondaryParticipantBlackboard, PawnOwner, 
+				ConversationStartParams->bForceConversationPartnerSuspendActivity, true);
+		}
 	}
 
 	return bStarted;

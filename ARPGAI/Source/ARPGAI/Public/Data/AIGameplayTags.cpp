@@ -87,7 +87,8 @@ namespace AIGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_SmartObjectInteraction_Completed, "AI.BrainMessage.SmartObjectInteraction.Completed", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Conversation_OnHold, "AI.BrainMessage.Conversation.OnHold", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Conversation_Completed, "AI.BrainMessage.Conversation.Completed", "");
-	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Backdash_Completed, "AI.BrainMessage.Backdash.Completed", "");
+		
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Attitude_Friendly, "AI.Attitude.Friendly", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Attitude_Neutral, "AI.Attitude.Neutral", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Attitude_Cautious, "AI.Attitude.Cautious", "");
@@ -100,9 +101,11 @@ namespace AIGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_ReactionEvaluator_ExecutionResult_Failure, "AI.ReactionEvaluator.ExecutionResult.Failure", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_ReactionEvaluator_ExecutionResult_Abort, "AI.ReactionEvaluator.ExecutionResult.Abort", "");
 
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_Time, "AI.SetByCaller.UpdateSpeedToBeAtLocationMMC.Time", "");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_MinSpeed, "AI.SetByCaller.UpdateSpeedToBeAtLocationMMC.MinSpeed", "");
-	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_MaxSpeed, "AI.SetByCaller.UpdateSpeedToBeAtLocationMMC.MaxSpeed", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_SetByCaller_Time, "AI.SetByCaller.Time", "");
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_SetByCaller_Speed_Min, "AI.SetByCaller.Speed.Min", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_SetByCaller_Speed_Max, "AI.SetByCaller.Speed.Max", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_SetByCaller_Speed_Scale, "AI.SetByCaller.Speed.Scale", "");
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Activity_Goal_Result_SmartObject_NotFound, "AI.Activity.Goal.Result.SmartObject.NotFound", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_Activity_Goal_Result_SmartObject_InteractionFinished, "AI.Activity.Goal.Result.SmartObject.InteractionFinished", "");

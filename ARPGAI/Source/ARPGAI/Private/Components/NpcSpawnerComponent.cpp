@@ -82,6 +82,8 @@ void UNpcSpawnerComponent::TriggerSpawn()
 
 	PendingNpcSpawns = NpcSpawnDescriptors;
 	Algo::RandomShuffle(PendingNpcSpawns);
+	for (int i = 0; i < NpcSpawnDescriptors.Num() - NpcsToSpawnPerActivation; i++)
+		PendingNpcSpawns.Pop();
 	
 	SetComponentTickEnabled(true);
 	SpawnNpcs();

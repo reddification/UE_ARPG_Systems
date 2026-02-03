@@ -40,15 +40,15 @@ void UBTService_ThreatEvaluator::OnBecomeRelevant(UBehaviorTreeComponent& OwnerC
 	FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory = reinterpret_cast<FBTCombatEvaluatorNodeMemory*>(NodeMemory);
 	CombatEvaluatorNodeMemory->UpdateInterval = OwnerComp.GetBlackboardComponent()->GetValueAsFloat(EvaluationIntervalBBKey.SelectedKeyName);
 	auto NpcPawn = OwnerComp.GetAIOwner()->GetPawn();
-	if (UNpcComponent* NpcCombatComponent = NpcPawn->FindComponentByClass<UNpcComponent>())
+	if (UNpcCombatLogicComponent* NpcCombatComponent = NpcPawn->FindComponentByClass<UNpcCombatLogicComponent>())
 	{
-		if (const auto MobDTR = NpcCombatComponent->GetNpcDTR())
+		if (const auto* NpcCombatParameters = NpcCombatComponent->GetNpcCombatParameters())
 		{
-			CombatEvaluatorNodeMemory->DamageScoreFactor = MobDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.DamageScoreFactor;
-			CombatEvaluatorNodeMemory->UpdateInterval = MobDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.UpdateInterval;
-			CombatEvaluatorNodeMemory->bIgnoreTeamDamage = MobDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.bIgnoreTeamDamage;
-			CombatEvaluatorNodeMemory->MobCoordinatorScoreFactor = MobDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.MobCoordinatorScoreFactor;
-			CombatEvaluatorNodeMemory->TeammateTargetScoreFactor = MobDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.TeammateTargetScoreFactor;
+			CombatEvaluatorNodeMemory->DamageScoreFactor = NpcCombatParameters->NpcCombatEvaluationParameters.DamageScoreFactor;
+			CombatEvaluatorNodeMemory->UpdateInterval = NpcCombatParameters->NpcCombatEvaluationParameters.UpdateInterval;
+			CombatEvaluatorNodeMemory->bIgnoreTeamDamage = NpcCombatParameters->NpcCombatEvaluationParameters.bIgnoreTeamDamage;
+			CombatEvaluatorNodeMemory->MobCoordinatorScoreFactor = NpcCombatParameters->NpcCombatEvaluationParameters.MobCoordinatorScoreFactor;
+			CombatEvaluatorNodeMemory->TeammateTargetScoreFactor = NpcCombatParameters->NpcCombatEvaluationParameters.TeammateTargetScoreFactor;
 		}
 	}
 
@@ -85,7 +85,6 @@ void UBTService_ThreatEvaluator::EvaluateThreats(UBehaviorTreeComponent& OwnerCo
 	UNpcComponent* NpcComponent = ThisNpc->FindComponentByClass<UNpcComponent>();
 	auto NpcCombatLogicComponent = ThisNpc->FindComponentByClass<UNpcCombatLogicComponent>();
 	auto NpcAttitudesComponent = ThisNpc->FindComponentByClass<UNpcAttitudesComponent>();
-	const FNpcDTR* MobDTR = NpcComponent->GetNpcDTR();
 	
 	FCombatEvaluationParameters CombatEvaluationParameters(AIController, NpcComponent, NpcAttitudesComponent, NpcCombatLogicComponent,
 		Cast<const UNpcPerceptionComponent>(AIController->GetAIPerceptionComponent()), ThisNpc, CombatEvaluatorNodeMemory->MaxHealth);
@@ -108,7 +107,8 @@ void UBTService_ThreatEvaluator::EvaluateThreats(UBehaviorTreeComponent& OwnerCo
 	}
 	
 	TMap<FGameplayTag, float> BehaviorUtilitiesScores;
-	BehaviorUtilitiesScores.Reserve(MobDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.CombatBehaviorUtilityParameters.Num());
+	auto NpcCombatParameters = NpcCombatLogicComponent->GetNpcCombatParameters();
+	BehaviorUtilitiesScores.Reserve(NpcCombatParameters->NpcCombatEvaluationParameters.CombatBehaviorUtilityParameters.Num());
 	FGameplayTag PreviousBestBehaviorTypeTag = FGameplayTag::EmptyTag;
 	float PreviousBestUtilityScore = TNumericLimits<float>::Lowest();
 	FGameplayTag NewBestBehaviorTypeTag = FGameplayTag::EmptyTag;
@@ -116,7 +116,7 @@ void UBTService_ThreatEvaluator::EvaluateThreats(UBehaviorTreeComponent& OwnerCo
 	
 	ProcessPerception(CombatEvaluationParameters, CombatEvaluatorNodeMemory, CombatEvaluationResult);
 	ReceiveTeammateAwareness(CombatEvaluationResult, CombatEvaluationParameters, CombatEvaluatorNodeMemory);
-	EvaluateBehaviorUtilities(CombatEvaluatorNodeMemory, ThisNpc, MobDTR, CombatEvaluationResult, BehaviorUtilitiesScores);
+	EvaluateBehaviorUtilities(CombatEvaluatorNodeMemory, ThisNpc, CombatEvaluationResult, BehaviorUtilitiesScores, NpcCombatParameters);
 	GetBestBehaviorUtility(BehaviorUtilitiesScores, NewBestBehaviorTypeTag, NewBestUtilityScore);
 	GetBestBehaviorUtility(PreviousBehaviorUtilitiesScores, PreviousBestBehaviorTypeTag, PreviousBestUtilityScore);
 
@@ -177,13 +177,6 @@ void UBTService_ThreatEvaluator::ProcessDangerousItemPerception(FCombatEvaluatio
 	DangerousItemPerceptionData.Distance = FVector::Distance(Target->GetActorLocation(), MobLocation);
 	DangerousItemPerceptionData.AddDetectionSource(DetectionSource);
 	OutResult.DangerousActors.Add(Target, DangerousItemPerceptionData);
-}
-
-bool UBTService_ThreatEvaluator::IsHostile(const FCombatEvaluationParameters& Parameters, AActor* Actor, EDetectionSource DetectionSource) const
-{
-	const FGameplayTag& Attitude = Parameters.NpcAttitudesComponent->GetAttitude(Actor);
-	return DetectionSource == EDetectionSource::Damage && Attitude != AIGameplayTags::AI_Attitude_Friendly
-		|| Attitude != AIGameplayTags::AI_Attitude_Neutral && Attitude != AIGameplayTags::AI_Attitude_Friendly; 
 }
 
 void UBTService_ThreatEvaluator::ProcessPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorNodeMemory* NodeMemory,
@@ -266,8 +259,11 @@ void UBTService_ThreatEvaluator::ProcessPerception(const FCombatEvaluationParame
 				EDetectionSource DetectionSource = AIStimulus.Type == UAISense::GetSenseID(UAISense_Damage::StaticClass())
 					? EDetectionSource::Damage
 					: EDetectionSource::Visual;
-				if (IsHostile(Parameters, TargetActor, DetectionSource))
+				if (Parameters.NpcAttitudesComponent->IsHostile(TargetActor))
 				{
+					if (!ensure(TargetActor != Parameters.Npc))
+						continue;
+					
 					ACharacter* PerceivedCharacter = Cast<ACharacter>(TargetActor);
 					if (PerceivedCharacter != nullptr)
 					{
@@ -314,7 +310,7 @@ void UBTService_ThreatEvaluator::ProcessCharacterPerception(const FCombatEvaluat
 {
 	if (AIStimulus.Type == UAISense::GetSenseID(UAISense_Damage::StaticClass()))
 	{
-		if (Parameters.NpcCombatLogicComponent->TryForgiveReceivingDamage(PerceivedCharacter))
+		if (!Parameters.NpcAttitudesComponent->IsHostile(PerceivedCharacter))
 			return;
 		
 		FNpcCombatPerceptionData& PlayerPerceptionData = OutResult.DangerousActors.FindOrAdd(PerceivedCharacter);
@@ -322,7 +318,7 @@ void UBTService_ThreatEvaluator::ProcessCharacterPerception(const FCombatEvaluat
 		PlayerPerceptionData.AddDetectionSource(Damage);
 		PlayerPerceptionData.Distance = FVector::Distance(PerceivedCharacter->GetActorLocation(), Parameters.AIController->GetPawn()->GetActorLocation());;
 		PlayerPerceptionData.PerceptionScore += AIStimulus.Strength / MobMaxHealth * NodeMemory->DamageScoreFactor;
-		Parameters.NpcAttitudesComponent->SetHostile(PerceivedCharacter, true, true);
+		// Parameters.NpcAttitudesComponent->SetHostile(PerceivedCharacter, true, true);
 		OutResult.AccumulatedDamagePercent += AIStimulus.Strength / MobMaxHealth;
 
 		UE_VLOG(Parameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Perceived damage from %s. Perception score = %.2f, Accumumulated damage = %.2f"),
@@ -366,18 +362,22 @@ void UBTService_ThreatEvaluator::ProcessCharacterVisualPerception(const FCombatE
 	}
 	
 	CharacterPerceptionData.PerceptionScore = CharacterPerceptionData.ThreatScore;
+	if (auto ActorTagsInterface = Cast<IGameplayTagAssetInterface>(PerceivedCharacter))
+		ActorTagsInterface->GetOwnedGameplayTags(CharacterPerceptionData.Tags);
+	
 	UE_VLOG(Parameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Registered visual perception for %s; Threat score = %.2f, Perception score = %.2f"),
 		*PerceivedCharacter->GetName(), CharacterPerceptionData.ThreatScore, CharacterPerceptionData.PerceptionScore);
 }
 
-void UBTService_ThreatEvaluator::EvaluateBehaviorUtilities(const FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory,
-	const APawn* ThisNpc, const FNpcDTR* NpcDTR, FCombatEvaluationResult& CombatEvaluationResult, TMap<FGameplayTag, float>& BehaviorUtilitiesScores)
+void UBTService_ThreatEvaluator::EvaluateBehaviorUtilities(const FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory, const APawn* ThisNpc,
+                                                           FCombatEvaluationResult& CombatEvaluationResult, TMap<FGameplayTag, float>& BehaviorUtilitiesScores,
+                                                           const UNpcCombatParametersDataAsset* NpcCombatParameters)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBTService_ThreatEvaluator::EvaluateBehaviorUtilities)
 	
 	for (const auto& ReactionUtilityData : BehaviorUtilitiesBBKeys)
 	{
-		const auto* NpcReactionParameters = NpcDTR->NpcCombatParametersDataAsset->NpcCombatEvaluationParameters.CombatBehaviorUtilityParameters.Find(ReactionUtilityData.Key);
+		const auto* NpcReactionParameters = NpcCombatParameters->NpcCombatEvaluationParameters.CombatBehaviorUtilityParameters.Find(ReactionUtilityData.Key);
 		if (NpcReactionParameters)
 		{
 			float ReactionUtility = EvaluateBehaviorUtility(CombatEvaluationResult, *NpcReactionParameters, ThisNpc,
@@ -441,28 +441,25 @@ float UBTService_ThreatEvaluator::EvaluateBehaviorUtility(FCombatEvaluationResul
 		
 		float Awareness = 1.f;
 		float UtilityScore = DangerousItem.Value.PerceptionScore;
-		
-		for (const auto& ActorTypeAwareness : BehaviorUtilityParameters.ActorTypeAwarenesses)
-		{
-			UE_VLOG(ThisNpc, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Actor type awareness base score for %s = %.2f (behavior %s)"),
-				*DangerousItem.Key->GetName(), ActorTypeAwareness.Value.BaseScore, *BehaviorUtilityTag.ToString());
-
-			if (DangerousItem.Key->IsA(ActorTypeAwareness.Key))
-			{
-				Awareness = ActorTypeAwareness.Value.BaseScore;
-				
-				UtilityScore *= Awareness;
-				if (const FRichCurve* Curve = ActorTypeAwareness.Value.DistanceAwarenessScaleDependencyCurve.GetRichCurveConst())
-				{
-					UtilityScore *= Curve->Eval(DangerousItem.Value.Distance);
-				}
-
-				UE_VLOG(ThisNpc, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("%s utility score for %s = %.2f"),
-					*BehaviorUtilityTag.ToString(), *DangerousItem.Key->GetName(), UtilityScore);
-				
-				break;
-			}
-		}
+		// for (const auto& ActorTypeAwareness : BehaviorUtilityParameters.ActorTypeAwarenesses)
+		// {
+		// 	UE_VLOG(ThisNpc, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Actor type awareness base score for %s = %.2f (behavior %s)"),
+		// 		*DangerousItem.Key->GetName(), ActorTypeAwareness.Value.BaseScore, *BehaviorUtilityTag.ToString());
+		// 	
+		// 	if (DangerousItem.Value.Tags.HasTag(ActorTypeAwareness.Key))
+		// 	{
+		// 		Awareness = ActorTypeAwareness.Value.BaseScore;
+		// 		
+		// 		UtilityScore *= Awareness;
+		// 		if (const FRichCurve* Curve = ActorTypeAwareness.Value.DistanceAwarenessScaleDependencyCurve.GetRichCurveConst())
+		// 			UtilityScore *= Curve->Eval(DangerousItem.Value.Distance);
+		//
+		// 		UE_VLOG(ThisNpc, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("%s utility score for %s = %.2f"),
+		// 			*BehaviorUtilityTag.ToString(), *DangerousItem.Key->GetName(), UtilityScore);
+		// 		
+		// 		break;
+		// 	}
+		// }
 
 		if (BehaviorUtilityTag == AIGameplayTags::AI_Behavior_Combat)
 		{
@@ -555,7 +552,7 @@ void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResul
 		
 		UNpcCombatLogicComponent* AllyNpcCombatComponent = Allies[i]->FindComponentByClass<UNpcCombatLogicComponent>();
 		// if NpcCombatComponent contained a TMap<TWeakObjectPtr<const AActor*>, FPerceptionData> we could actually share all threats info between mobs
-		const FNpcActiveTargetData& AllyBestTargetPerception = AllyNpcCombatComponent->GetCurrentCombatTarget();
+		const FNpcActiveTargetData& AllyBestTargetPerception = AllyNpcCombatComponent->GetPrimaryTargetData();
 		if (AActor* SharedTarget = AllyBestTargetPerception.ActiveTarget.Get())
 		{
 			UE_VLOG(CombatEvaluationParameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Ally has target %s"), *SharedTarget->GetName());
@@ -649,9 +646,10 @@ bool UBTService_ThreatEvaluator::AssignBestTarget(UNpcCombatLogicComponent* NpcC
 	{
 		UE_VLOG(BlackboardComponent->GetOwner(), LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("New target: %s, Score = %.2f"), *BestTarget->GetName(), BestScore);
 		NodeMemory->CurrentTarget = BestTarget;
-		NpcCombatComponent->SetCurrentCombatTarget(BestTarget, *CombatEvaluationResult.DangerousActors.Find(BestTarget), BestBehaviorUtilityTag);
+		NpcCombatComponent->SetCurrentCombatTarget(BestTarget, BestBehaviorUtilityTag, *CombatEvaluationResult.DangerousActors.Find(BestTarget));
 		if (bTargetChanged)
 		{
+			ensure(BestTarget != BlackboardComponent->GetBrainComponent()->GetAIOwner()->GetPawn());
 			BlackboardComponent->SetValueAsObject(TargetBBKey.SelectedKeyName, const_cast<AActor*>(BestTarget));
 
 			FGameplayTagContainer ThreatLevelTagContainer;
@@ -669,7 +667,7 @@ bool UBTService_ThreatEvaluator::AssignBestTarget(UNpcCombatLogicComponent* NpcC
 
 		BlackboardComponent->ClearValue(TargetBBKey.SelectedKeyName);
 		BlackboardComponent->ClearValue(OutTargetThreatLevelBBKey.SelectedKeyName);
-		NpcCombatComponent->ResetCurrentCombatTarget();
+		NpcCombatComponent->ClearCurrentCombatTarget();
 		NodeMemory->CurrentTarget.Reset();
 	}
 

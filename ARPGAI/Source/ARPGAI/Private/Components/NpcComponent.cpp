@@ -17,9 +17,7 @@
 #include "Interfaces/Npc.h"
 #include "Interfaces/NpcControllerInterface.h"
 #include "Interfaces/NpcSystemGameMode.h"
-#include "Navigation/CrowdFollowingComponent.h"
 #include "Perception/AIPerceptionComponent.h"
-#include "Perception/AISense_Damage.h"
 #include "Subsystems/NpcRegistrationSubsystem.h"
 #include "Subsystems/NpcSquadSubsystem.h"
 
@@ -32,33 +30,18 @@ UNpcComponent::UNpcComponent(const FObjectInitializer& ObjectInitializer) : Supe
 void UNpcComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	if(bNpcComponentInitialized)
-		return;
 	
-	bNpcComponentInitialized = true;
-	auto OwnerPawnLocal = Cast<APawn>(GetOwner());
-	OwnerPawn = OwnerPawnLocal;
+	const auto NpcDTR = GetNpcDTR();
+	for (const UAbilitySet* AbilitySet : NpcDTR->AbilitySets)
+		OwnerNPC->GrantAbilitySet(AbilitySet);
 
-	OwnerNPC.SetObject(OwnerPawnLocal);
-	OwnerNPC.SetInterface(Cast<INpc>(OwnerPawnLocal));
-
-	OwnerAliveCreature.SetObject(OwnerPawnLocal);
-	OwnerAliveCreature.SetInterface(Cast<INpcAliveCreature>(OwnerPawnLocal));
+	OwnerNPC->GiveNpcTags(NpcDTR->DefaultTags);
 	
 	auto AIController = OwnerPawn->GetController();
 	NpcController.SetObject(AIController);
 	NpcController.SetInterface(Cast<INpcControllerInterface>(AIController));
 	ensure(NpcController.GetInterface() != nullptr);
 	
-	auto AsTeamAgent = Cast<IGenericTeamAgentInterface>(OwnerPawnLocal);
-	AsTeamAgent->SetGenericTeamId(GetDefault<UNpcCombatSettings>()->DefaultPerceptionTeamId);
-
-	if (const FNpcDTR* NpcDTR = NpcDTRH.GetRow<FNpcDTR>(""))
-		InitializeNpcDTR(NpcDTR);
-
-	RegisterDeathEvents();
-
 	if (auto World = GetWorld())
 	{
 		if (auto NRS = World->GetSubsystem<UNpcRegistrationSubsystem>())
@@ -66,7 +49,7 @@ void UNpcComponent::BeginPlay()
 
 		if (auto NSS = World->GetSubsystem<UNpcSquadSubsystem>())
 		{
-			NSS->RegisterNpc(GetNpcIdTag(), OwnerPawnLocal);
+			NSS->RegisterNpc(GetNpcIdTag(), OwnerPawn.Get());
 			if (DesiredSquadId.IsValid())
 			{
 				World->GetTimerManager().SetTimerForNextTick([NSS, this]()
@@ -83,18 +66,47 @@ void UNpcComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 	CachedNpcId = FGameplayTag::RequestGameplayTag(NpcDTRH.RowName, false);
+	InitializeNpcComponent();
+}
+
+void UNpcComponent::InitializeNpcComponent()
+{
+	if(bNpcComponentInitialized)
+		return;
+	
+	bNpcComponentInitialized = true;
+	
+	auto OwnerPawnLocal = Cast<APawn>(GetOwner());
+	OwnerPawn = OwnerPawnLocal;
+
+	OwnerNPC.SetObject(OwnerPawnLocal);
+	OwnerNPC.SetInterface(Cast<INpc>(OwnerPawnLocal));
+
+	OwnerAliveCreature.SetObject(OwnerPawnLocal);
+	OwnerAliveCreature.SetInterface(Cast<INpcAliveCreature>(OwnerPawnLocal));
+	
+	auto AsTeamAgent = Cast<IGenericTeamAgentInterface>(OwnerPawnLocal);
+	AsTeamAgent->SetGenericTeamId(GetDefault<UNpcCombatSettings>()->DefaultPerceptionTeamId);
+
+	if (const FNpcDTR* NpcDTR = NpcDTRH.GetRow<FNpcDTR>(""))
+		InitializeNpcDTR(NpcDTR);
+
+	RegisterDeathEvents();
+}
+
+void UNpcComponent::SetDTRH(const FDataTableRowHandle& InNpcDTRH)
+{
+	ensure(!IsValid(NpcDTRH.DataTable) || NpcDTRH.RowName.IsNone());
+	NpcDTRH = InNpcDTRH;
 }
 
 void UNpcComponent::InitializeNpcDTR(const FNpcDTR* NpcDTR)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcComponent::InitializeNpcDTR)
 	
-	for (const UAbilitySet* AbilitySet : NpcDTR->AbilitySets)
-	{
-		OwnerNPC->GrantAbilitySet(AbilitySet);
-	}
-
-	OwnerNPC->GiveNpcTags(NpcDTR->DefaultTags);
+	NpcBlackboardKeys = NpcDTR->NpcBlackboardDataAsset;
+	NpcStates = NpcDTR->NpcStatesDataAsset;
+	NpcPhrases = NpcDTR->NpcPhrasesDataAssets;
 	NpcGoalsParameters.Append(NpcDTR->NpcGoalAndReactionParameters);
 }
 
@@ -124,7 +136,7 @@ const FNpcRealtimeDialogueLine* UNpcComponent::GetDialogueLine(const FGameplayTa
 	FGameplayTagContainer NpcTags = GetNpcTags();
 	const auto& WorldState = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode())->GetWorldState();
 	NpcTags.AppendTags(WorldState);
-	for (const auto* NpcRealtimeDialogueDataAsset : NpcDTR->NpcPhrasesDataAssets)
+	for (const auto* NpcRealtimeDialogueDataAsset : NpcPhrases)
 	{
 		auto Line = NpcRealtimeDialogueDataAsset->NpcPhrases.Find(LineTagId);
 		if (Line && Line->LineOptions.Num() > 0)
@@ -137,11 +149,9 @@ const FNpcRealtimeDialogueLine* UNpcComponent::GetDialogueLine(const FGameplayTa
 bool UNpcComponent::ExecuteDialogueWalkRequest(const UEnvQuery* EnvQuery, float AcceptableRadius)
 {
 	auto Blackboard = GetBlackboardComponent();
-	auto NpcDTR = GetNpcDTR();
-
-	if (!NpcDTR->NpcBlackboardDataAsset->ConversationMoveToEqsBBKey.SelectedKeyName.IsNone())
+	if (!NpcBlackboardKeys->ConversationMoveToEqsBBKey.SelectedKeyName.IsNone())
 	{
-		Blackboard->SetValueAsObject(NpcDTR->NpcBlackboardDataAsset->ConversationMoveToEqsBBKey.SelectedKeyName, const_cast<UEnvQuery*>(EnvQuery));
+		Blackboard->SetValueAsObject(NpcBlackboardKeys->ConversationMoveToEqsBBKey.SelectedKeyName, const_cast<UEnvQuery*>(EnvQuery));
 		return true;
 	}
 
@@ -151,11 +161,9 @@ bool UNpcComponent::ExecuteDialogueWalkRequest(const UEnvQuery* EnvQuery, float 
 bool UNpcComponent::ExecuteDialogueWalkRequest(const FVector& Location, float AcceptableRadius)
 {
 	auto Blackboard = GetBlackboardComponent();
-	auto NpcDTR = GetNpcDTR();
-	
-	if (!NpcDTR->NpcBlackboardDataAsset->ConversationMoveToLocationBBKey.SelectedKeyName.IsNone())
+	if (!NpcBlackboardKeys->ConversationMoveToLocationBBKey.SelectedKeyName.IsNone())
 	{
-		Blackboard->SetValueAsVector(NpcDTR->NpcBlackboardDataAsset->ConversationMoveToLocationBBKey.SelectedKeyName, Location);
+		Blackboard->SetValueAsVector(NpcBlackboardKeys->ConversationMoveToLocationBBKey.SelectedKeyName, Location);
 		return true;
 	}
 
@@ -165,14 +173,40 @@ bool UNpcComponent::ExecuteDialogueWalkRequest(const FVector& Location, float Ac
 bool UNpcComponent::ExecuteDialogueWalkRequest(const AActor* ToCharacter, float AcceptableRadius)
 {
 	auto Blackboard = GetBlackboardComponent();
-	auto NpcDTR = GetNpcDTR();
 
-	if (!NpcDTR->NpcBlackboardDataAsset->ConversationGoToAcceptableRadiusBBKey.SelectedKeyName.IsNone())
-		Blackboard->SetValueAsFloat(NpcDTR->NpcBlackboardDataAsset->ConversationGoToAcceptableRadiusBBKey.SelectedKeyName, AcceptableRadius);
+	if (!NpcBlackboardKeys->ConversationGoToAcceptableRadiusBBKey.SelectedKeyName.IsNone())
+		Blackboard->SetValueAsFloat(NpcBlackboardKeys->ConversationGoToAcceptableRadiusBBKey.SelectedKeyName, AcceptableRadius);
 	
-	if (!NpcDTR->NpcBlackboardDataAsset->ConversationSecondaryActorBBKey.SelectedKeyName.IsNone())
+	if (!NpcBlackboardKeys->ConversationSecondaryActorBBKey.SelectedKeyName.IsNone())
 	{
-		Blackboard->SetValueAsObject(NpcDTR->NpcBlackboardDataAsset->ConversationSecondaryActorBBKey.SelectedKeyName, const_cast<AActor*>(ToCharacter));
+		Blackboard->SetValueAsObject(NpcBlackboardKeys->ConversationSecondaryActorBBKey.SelectedKeyName, const_cast<AActor*>(ToCharacter));
+		return true;
+	}
+
+	return false;
+}
+
+bool UNpcComponent::ExecuteDialogueFollowRequest(AActor* Actor)
+{
+	return SetDialogueFollowRequestState(const_cast<AActor*>(Actor), true);
+}
+
+bool UNpcComponent::ExecuteDialogueStopFollowingRequest()
+{
+	return SetDialogueFollowRequestState(nullptr, false);
+}
+
+bool UNpcComponent::SetDialogueFollowRequestState(AActor* Actor, bool bActive)
+{
+	auto Blackboard = GetBlackboardComponent();
+	bool bAllBlackboardkeysExist = !NpcBlackboardKeys->ConversationSecondaryActorBBKey.SelectedKeyName.IsNone() 
+		&& !NpcBlackboardKeys->ConversationFollowCounterpartBBKey.SelectedKeyName.IsNone();
+	
+	if (ensure(bAllBlackboardkeysExist))
+	{
+		// assignments must go in this order
+		Blackboard->SetValueAsObject(NpcBlackboardKeys->ConversationSecondaryActorBBKey.SelectedKeyName, Actor);
+		Blackboard->SetValueAsBool(NpcBlackboardKeys->ConversationFollowCounterpartBBKey.SelectedKeyName, bActive);
 		return true;
 	}
 
@@ -181,14 +215,13 @@ bool UNpcComponent::ExecuteDialogueWalkRequest(const AActor* ToCharacter, float 
 
 void UNpcComponent::OnNpcEnteredDialogueWithPlayer(ACharacter* Character)
 {
-	auto NpcDTR = GetNpcDTR();
-	if (!ensure(NpcDTR) || !ensure(NpcDTR->NpcBlackboardDataAsset) || !ensure(!NpcDTR->NpcBlackboardDataAsset->ConversationPartnerBBKey.SelectedKeyName.IsNone()))
+	if (!ensure(NpcBlackboardKeys) || !ensure(!NpcBlackboardKeys->ConversationPartnerBBKey.SelectedKeyName.IsNone()))
 		return;
 
 	auto Blackboard = GetBlackboardComponent();
-	Blackboard->SetValueAsObject(NpcDTR->NpcBlackboardDataAsset->ConversationPartnerBBKey.SelectedKeyName, Character);
+	Blackboard->SetValueAsObject(NpcBlackboardKeys->ConversationPartnerBBKey.SelectedKeyName, Character);
 	// setting bAcceptedConversation switches the execution branch
-	Blackboard->SetValueAsBool(NpcDTR->NpcBlackboardDataAsset->bAcceptedConversationBBKey.SelectedKeyName, true);
+	Blackboard->SetValueAsBool(NpcBlackboardKeys->bAcceptedConversationBBKey.SelectedKeyName, true);
 }
 
 void UNpcComponent::OnNpcExitedDialogueWithPlayer()
@@ -199,13 +232,12 @@ void UNpcComponent::OnNpcExitedDialogueWithPlayer()
 	AIMessage.MessageName = AIGameplayTags::AI_BrainMessage_Dialogue_Player_Completed.GetTag().GetTagName();
 	AIController->GetBrainComponent()->HandleMessage(AIMessage);
 
-	auto NpcDTR = GetNpcDTR();
-	if (!ensure(NpcDTR != nullptr) || !ensure(NpcDTR->NpcBlackboardDataAsset) || !ensure(!NpcDTR->NpcBlackboardDataAsset->ConversationPartnerBBKey.SelectedKeyName.IsNone()))
+	if (!ensure(NpcBlackboardKeys) || !ensure(!NpcBlackboardKeys->ConversationPartnerBBKey.SelectedKeyName.IsNone()))
 		return;
 	
 	auto Blackboard = GetBlackboardComponent();
-	Blackboard->ClearValue(NpcDTR->NpcBlackboardDataAsset->ConversationPartnerBBKey.SelectedKeyName);
-	Blackboard->SetValueAsBool(NpcDTR->NpcBlackboardDataAsset->bAcceptedConversationBBKey.SelectedKeyName, false);
+	Blackboard->ClearValue(NpcBlackboardKeys->ConversationPartnerBBKey.SelectedKeyName);
+	Blackboard->SetValueAsBool(NpcBlackboardKeys->bAcceptedConversationBBKey.SelectedKeyName, false);
 }
 
 void UNpcComponent::StoreTaggedLocation(const FGameplayTag& DataTag, const FVector& Vector)
@@ -269,43 +301,6 @@ void UNpcComponent::OnNpcDeathFinished(AActor* OwningActor)
 	//EnableRagdoll(Cast<ACharacter>(GetOwner())); // already called from death ability
 }
 
-void UNpcComponent::OnDamageReceived(float DamageAmount, const FOnAttributeChangeData& ChangeData)
-{
-	if (GetOwnerRole() != ROLE_Authority)
-	{
-		return;
-	}
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcComponent::OnDamageReceived)
-	
-	if (AActor* Mob = Cast<AActor>(OwnerNPC.GetObject()))
-	{
-		FGameplayEffectContextHandle GameplayEffectContext = ChangeData.GEModData->EffectSpec.GetContext();
-		AActor* DamageSource = GameplayEffectContext.GetEffectCauser();
-		FVector EventLocation = FVector::ZeroVector;
-		FVector HitLocation = FVector::ZeroVector;
-		if (DamageSource)
-		{
-			EventLocation = DamageSource->GetActorLocation();
-		}
-		
-		if (const FHitResult* HitResult = GameplayEffectContext.GetHitResult())
-		{
-			HitLocation = HitResult->ImpactPoint;
-			if (DamageSource == nullptr)
-			{
-				EventLocation = HitResult->TraceStart;
-			}
-		}
-		else
-		{
-			HitLocation = Mob->GetActorLocation();
-		}
-		
-		UAISense_Damage::ReportDamageEvent(GetWorld(), Mob, DamageSource, DamageAmount, EventLocation, HitLocation);
-	}
-}
-
 const FGameplayTag& UNpcComponent::GetNpcIdTag() const
 {
 	return CachedNpcId;
@@ -313,6 +308,7 @@ const FGameplayTag& UNpcComponent::GetNpcIdTag() const
 
 const FNpcDTR* UNpcComponent::GetNpcDTR() const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcComponent::GetNpcDTR)
 	return NpcDTRH.GetRow<FNpcDTR>("");
 }
 
@@ -344,26 +340,20 @@ void UNpcComponent::SetStateActive(const FGameplayTag& StateTag, const TMap<FGam
 		UE_VLOG(OwnerPawn.Get(), LogARPGAI_NpcStates, Verbose, TEXT("Not deactivating state %s because it is not active"), *StateTag.ToString());
 	}
 	
-	if (const FNpcDTR* NpcDTR = GetNpcDTR())
+	if (const FGameplayEffectsWrapper* StateEffects = NpcStates->StateEffects.Find(StateTag))
 	{
-		if (const FGameplayEffectsWrapper* StateEffects = NpcDTR->NpcStatesDataAsset->StateEffects.Find(StateTag))
+		if (!ensure(!StateEffects->GameplayEffects_Obsolete.IsEmpty() || !StateEffects->ParametrizedGameplayEffects.IsEmpty()))
 		{
-			if (!ensure(StateEffects->GameplayEffects_Obsolete.Num() > 0 || !StateEffects->ParametrizedGameplayEffects.IsEmpty())) return;
-
-			if (StateEffects->ParametrizedGameplayEffects.IsEmpty() && StateEffects->GameplayEffects_Obsolete.Num() > 0)
-			{
-				ApplyGameplayEffectsForState_Obsolete(StateTag, SetByCallerParams, bInActive, StateEffects);
-			}
-			else if (!StateEffects->ParametrizedGameplayEffects.IsEmpty())
-			{
-				ApplyGameplayEffectsForState(StateTag, SetByCallerParams, bInActive, StateEffects);
-			}
-			else
-			{
-				ensure(false);
-				UE_VLOG(OwnerPawn.Get(), LogARPGAI_NpcStates, Verbose, TEXT("Not found NPC state %s"), *StateTag.ToString());
-			}
+			UE_VLOG(OwnerPawn.Get(), LogARPGAI_NpcStates, Warning, TEXT("NPC state %s has no gameplay effects to apply. Consider removing"), *StateTag.ToString());
+			return;
 		}
+		
+		if (StateEffects->ParametrizedGameplayEffects.IsEmpty() && StateEffects->GameplayEffects_Obsolete.Num() > 0)
+			ApplyGameplayEffectsForState_Obsolete(StateTag, SetByCallerParams, bInActive, StateEffects);
+		else if (!StateEffects->ParametrizedGameplayEffects.IsEmpty())
+			ApplyGameplayEffectsForState(StateTag, SetByCallerParams, bInActive, StateEffects);
+		else
+			{ ensure(false); }
 	}
 }
 

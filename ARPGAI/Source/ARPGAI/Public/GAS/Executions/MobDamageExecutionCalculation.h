@@ -13,8 +13,8 @@ UCLASS()
 class ARPGAI_API UMobDamageExecutionCalculation : public UGameplayEffectExecutionCalculation
 {
 	GENERATED_BODY()
+	
 public:
-
 	UMobDamageExecutionCalculation();
 
 protected:

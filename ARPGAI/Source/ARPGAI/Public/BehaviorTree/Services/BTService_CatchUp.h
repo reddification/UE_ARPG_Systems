@@ -18,6 +18,7 @@ private:
 	struct FBTMemory_CatchUp : public FBTAuxiliaryMemory
 	{
 		float NextDrawAttentionAt = 0.f;
+		bool bForcingSpeed = false;
 	};
 	
 public:
@@ -35,6 +36,9 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 	FBlackboardKeySelector DistanceToTargetBBKey;
+	
+	UPROPERTY(EditAnywhere)
+	FBlackboardKeySelector TargetMovementDirectionBBKey;
 
 	UPROPERTY(EditAnywhere)
 	bool bDrawAttention = true;
@@ -44,6 +48,12 @@ protected:
 
 	UPROPERTY(EditAnywhere, meta=(EditCondition="bUpdateSpeed"))
 	float RelativeSpeedScale = 1.5f;
+	
+	UPROPERTY(EditAnywhere, meta=(EditCondition="bUpdateSpeed"))
+	float MinCatchUpSpeed = 100.f;
+
+	UPROPERTY(EditAnywhere, meta=(EditCondition="bUpdateSpeed"))
+	float MaxCatchUpSpeed = 1200.f;
 	
 	UPROPERTY(EditAnywhere, meta=(EditCondition="bDrawAttention"), Category="Draw attention")
 	FGameplayTag DrawAttentionGestureId;

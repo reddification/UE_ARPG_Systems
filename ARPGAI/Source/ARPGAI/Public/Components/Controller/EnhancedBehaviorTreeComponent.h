@@ -14,6 +14,8 @@ class ARPGAI_API UEnhancedBehaviorTreeComponent : public UBehaviorTreeComponent
 	GENERATED_BODY()
 
 public:
+	virtual EAILogicResuming::Type ResumeLogic(const FString& Reason) override;
+	
 	virtual void HandleMessage(const FAIMessage& Message) override;
 	void HandleMessageImmediately(const FAIMessage& Message);
 	void LoadDynamicTrees(const FGameplayTagContainer& BehaviorTags, UBTCompositeNode* StartingNode);

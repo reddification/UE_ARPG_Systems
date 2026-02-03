@@ -83,7 +83,6 @@ private:
 	void EvaluateThreats(UBehaviorTreeComponent& OwnerComp, FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory);
 	void ProcessDangerousItemPerception(FCombatEvaluationResult& OutResult, AActor* TargetActor, const FVector& MobLocation) const;
 	void ProcessDangerousItemPerception(FCombatEvaluationResult& OutResult, AActor* Target, float DangerousItemScore, const FVector& MobLocation, EDetectionSource DetectionSource) const;
-	bool IsHostile(const FCombatEvaluationParameters& Parameters, AActor* Actor, EDetectionSource DetectionSource) const;
 	void ProcessPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorNodeMemory* NodeMemory, FCombatEvaluationResult& OutResult) const;
 	void ProcessCharacterVisualPerception(const FCombatEvaluationParameters& Parameters, FCombatEvaluationResult& OutResult,
 	                                      ACharacter* PerceivedCharacter) const;
@@ -95,7 +94,9 @@ private:
 	bool AssignBestTarget(UNpcCombatLogicComponent* MobComponent, UBlackboardComponent* BlackboardComponent,
 	                      FBTCombatEvaluatorNodeMemory* NodeMemory, FCombatEvaluationResult& CombatEvaluationResult, const FGameplayTag& BestBehaviorUtilityTag) const;
 	void EvaluateBehaviorUtilities(const FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory,
-		const APawn* ThisNpc, const FNpcDTR* NpcDTR, FCombatEvaluationResult& CombatEvaluationResult, TMap<FGameplayTag, float>& BehaviorUtilitiesScores);
+	                               const APawn* ThisNpc, FCombatEvaluationResult& CombatEvaluationResult, TMap<FGameplayTag, float>& BehaviorUtilitiesScores, const
+	                               UNpcCombatParametersDataAsset
+	                               * NpcCombatParameters);
 	float EvaluateBehaviorUtility(FCombatEvaluationResult& CombatEvaluationResult, const FBehaviorUtilityParameters& BehaviorUtilityParameters,
 		const APawn* ThisNpc, const FBTCombatEvaluatorNodeMemory* NodeMemory, const FGameplayTag& BehaviorUtilityTag) const;
 	void GetBestBehaviorUtility(const TMap<FGameplayTag, float>& BehaviorUtilities, FGameplayTag& OutBestBehaviorTypeTag,

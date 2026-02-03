@@ -112,11 +112,21 @@ float UBTService_BehaviorEvaluator_Retreat::UpdatePerception(UBehaviorTreeCompon
 			FearData.Add({ ActorPerception.Key.Get(), LocalFearScore });
 	}
 
-	if (BTMemory->bActive && !FearData.IsEmpty())
+	if (BTMemory->bActive)
 	{
 		FearData.Sort();
-		Blackboard->SetValueAsObject(OutPrimaryRetreatTargetBBKey.SelectedKeyName, FearData[0].Actor);
-		Blackboard->SetValueAsFloat(OutAccumulatedDamageBBKey.SelectedKeyName, AccumulatedDamage);
+		if (!FearData.IsEmpty())
+		{
+			BTMemory->CombatLogicComponent->SetCurrentCombatTarget(FearData[0].Actor, BehaviorEvaluatorTag);
+			Blackboard->SetValueAsObject(OutPrimaryRetreatTargetBBKey.SelectedKeyName, FearData[0].Actor);
+			Blackboard->SetValueAsFloat(OutAccumulatedDamageBBKey.SelectedKeyName, AccumulatedDamage);
+		}
+		else
+		{
+			BTMemory->CombatLogicComponent->ClearCurrentCombatTarget();
+			Blackboard->ClearValue(OutPrimaryRetreatTargetBBKey.SelectedKeyName);
+			Blackboard->ClearValue(OutAccumulatedDamageBBKey.SelectedKeyName);
+		}
 	}
 
 	return RetreatDesire * HealthFearScale - CalmnessFactor;

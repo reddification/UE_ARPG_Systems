@@ -6,7 +6,7 @@
 #include "Perception/AIPerceptionComponent.h"
 #include "NpcPerceptionComponent.generated.h"
 
-struct FCharacterPerceptionData
+struct ARPGAI_API FCharacterPerceptionData
 {
 	float Distance = 0.f;
 	float Strength = 0.f;

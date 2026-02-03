@@ -14,6 +14,7 @@ UNpcCombatAttributeSet::UNpcCombatAttributeSet()
 	MaxAggression = 10.f;
 	Anxiety = 0.f;
 	MaxAnxiety = 1.f;
+	DistanceToTarget = 0.f;
 }
 
 bool UNpcCombatAttributeSet::PreGameplayEffectExecute(FGameplayEffectModCallbackData& Data)

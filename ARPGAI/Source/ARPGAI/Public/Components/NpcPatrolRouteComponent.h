@@ -33,6 +33,8 @@ class ARPGAI_API UNpcPatrolRouteComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	UNpcPatrolRouteComponent();
+	
 	FORCEINLINE const FGameplayTag& GetRouteId() const { return RouteId; }
 	FORCEINLINE int GetRoutePointsCount() const { return PatrolPoints.Num(); }
 	// world locations expected
@@ -44,7 +46,7 @@ public:
 	FNpcPatrolRouteData GetClosestRoutePointDistancePathfinding(AAIController* AIController, const FVector& Location) const;
 
 protected:
-	virtual void BeginPlay() override;
+	virtual void InitializeComponent() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// world locations expected

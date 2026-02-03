@@ -1,6 +1,9 @@
 ﻿#include "Components/NpcProximityAwarenessComponent.h"
 
 #include "GameplayTagAssetInterface.h"
+#include "Activities/NpcComponentsHelpers.h"
+#include "Components/NpcAttitudesComponent.h"
+#include "Interfaces/NpcAliveCreature.h"
 
 UNpcProximityAwarenessComponent::UNpcProximityAwarenessComponent()
 {
@@ -24,7 +27,7 @@ void UNpcProximityAwarenessComponent::Deactivate()
 void UNpcProximityAwarenessComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	SetCollisionProfileName("NpcAwareness");
+	SetCollisionProfileName(AwarenessCollisionProfileName);
 	OnComponentBeginOverlap.AddDynamic(this, &UNpcProximityAwarenessComponent::OnActorEnterProximity);
 	OnComponentEndOverlap.AddDynamic(this, &UNpcProximityAwarenessComponent::OnActorExitProximity);
 	Deactivate();
@@ -32,22 +35,32 @@ void UNpcProximityAwarenessComponent::BeginPlay()
 
 bool UNpcProximityAwarenessComponent::CanDetect(AActor* Actor) const
 {
-	if (Actor == GetOwner())
-		return false;
+	auto PawnOwner = Cast<APawn>(GetOwner());
+	if (Actor == PawnOwner)
+		return false; // wtf?
 	
-	if (DetectionBlockedTagQuery.IsEmpty())
-		return true;
-	
-	if (auto GameplayTagActor = Cast<IGameplayTagAssetInterface>(Actor))
+	if (!DetectionBlockedTagQuery.IsEmpty())
 	{
-		FGameplayTagContainer ActorTags;
-		GameplayTagActor->GetOwnedGameplayTags(ActorTags);
-		return !DetectionBlockedTagQuery.Matches(ActorTags);
+		if (auto GameplayTagActor = Cast<IGameplayTagAssetInterface>(Actor))
+		{
+			FGameplayTagContainer ActorTags;
+			GameplayTagActor->GetOwnedGameplayTags(ActorTags);
+			if (DetectionBlockedTagQuery.Matches(ActorTags))
+				return false;
+		}
 	}
 
+	if (auto AttitudesComponent = GetNpcAttitudesComponent(PawnOwner))
+		if (AttitudesComponent->IsFriendly(Actor))
+			return false;
+	
+	auto AliveCreature = Cast<INpcAliveCreature>(Actor);
+	if (AliveCreature && !AliveCreature->IsNpcActorAlive())
+		return false;
+	
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams;
-	TArray<AActor*> IgnoredActors = { GetOwner(), Actor };
+	TArray<AActor*> IgnoredActors = { PawnOwner, Actor };
 	QueryParams.AddIgnoredActors(IgnoredActors);
 	bool bCanTrace = !GetWorld()->LineTraceSingleByChannel(HitResult, GetOwner()->GetActorLocation(), Actor->GetActorLocation(),
 		ECC_Visibility, QueryParams);

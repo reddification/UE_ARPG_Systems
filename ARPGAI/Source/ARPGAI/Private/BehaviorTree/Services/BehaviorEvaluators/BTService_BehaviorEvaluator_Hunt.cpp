@@ -5,6 +5,7 @@
 
 #include "AIController.h"
 #include "NavigationSystem.h"
+#include "Components/NpcCombatLogicComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/LogChannels.h"
 #include "Interfaces/Npc.h"
@@ -117,6 +118,17 @@ void UBTService_BehaviorEvaluator_Hunt::TickNode(UBehaviorTreeComponent& OwnerCo
 	Preys.Sort([](const FHuntingPrey& Prey1, const FHuntingPrey& Prey2){ return Prey1.Score > Prey2.Score; });
 	
 	BTMemory->Prey = Preys[0].Actor;
+	if (BTMemory->bActive)
+	{
+		if (BTMemory->Prey.IsValid())
+		{
+			if (BTMemory->Prey != BTMemory->CombatLogicComponent->GetPrimaryTargetActor())
+				BTMemory->CombatLogicComponent->SetCurrentCombatTarget(BTMemory->Prey.Get(), BehaviorEvaluatorTag);
+		}
+		else 
+			BTMemory->CombatLogicComponent->ClearCurrentCombatTarget();
+	}
+		
 	ChangeUtility(HuntDesire, OwnerComp.GetBlackboardComponent(), Interval, BTMemory);
 }
 

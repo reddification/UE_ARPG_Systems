@@ -12,6 +12,7 @@
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
 #include "Data/NpcBlackboardDataAsset.h"
+#include "FlowGraph/Addons/FlowNodeAddon_ActivityEQS.h"
 #include "GameFramework/GameModeBase.h"
 #include "Interfaces/NpcSystemGameMode.h"
 
@@ -82,7 +83,20 @@ void UFlowNode_NpcGoal::InitializeInstance()
 	NpcPawn = OwnerController->GetPawn();
 	NpcComponent = NpcPawn->GetComponentByClass<UNpcComponent>();
 	NpcFlowComponent = TryGetRootFlowActorOwner()->FindComponentByClass<UNpcFlowComponent>();
-	BlackboardKeys = NpcComponent->GetNpcDTR()->NpcBlackboardDataAsset;
+	BlackboardKeys = NpcComponent->GetNpcBlackboardKeys();
+	for (const auto& Addon : AddOns)
+	{
+		if (auto ActivityEQSProvider = Cast<UFlowNodeAddon_ActivityEQS>(Addon.Get()))
+		{
+			ActivityEQSProviderAddon = ActivityEQSProvider;
+			break;
+		}
+	}
+}
+
+FEQSParametrizedQueryExecutionRequest* UFlowNode_NpcGoal::GetEQSRequest(const FGameplayTag& Tag)
+{
+	return  ActivityEQSProviderAddon.IsValid() ? ActivityEQSProviderAddon->GetEQSRequest(Tag) : nullptr;
 }
 
 ENpcGoalStartResult UFlowNode_NpcGoal::Start()

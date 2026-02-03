@@ -16,6 +16,22 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogEnhancedBehaviorTree, Log, Log)
 
+EAILogicResuming::Type UEnhancedBehaviorTreeComponent::ResumeLogic(const FString& Reason)
+{
+	auto Result = Super::ResumeLogic(Reason);
+	
+	// 01.02.2026 (aki)
+	// this is a fix for situations when a latent task was aborted by a decorator,
+	// but task refused to be aborted so it return InProgress and started waiting for brain message to finish latent abort
+	// and after task has received brain message and called FinishLatentAbort, at the same frame (or in very close subsequent frames) PauseLogic was called
+	// somehow this causes bRequestFlowUpdate to be set to false even though FinishLatentAbort sets it to true
+	// so we're kickstarting BT component here in that case
+	if (bRequestedFlowUpdate == false && (PendingExecution.IsSet() || ExecutionRequest.ExecuteNode != nullptr)) 
+		ScheduleExecutionUpdate();
+	
+	return Result;
+}
+
 void UEnhancedBehaviorTreeComponent::HandleMessage(const FAIMessage& Message)
 {
 	if (Message.HasFlag(AI_BRAINMESSAGE_FLAG_IMMEDIATE))

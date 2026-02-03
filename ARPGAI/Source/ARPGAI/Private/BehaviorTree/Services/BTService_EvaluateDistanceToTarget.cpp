@@ -132,6 +132,7 @@ void UBTService_EvaluateDistanceToTarget::TickNode(UBehaviorTreeComponent& Owner
 				Blackboard->SetValueAsEnum(OutEvaluatedTargetMoveDirectionBBKey.SelectedKeyName, static_cast<uint8>(NewDistanceEvaluation));
 				if (!OutCurrentDistanceBehaviorDurationBBKey.IsNone())
 					Blackboard->SetValueAsFloat(OutCurrentDistanceBehaviorDurationBBKey.SelectedKeyName, 0.f);
+				BTMemory->NpcCombatLogicComponent->SetEvaluatedTargetMoveDirection(NewDistanceEvaluation);
 			}
 			
 			BTMemory->AccumulatedTargetDeltaDistance = 0.f;
@@ -185,6 +186,7 @@ void UBTService_EvaluateDistanceToTarget::OnCeaseRelevant(UBehaviorTreeComponent
 	}
 
 	BTMemory->NpcCombatLogicComponent->SetDistanceToTarget(FLT_MAX);
+	BTMemory->NpcCombatLogicComponent->SetEvaluatedTargetMoveDirection(ENpcTargetDistanceEvaluation::TargetIsStationary);
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
 }
 

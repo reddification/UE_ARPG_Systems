@@ -8,6 +8,7 @@
 #include "Interfaces/BehaviorEvaluator.h"
 #include "BTService_BehaviorEvaluator_Base.generated.h"
 
+class UNpcCombatLogicComponent;
 struct FBehaviorEvaluatorBlockRequest;
 class UNpcPerceptionComponent;
 class UNpcAttitudesComponent;
@@ -21,9 +22,10 @@ protected:
 	struct FBTMemory_BehaviorEvaluator_Base
 	{
 		TWeakObjectPtr<UNpcPerceptionComponent> PerceptionComponent;
-		// means is utility evaluation running
-		bool bBlocked = false;
-		// means is the behavior itself currently active. set in IBehaviorEvaluator::InitiateBehaviorState
+		TWeakObjectPtr<UNpcCombatLogicComponent> CombatLogicComponent;
+		// means "is utility evaluation running?"
+		bool bEvaluationBlocked = false;
+		// means "is the behavior itself currently active?" set in IBehaviorEvaluator::InitiateBehaviorState
 		bool bActive = false;
 		float InactiveUtilityAccumulationRate = 0.f;
 		float InactiveUtilityRegressionOffset = 0.f;

@@ -1,6 +1,7 @@
 ﻿// 
 #include "BehaviorTree/Services/BehaviorEvaluators/BTService_BehaviorEvaluator_PredatorDevourPrey.h"
 
+#include "Components/NpcCombatLogicComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 
 UBTService_BehaviorEvaluator_PredatorDevourPrey::UBTService_BehaviorEvaluator_PredatorDevourPrey()
@@ -51,8 +52,11 @@ float UBTService_BehaviorEvaluator_PredatorDevourPrey::UpdatePerception(UBehavio
 	}
 
 	if (BTMemory->bActive)
+	{
+		BTMemory->CombatLogicComponent->SetCurrentCombatTarget(ClosestTarget, BehaviorEvaluatorTag);
 		OwnerComp.GetBlackboardComponent()->SetValueAsObject(DevourTargetBBKey.SelectedKeyName, ClosestTarget);
-
+	}
+	
 	return Desire;
 }
 
@@ -63,8 +67,7 @@ void UBTService_BehaviorEvaluator_PredatorDevourPrey::InitiateBehaviorState(UBeh
 	UpdatePerception(*BTComponent, BTMemory);
 }
 
-void UBTService_BehaviorEvaluator_PredatorDevourPrey::FinalizeBehaviorState(
-	UBehaviorTreeComponent* BTComponent) const
+void UBTService_BehaviorEvaluator_PredatorDevourPrey::FinalizeBehaviorState(UBehaviorTreeComponent* BTComponent) const
 {
 	if (auto Blackboard = BTComponent->GetBlackboardComponent())
 		Blackboard->ClearValue(DevourTargetBBKey.SelectedKeyName);	

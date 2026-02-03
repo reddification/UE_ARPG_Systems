@@ -4,7 +4,7 @@
 #include "BehaviorTree/Decorators/BTDecorator_TrackEnemyAlive.h"
 
 #include "AIController.h"
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/NpcCombatLogicComponent.h"

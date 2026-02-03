@@ -33,7 +33,7 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 	FBlackboardKeySelector FollowTargetBBKey;
-
+	
 private:
 	bool IsNeedToFollowTarget(UBlackboardComponent* Blackboard) const;
 };

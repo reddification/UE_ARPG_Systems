@@ -20,8 +20,8 @@ private:
 	struct FBTMemory_PrepareAttack : public FBTAuxiliaryMemory
 	{
 		float Intelligence = 0.f;
-		float AttackRangeSq = 0.f;
-		float TooCloseDistanceSq = 0.f;
+		float AttackRange = 0.f;
+		float TooCloseDistance = 0.f;
 		TWeakObjectPtr<UNpcCombatLogicComponent> NpcCombatComponent = nullptr;
 		FDelegateHandle OnAttackRangeChangedDelegateHandle;
 	};
@@ -63,8 +63,13 @@ protected:
 	float LittleExtraAttackRange = 33.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, UIMax = 1.f, ClampMax = 1.f))
-	float TooCloseRangeDistanceCoefficient = 0.7f;
-
+	float TooCloseRangeDistanceCoefficient = 0.4f;
+	
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bShowDebugInfo = false;
+#endif
+	
 private:
 	EBlackboardNotificationResult OnAttackRangeChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
 

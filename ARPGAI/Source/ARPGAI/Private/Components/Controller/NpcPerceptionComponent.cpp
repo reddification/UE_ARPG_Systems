@@ -2,6 +2,7 @@
 #include "Components/Controller/NpcPerceptionComponent.h"
 
 #include "AIController.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/NpcAttitudesComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
@@ -24,9 +25,8 @@ UNpcPerceptionComponent::UNpcPerceptionComponent()
 void UNpcPerceptionComponent::SetPawn(APawn* InPawn)
 {
     OwnerPawn = InPawn;
-    NpcAttitudesComponent = InPawn->FindComponentByClass<UNpcAttitudesComponent>();
-    auto NpcAliveInterface = Cast<INpcAliveCreature>(InPawn);
-    if (NpcAliveInterface)
+    NpcAttitudesComponent = GetNpcAttitudesComponent(InPawn);
+    if (auto NpcAliveInterface = Cast<INpcAliveCreature>(InPawn))
         NpcAliveInterface->OnDeathStarted.AddUObject(this, &UNpcPerceptionComponent::OnNpcOwnerDied);
 }
 
@@ -34,8 +34,8 @@ void UNpcPerceptionComponent::BeginPlay()
 {
     Super::BeginPlay();
     // OnTargetPerceptionUpdated.AddDynamic(this, &)
-    OnTargetPerceptionInfoUpdated.AddDynamic(this, &UNpcPerceptionComponent::OnTargetPerceptionInfoUpdatedHandler);
     OnTargetPerceptionForgotten.AddDynamic(this, &UNpcPerceptionComponent::OnTargetPerceptionForgottenHandler);
+    OnTargetPerceptionInfoUpdated.AddDynamic(this, &UNpcPerceptionComponent::OnTargetPerceptionInfoUpdatedHandler);
     OnTargetPerceptionUpdated.AddDynamic(this, &UNpcPerceptionComponent::OnTargetPerceptionUpdatedHandler);
     auto Pawn = Cast<AAIController>(GetOwner())->GetPawn();
     if (Pawn)
@@ -156,6 +156,7 @@ void UNpcPerceptionComponent::CachePerception(const FVector& NpcLocation, const 
                 {
                     auto& CharacterPerception = CharacterPerceptionCache.FindOrAdd(PerceivedActor);
                     CharacterPerception.DetectionSource = static_cast<EDetectionSource>(CharacterPerception.DetectionSource | EDetectionSource::Damage);
+                    CharacterPerception.AccumulatedDamage = AIStimulus.Strength;
                 }
             }
             else if (AIStimulus.Type == HearingSenseId)
@@ -191,14 +192,16 @@ void UNpcPerceptionComponent::MergeAllyPerceptions(const FVector& NpcLocation, c
             if (auto AllyAttitudesComponent = Ally->FindComponentByClass<UNpcAttitudesComponent>())
                 AllyAttitudesComponent->ShareAttitudes(OwnerAttitudesComponent);
 
-        if (IsValid(Ally->GetController()))
+        auto AllyController = Ally->GetController();
+        if (IsValid(AllyController))
         {
-            auto AllyPerceptionComponent = Ally->GetController()->FindComponentByClass<UNpcPerceptionComponent>();
+            auto AllyPerceptionComponent = AllyController->FindComponentByClass<UNpcPerceptionComponent>();
             for (const auto& AllyCharacterPerception : AllyPerceptionComponent->CharacterPerceptionCache)
             {
                 bool bCanAdoptPerception = !CharacterPerceptionCache.Contains(AllyCharacterPerception.Key.Get())
                     && AllyCharacterPerception.Value.IsHostile()
-                    && AllyCharacterPerception.Value.IsAlive();
+                    && AllyCharacterPerception.Value.IsAlive()
+                    && AllyCharacterPerception.Key != OwnerPawn;
                 // && AllyCharacterPerception.Value.DetectionSource & EDetectionSource::Ally == 0;
             
                 if (bCanAdoptPerception)
@@ -208,7 +211,7 @@ void UNpcPerceptionComponent::MergeAllyPerceptions(const FVector& NpcLocation, c
                     CharacterPerception.Distance = (AllyCharacterPerception.Key->GetActorLocation() - NpcLocation).Size();
                     CharacterPerception.ProducedSounds = FGameplayTagContainer::EmptyContainer;
                     CharacterPerception.bCharacterSeesNpc = Cast<IThreat>(AllyCharacterPerception.Key.Get())->CanSeeThreat(OwnerPawn.Get());
-                    CharacterPerception.DetectionSource = static_cast<EDetectionSource>(CharacterPerception.DetectionSource | EDetectionSource::Ally);
+                    CharacterPerception.DetectionSource = static_cast<EDetectionSource>(EDetectionSource::Ally);
                 }
             }
         }
@@ -241,17 +244,19 @@ float UNpcPerceptionComponent::GetAccumulatedDamage() const
 
 void UNpcPerceptionComponent::OnTargetPerceptionInfoUpdatedHandler(const FActorPerceptionUpdateInfo& UpdateInfo)
 {
+    if (!UpdateInfo.Target.IsValid())
+        return;
+    
     if (UpdateInfo.Stimulus.Type == UAISense::GetSenseID(UAISense_Sight::StaticClass()))
     {
-        if (UpdateInfo.Stimulus.Strength > 0.f && UpdateInfo.Stimulus.WasSuccessfullySensed())
+        bool bValid = UpdateInfo.Stimulus.IsValid();
+        bool bExpired = UpdateInfo.Stimulus.IsExpired();
+        if (bValid && UpdateInfo.Stimulus.Strength > 0.f)
         {
             if (!ActorsObservationTime.Contains(UpdateInfo.Target))
                 ActorsObservationTime.Add(UpdateInfo.Target, 0.f);
-            
-            // auto& ActorMemory = ActorsMemory.FindOrAdd(UpdateInfo.Target);
-            // ActorMemory.TimeSeen = 0.f;
         }
-        else if (UpdateInfo.Stimulus.IsExpired())
+        else if (bExpired)
         {
             ActorsObservationTime.Remove(UpdateInfo.Target);
         }
@@ -266,6 +271,14 @@ void UNpcPerceptionComponent::OnTargetPerceptionForgottenHandler(AActor* Actor)
 void UNpcPerceptionComponent::OnTargetPerceptionUpdatedHandler(AActor* Actor, FAIStimulus Stimulus)
 {
     TargetPerceptionUpdatedNativeEvent.Broadcast(Actor, Stimulus);
+    if (Stimulus.Type == UAISense::GetSenseID(UAISense_Damage::StaticClass()))
+    {
+        bool bActive = Stimulus.IsActive();
+        bool bExpired = Stimulus.IsExpired();
+        ensure((bActive && bExpired) == false);
+        if (bActive && !bExpired)
+            NpcAttitudesComponent->OnHitReceivedFromActor(Actor);          
+    }
 }
 
 void UNpcPerceptionComponent::OnNpcOwnerDied(AActor* Actor)
@@ -277,6 +290,10 @@ void UNpcPerceptionComponent::OnNpcOwnerDied(AActor* Actor)
         if (auto World = GetWorld())
             World->GetTimerManager().ClearTimer(PerceptionCacheTimer);
     }
+    
+    OnTargetPerceptionInfoUpdated.RemoveAll(this);
+    OnTargetPerceptionForgotten.RemoveAll(this);
+    OnTargetPerceptionUpdated.RemoveAll(this);
 }
 
 bool UNpcPerceptionComponent::CanMergePerception(APawn* Ally)

@@ -18,11 +18,9 @@ public:
 	UFlowNode_NpcGoal_Wander(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::Wander; }
 	
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	UEnvQuery* AreaEqs;
-
-	UPROPERTY(Category = EQS, EditAnywhere)
-	FEQSParametrizedQueryExecutionRequest EQSRequest_Test;
+	// use EQSRequest instead
+	UPROPERTY(Category = EQS, VisibleAnywhere, BlueprintReadOnly)
+	UEnvQuery* AreaEqs_Obsolete;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagContainer GestureOptionsTags;

@@ -27,7 +27,7 @@ bool UBTDecorator_HandleNpcReactionBehavior::CalculateRawConditionValue(UBehavio
 
 	OwnerComp.GetBlackboardComponent()->ClearValue(CustomResultTagsBBKey.SelectedKeyName);
 	
-	return ReactionEvaluatorData->ReactionEvaluator->LoadReactionContext(NpcComponent->GetNpcDTR()->NpcBlackboardDataAsset,
+	return ReactionEvaluatorData->ReactionEvaluator->LoadReactionContext(NpcComponent->GetNpcBlackboardKeys(),
 		OwnerComp.GetBlackboardComponent(), ReactionEvaluatorData->EvaluatorMemory);
 }
 

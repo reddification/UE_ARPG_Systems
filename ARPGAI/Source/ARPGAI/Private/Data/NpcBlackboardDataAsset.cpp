@@ -65,6 +65,9 @@ UNpcBlackboardDataAsset::UNpcBlackboardDataAsset()
 	ConversationSecondaryActorBBKey.AllowNoneAsValue(true);
 	ConversationSecondaryActorBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ConversationSecondaryActorBBKey), AActor::StaticClass());
 	
+	ConversationFollowCounterpartBBKey.AllowNoneAsValue(true);
+	ConversationFollowCounterpartBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ConversationFollowCounterpartBBKey));
+	
 	ActivityPhrasesBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ActivityPhrasesBBKey)));
 	NpcTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, NpcTagsBBKey)));
 	GoalTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, GoalTagsBBKey)));

@@ -73,4 +73,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag NewAttitudeAfterReactionComplete;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	bool bAttitudeChangeSharedWithAllies = true;
 };

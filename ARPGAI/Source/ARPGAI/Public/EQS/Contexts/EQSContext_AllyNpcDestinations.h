@@ -17,4 +17,7 @@ class ARPGAI_API UEQSContext_AllyNpcDestinations : public UEnvQueryContext
 
 public:
 	virtual void ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const override;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIgnoreNotMovingActors = false;
 };

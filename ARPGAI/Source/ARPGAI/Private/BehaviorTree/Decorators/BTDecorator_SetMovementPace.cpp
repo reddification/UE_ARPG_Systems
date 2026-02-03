@@ -3,7 +3,7 @@
 
 #include "BehaviorTree/Decorators/BTDecorator_SetMovementPace.h"
 
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/NpcComponent.h"
 
 UBTDecorator_SetMovementPace::UBTDecorator_SetMovementPace()

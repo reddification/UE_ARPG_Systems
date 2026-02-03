@@ -22,13 +22,15 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	// actor with this tags won't be detected by owner
+	// owner won't detect actor with these tags
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagQuery DetectionBlockedTagQuery;
 
-protected:
-	TArray<TWeakObjectPtr<AActor>> ActorsInProximity;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FName AwarenessCollisionProfileName = FName("NpcAwareness");
 	
+	TArray<TWeakObjectPtr<AActor>> ActorsInProximity;
+
 private:
 	bool CanDetect(AActor* Actor) const;
 	

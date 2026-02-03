@@ -4,7 +4,7 @@
 #include "BehaviorTree/Decorators/BTDecorator_SetState.h"
 
 #include "AIHelpers.h"
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
 UBTDecorator_SetState::UBTDecorator_SetState()
@@ -108,12 +108,8 @@ void UBTDecorator_SetState::OnNodeDeactivation(FBehaviorTreeSearchData& SearchDa
 	{
 		auto NodeMemory = GetNodeMemory<FBTMemory_SetState>(SearchData);
 		if (NodeMemory->bStateApplied)
-		{
 			if (UNpcComponent* NpcStateComponent = GetNpcComponent(SearchData.OwnerComp))
-			{
 				NpcStateComponent->SetStateActive(NewStateTag, SetByCallerParams, false);
-			}
-		}
 	}
 	
 	Super::OnNodeDeactivation(SearchData, NodeResult);

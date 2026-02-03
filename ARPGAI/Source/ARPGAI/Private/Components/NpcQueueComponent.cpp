@@ -11,11 +11,6 @@ UNpcQueueComponent::UNpcQueueComponent()
 	bWantsInitializeComponent = true;
 }
 
-void UNpcQueueComponent::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
 void UNpcQueueComponent::InitializeComponent()
 {
 	Super::InitializeComponent();

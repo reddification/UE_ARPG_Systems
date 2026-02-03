@@ -15,7 +15,7 @@ ENpcGoalStartResult UFlowNode_NpcGoal_Wander::Restore(bool bInitialStart)
 	if (RestoreResult == ENpcGoalStartResult::Failed)
 		return RestoreResult;
 
-	BlackboardComponent->SetValueAsObject(BlackboardKeys->EqsToRunBBKey.SelectedKeyName, AreaEqs);
+	BlackboardComponent->SetValueAsObject(BlackboardKeys->EqsToRunBBKey.SelectedKeyName, AreaEqs_Obsolete);
 	BlackboardComponent->SetValue<UBlackboardKeyType_GameplayTag>(BlackboardKeys->GestureToPlayBBKey.SelectedKeyName, GestureOptionsTags);
 	BlackboardComponent->SetValue<UBlackboardKeyType_GameplayTag>(BlackboardKeys->ActivityPhrasesBBKey.SelectedKeyName, SpeechOptionsTags);
 
@@ -30,13 +30,13 @@ EDataValidationResult UFlowNode_NpcGoal_Wander::ValidateNode()
 	if (Base == EDataValidationResult::Invalid)
 		return Base;
 
-	return IsValid(AreaEqs) ? EDataValidationResult::Valid : EDataValidationResult::Invalid;
+	return IsValid(AreaEqs_Obsolete) ? EDataValidationResult::Valid : EDataValidationResult::Invalid;
 }
 
 FString UFlowNode_NpcGoal_Wander::GetGoalDescription() const
 {
 	FString Base = Super::GetGoalDescription();
-	Base = Base + (IsValid(AreaEqs) ? FString::Printf(TEXT("\nRun EQS: %s"), *AreaEqs->GetName()) : TEXT("\nInvalid Area Eqs"));
+	Base = Base + (IsValid(AreaEqs_Obsolete) ? FString::Printf(TEXT("\nRun EQS: %s"), *AreaEqs_Obsolete->GetName()) : TEXT("\nInvalid Area Eqs"));
 	if (GestureOptionsTags.IsValid())
 		Base += FString::Printf(TEXT("\nOn site do gestures:\n%s"), *GestureOptionsTags.ToStringSimple());
 

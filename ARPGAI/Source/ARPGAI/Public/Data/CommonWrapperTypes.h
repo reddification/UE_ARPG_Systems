@@ -13,7 +13,7 @@ struct FParametrizedGameplayEffect
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UGameplayEffect> GameplayEffect;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="SetByCaller"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="SetByCaller,AI.SetByCaller"))
 	TMap<FGameplayTag, float> SetByCallerParameters;	
 };
 

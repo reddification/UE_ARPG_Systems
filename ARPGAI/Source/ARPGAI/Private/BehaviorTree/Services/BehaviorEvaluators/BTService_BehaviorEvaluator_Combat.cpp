@@ -4,6 +4,7 @@
 #include "BehaviorTree/Services/BehaviorEvaluators/BTService_BehaviorEvaluator_Combat.h"
 
 #include "AIController.h"
+#include "Components/NpcCombatLogicComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/LogChannels.h"
 #include "Interfaces/NpcAliveCreature.h"
@@ -92,10 +93,13 @@ float UBTService_BehaviorEvaluator_Combat::UpdatePerception(UBehaviorTreeCompone
 		if (!PotentialEnemies.IsEmpty())
 		{
 			PotentialEnemies.Sort();
+			ensure(PotentialEnemies[0].Actor != OwnerComp.GetAIOwner()->GetPawn());
+			BTMemory->CombatLogicComponent->SetCurrentCombatTarget(PotentialEnemies[0].Actor, BehaviorEvaluatorTag);
 			Blackboard->SetValueAsObject(OutCombatTargetBBKey.SelectedKeyName, PotentialEnemies[0].Actor);
 		}
 		else
 		{
+			BTMemory->CombatLogicComponent->ClearCurrentCombatTarget();
 			Blackboard->SetValueAsObject(OutCombatTargetBBKey.SelectedKeyName, nullptr);
 		}
 		

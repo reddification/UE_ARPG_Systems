@@ -3,7 +3,7 @@
 
 #include "BehaviorTree/Tasks/BTTask_RequestBehaviorEvaluatorActive.h"
 
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/Controller/NpcBehaviorEvaluatorComponent.h"
 
 UBTTask_RequestBehaviorEvaluatorActive::UBTTask_RequestBehaviorEvaluatorActive()

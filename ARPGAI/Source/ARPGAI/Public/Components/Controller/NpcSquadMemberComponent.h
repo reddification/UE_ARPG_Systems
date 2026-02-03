@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Data/NpcBlackboardDataAsset.h"
 #include "NpcSquadMemberComponent.generated.h"
 
 
@@ -33,9 +34,9 @@ public:
 	void AddBehaviorCooldownToAllies(const FGameplayTag& CooldownTag, float Time);
 
 private:
-	const FNpcDTR* GetNpcDTR() const;
-	
 	TWeakObjectPtr<AAIController> OwnerController;
-	FDataTableRowHandle NpcDTRH;
 	int GroupWalkingIndex = 0;
+	
+	UPROPERTY()
+	TObjectPtr<UNpcBlackboardDataAsset> BlackboardKeys;
 };

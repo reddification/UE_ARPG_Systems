@@ -46,7 +46,8 @@ public:
 	
 	virtual bool Dodge(const FVector& DodgeLocation) = 0;
 	virtual void CancelDodge() = 0;
-
+	virtual bool IsDodgeActive() const = 0;
+	
 	virtual bool PerformNpcGesture(const FGameplayTag& GestureTag) = 0;
 	virtual void StopNpcGesture() = 0;
 	
@@ -57,7 +58,8 @@ public:
 	virtual void RequestNextAttack() = 0;
 	virtual void CancelAttack() = 0;
 	
-	virtual void ChargeIn(float VerticalImpulseStrength, float ForwardImpulseStrength, const FVector& Direction) = 0;
+	virtual void ChargeIn(float VerticalImpulseStrength, float ForwardImpulseStrength, const FVector& ToLocation) = 0;
+	virtual bool IsChargeInActive() const = 0;
 	virtual void CancelChargeIn() = 0;
 
 	virtual double GetAttackPhaseEndTime() const = 0;

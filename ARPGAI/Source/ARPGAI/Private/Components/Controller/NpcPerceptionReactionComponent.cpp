@@ -40,11 +40,12 @@ void UNpcPerceptionReactionComponent::SetPawn(APawn* InPawn)
 	OwnerNPC.SetObject(InPawn);
 	OwnerNPC.SetInterface(Cast<INpc>(InPawn));
 
-	NpcDTRH = OwnerNPC->GetNpcDataTableRowHandle();
+	auto NpcDTRH = OwnerNPC->GetNpcDataTableRowHandle();
 
 	if (const FNpcDTR* NpcDTR = NpcDTRH.GetRow<FNpcDTR>(""))
 	{
 		BehaviorReactionUtilityBlackboardKeys = NpcDTR->NpcBlackboardDataAsset->ReactionBehaviorUtilityKeys;
+		NpcBlackboardKeys = NpcDTR->NpcBlackboardDataAsset;
 		if (!NpcDTR->NpcPerceptionReactionEvaluators.IsEmpty())
 		{
 			for (const auto* PerceptionReactionEvaluators : NpcDTR->NpcPerceptionReactionEvaluators)

@@ -1,7 +1,7 @@
 ﻿#include "BehaviorTree/Decorators/BTDecorator_FollowActor.h"
 
 #include "AIController.h"
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BTCompositeNode.h"
 #include "Components/NpcComponent.h"
@@ -26,7 +26,12 @@ UBTDecorator_FollowActor::UBTDecorator_FollowActor()
 bool UBTDecorator_FollowActor::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
-	return IsNeedToFollowTarget(Blackboard);
+	return Blackboard->GetValueAsObject(FollowTargetBBKey.SelectedKeyName) != nullptr;
+	
+	// this decorator shouldnt have the authority to decide if NPC should follow the target
+	// but this logic could probably be useful somewhere else...
+	// TODO (aki) 28.01.2026: decide what to do with it
+	// return IsNeedToFollowTarget(Blackboard);
 }
 
 bool UBTDecorator_FollowActor::IsNeedToFollowTarget(UBlackboardComponent* Blackboard) const

@@ -1,6 +1,6 @@
 #include "BehaviorTree/Tasks/Activity/BTTask_AssessActivityState.h"
 
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BlackboardKeyType_GameplayTag.h"
 #include "Interfaces/NpcControllerInterface.h"
 #include "Interfaces/NpcGoalManager.h"

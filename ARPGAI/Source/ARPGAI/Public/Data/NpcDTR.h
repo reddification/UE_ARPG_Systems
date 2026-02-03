@@ -74,9 +74,6 @@ struct ARPGAI_API FNpcDTR : public FTableRowBase
 	UNpcCombatParametersDataAsset* NpcCombatParametersDataAsset;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
-	UNpcCommonParametersDataAsset* NpcCommonParametersDataAsset;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
 	UNpcStatesDataAsset* NpcStatesDataAsset;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
@@ -87,5 +84,5 @@ struct ARPGAI_API FNpcDTR : public FTableRowBase
 	TArray<UNpcPhrasesDataAsset*> NpcPhrasesDataAssets;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
-	TSubclassOf<ACharacter> SpawnClass;
+	TSoftClassPtr<ACharacter> SpawnClass;
 };

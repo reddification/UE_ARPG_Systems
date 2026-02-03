@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Data/NpcActivitiesDataTypes.h"
+#include "FlowGraph/Addons/FlowNodeAddon_ActivityEQS.h"
 #include "Nodes/FlowNode.h"
 #include "Nodes/FlowNodeStateful.h"
 #include "FlowNode_NpcGoal.generated.h"
 
+struct FActivityEQSRequest;
 class UBlackboardComponent;
 class UNpcBlackboardDataAsset;
 class UNpcComponent;
@@ -33,6 +35,7 @@ public:
 	UFlowNode_NpcGoal(const FObjectInitializer& ObjectInitializer);
 	virtual void ExecuteInput(const FName& PinName) override;
 	virtual void InitializeInstance() override;
+	FEQSParametrizedQueryExecutionRequest* GetEQSRequest(const FGameplayTag& Tag);
 	
 #if WITH_EDITOR
 	virtual EDataValidationResult ValidateNode() override;
@@ -84,7 +87,7 @@ protected:
 	TWeakObjectPtr<UBlackboardComponent> BlackboardComponent;
 	
 	UPROPERTY()
-	TObjectPtr<UNpcBlackboardDataAsset> BlackboardKeys;
+	TObjectPtr<const UNpcBlackboardDataAsset> BlackboardKeys;
 
 	UPROPERTY(EditAnywhere, Category = DataPins, DisplayName = "Goal execution result tags", meta = (SourceForOutputFlowPin, FlowPinType = "GameplayTagContainer"))
 	FGameplayTagContainer OutGoalExecutionResultTags;
@@ -92,4 +95,5 @@ protected:
 	
 private:
 	float RemainingGoalExecutionTime = 0.f;
+	TWeakObjectPtr<UFlowNodeAddon_ActivityEQS> ActivityEQSProviderAddon;
 };

@@ -28,4 +28,5 @@ public:
 	virtual ENpcGoalAdvanceResult AdvanceCurrentGoal(const FGameplayTagContainer& GoalExecutionResultTags) = 0;
 	virtual bool SetActivityGoalData() = 0;
 	virtual const FGameplayTag& GetGoalTagParameter(const FGameplayTag& ParameterId) const = 0;
+	virtual FEQSParametrizedQueryExecutionRequest* GetGoalEQSRequest(const FGameplayTag& EqsId) = 0;
 };

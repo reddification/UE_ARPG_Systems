@@ -7,9 +7,14 @@
 #include "NavigationSystem.h"
 #include "Subsystems/NpcPatrolRoutesSubsystem.h"
 
-void UNpcPatrolRouteComponent::BeginPlay()
+UNpcPatrolRouteComponent::UNpcPatrolRouteComponent()
 {
-	Super::BeginPlay();
+	bWantsInitializeComponent = true;
+}
+
+void UNpcPatrolRouteComponent::InitializeComponent()
+{
+	Super::InitializeComponent();
 	if (!ensure(RouteId.IsValid()))
 		return;
 	

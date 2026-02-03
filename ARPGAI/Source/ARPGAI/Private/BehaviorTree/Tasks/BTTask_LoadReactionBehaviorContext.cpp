@@ -19,7 +19,7 @@ EBTNodeResult::Type UBTTask_LoadReactionBehaviorContext::ExecuteTask(UBehaviorTr
 	if (!ensure(ReactionEvaluatorData))
 		return EBTNodeResult::Failed;
 	
-	bool bSuccess = ReactionEvaluatorData->ReactionEvaluator->LoadReactionContext(NpcComponent->GetNpcDTR()->NpcBlackboardDataAsset,
+	bool bSuccess = ReactionEvaluatorData->ReactionEvaluator->LoadReactionContext(NpcComponent->GetNpcBlackboardKeys(),
 		OwnerComp.GetBlackboardComponent(), ReactionEvaluatorData->EvaluatorMemory);
 	return bSuccess ? EBTNodeResult::Succeeded : EBTNodeResult::Failed; 
 }

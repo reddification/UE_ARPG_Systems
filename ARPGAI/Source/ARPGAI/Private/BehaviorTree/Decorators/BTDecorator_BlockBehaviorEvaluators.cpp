@@ -3,7 +3,7 @@
 
 #include "BehaviorTree/Decorators/BTDecorator_BlockBehaviorEvaluators.h"
 
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/Controller/NpcBehaviorEvaluatorComponent.h"
 
 UBTDecorator_BlockBehaviorEvaluators::UBTDecorator_BlockBehaviorEvaluators()

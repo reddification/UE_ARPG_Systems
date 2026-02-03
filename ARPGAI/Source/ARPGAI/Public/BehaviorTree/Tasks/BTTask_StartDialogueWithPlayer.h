@@ -32,9 +32,6 @@ protected:
 	FBlackboardKeySelector TargetCharacterBBKey;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FBlackboardKeySelector bOutDialogueActiveBBKey;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	ENpcStartDialogueWithPlayerReason Reason = ENpcStartDialogueWithPlayerReason::NpcGoal; 
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

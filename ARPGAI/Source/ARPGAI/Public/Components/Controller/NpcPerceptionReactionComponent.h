@@ -69,20 +69,21 @@ public:
 	void RemoveReactionBehaviorEvaluators(const UNpcPerceptionReactionEvaluatorsDataAsset* ReactionBehaviorEvaluatorsDataAsset);
 	void RemoveReactionBehaviorEvaluators(const TArray<UNpcReactionEvaluatorBase*>& PerceptionReactionEvaluators);
 	
-	FORCEINLINE const FNpcDTR* GetNpcDTR() const { return NpcDTRH.GetRow<FNpcDTR>(""); }
-
 	void SetPawn(APawn* InPawn);
 	
+	const UNpcBlackboardDataAsset* GetNpcBlackboardKeys() const { return NpcBlackboardKeys; };
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 private:
-	FDataTableRowHandle NpcDTRH;
-
 	UPROPERTY()
 	TScriptInterface<INpc> OwnerNPC;
 
+	UPROPERTY()
+	TObjectPtr<const UNpcBlackboardDataAsset> NpcBlackboardKeys;
+	
 	TWeakObjectPtr<UBlackboardComponent> BlackboardComponent;
 	
 	UPROPERTY()

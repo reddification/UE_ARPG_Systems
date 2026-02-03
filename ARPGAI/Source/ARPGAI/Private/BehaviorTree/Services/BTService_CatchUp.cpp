@@ -16,6 +16,7 @@ UBTService_CatchUp::UBTService_CatchUp()
 	NodeName = "Catch up with target";
 	TargetBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_CatchUp, TargetBBKey), AActor::StaticClass());
 	DistanceToTargetBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_CatchUp, DistanceToTargetBBKey));
+	TargetMovementDirectionBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_CatchUp, TargetMovementDirectionBBKey), StaticEnum<ENpcTargetDistanceEvaluation>());
 	
 	bNotifyBecomeRelevant = true;
 	bNotifyCeaseRelevant = true;
@@ -71,11 +72,22 @@ void UBTService_CatchUp::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* Node
 
 		BTMemory->NextDrawAttentionAt = WorldTime + FMath::RandRange(DrawAttentionCooldown * 0.75f, DrawAttentionCooldown * 1.25f);
 	}
-
+	
 	if (bUpdateSpeed)
 	{
-		const float TargetSpeed = Target->GetVelocity().Size();
-		Npc->SetForcedMoveSpeed(TargetSpeed * RelativeSpeedScale);
+		ENpcTargetDistanceEvaluation TargetDirection = static_cast<ENpcTargetDistanceEvaluation>(Blackboard->GetValueAsEnum(TargetMovementDirectionBBKey.SelectedKeyName));
+		if (TargetDirection == ENpcTargetDistanceEvaluation::TargetIsGettingAway)
+		{
+			BTMemory->bForcingSpeed = true;
+			const float TargetSpeed = Target->GetVelocity().Size();
+			float ForcedSpeed = FMath::Clamp(TargetSpeed * RelativeSpeedScale, MinCatchUpSpeed, MaxCatchUpSpeed);
+			Npc->SetForcedMoveSpeed(ForcedSpeed);
+		}
+		else if (BTMemory->bForcingSpeed)
+		{
+			BTMemory->bForcingSpeed = false;
+			Npc->ResetForcedMoveSpeed();
+		}
 	}
 }
 
@@ -89,7 +101,11 @@ FString UBTService_CatchUp::GetStaticDescription() const
 			MaxRangeToDrawAttention, *DrawAttentionPhraseId.ToString(), *DrawAttentionGestureId.ToString());
 
 	if (bUpdateSpeed)
+	{
 		Result += FString::Printf(TEXT("\nUpdate speed relatively to target scale = %.2f)"), RelativeSpeedScale);
+		Result += FString::Printf(TEXT("\nMin catch up speed = %.2f, Max catch up speed = %.2f"), MinCatchUpSpeed, MaxCatchUpSpeed);
+		Result += FString::Printf(TEXT("\nTarget direction evaluation BB: %s"), *TargetMovementDirectionBBKey.SelectedKeyName.ToString());
+	}
 	
 	Result += "\n";
 	Result += Super::GetStaticDescription();

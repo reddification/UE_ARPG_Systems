@@ -49,6 +49,7 @@ public:
 	void SetGoalTagParameter(const FGameplayTag& ParameterId, const FGameplayTag& ParameterValue);
 	const FGameplayTag& GetGoalTagParameter(const FGameplayTag& ParameterId) const;
 	void RemoveGoalTagParameter(const FGameplayTag& ParameterId);
+	FEQSParametrizedQueryExecutionRequest* GetGoalEQSRequest(const FGameplayTag& EqsId);
 
 	mutable FNpcLocationCrossedEvent NpcLocationCrossedEvent;
 

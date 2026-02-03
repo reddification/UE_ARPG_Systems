@@ -1,10 +1,7 @@
-﻿// 
-
-
-#include "BehaviorTree/Services/BehaviorEvaluators/BTService_BehaviorEvaluator_AttackedOffGuard.h"
+﻿#include "BehaviorTree/Services/BehaviorEvaluators/BTService_BehaviorEvaluator_AttackedOffGuard.h"
 
 #include "AIController.h"
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/NpcAttitudesComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Perception/AIPerceptionComponent.h"
@@ -24,7 +21,8 @@ void UBTService_BehaviorEvaluator_AttackedOffGuard::OnBecomeRelevant(UBehaviorTr
 	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
 	auto AIController = OwnerComp.GetAIOwner();
 	auto PerceptionComponent = Cast<UNpcPerceptionComponent>(AIController->GetAIPerceptionComponent());
-	PerceptionComponent->TargetPerceptionUpdatedNativeEvent.AddUObject(this, &UBTService_BehaviorEvaluator_AttackedOffGuard::OnPerceptionUpdated, &OwnerComp);
+	PerceptionComponent->TargetPerceptionUpdatedNativeEvent.AddUObject(this,
+		&UBTService_BehaviorEvaluator_AttackedOffGuard::OnPerceptionUpdated, &OwnerComp);
 }
 
 void UBTService_BehaviorEvaluator_AttackedOffGuard::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp,
@@ -58,21 +56,23 @@ void UBTService_BehaviorEvaluator_AttackedOffGuard::FinalizeBehaviorState(UBehav
 void UBTService_BehaviorEvaluator_AttackedOffGuard::OnPerceptionUpdated(AActor* TriggerActor, const FAIStimulus& Stimulus,
                                                                         UBehaviorTreeComponent* BehaviorTreeComponent)
 {
-	auto NodeMemoryRaw = BehaviorTreeComponent->GetNodeMemory(this, BehaviorTreeComponent->FindInstanceContainingNode(this));
-	auto BTMemory = reinterpret_cast<FBTMemory_BehaviorEvaluator_AttackedOffGuard*>(NodeMemoryRaw);
 	if (Stimulus.IsExpired() || !Stimulus.IsActive())
 		return;
 	
 	const FAISenseID DamageSenseID = UAISense::GetSenseID(UAISense_Damage::StaticClass());
 	if (Stimulus.Type == DamageSenseID)
 	{
+		auto NodeMemoryRaw = BehaviorTreeComponent->GetNodeMemory(this, BehaviorTreeComponent->FindInstanceContainingNode(this));
+		auto BTMemory = reinterpret_cast<FBTMemory_BehaviorEvaluator_AttackedOffGuard*>(NodeMemoryRaw);
+		if (BTMemory->bEvaluationBlocked)
+			return;
+		
+		auto NpcAttitudesComponent = GetNpcAttitudesComponent(*BehaviorTreeComponent);
+		auto NpcPawn = BehaviorTreeComponent->GetAIOwner()->GetPawn();
 		BTMemory->AttackedFromLocation = TriggerActor->GetActorLocation();
-		if (CanObserve(BehaviorTreeComponent->GetAIOwner()->GetPawn(), TriggerActor))
-		{
-			auto NpcAttitudesComponent = GetNpcAttitudesComponent(*BehaviorTreeComponent);
-			NpcAttitudesComponent->SetHostile(TriggerActor, true, true);
-			BTMemory->Attacker = TriggerActor;
-		}
+		if (NpcAttitudesComponent->IsHostile(TriggerActor))
+			if (CanObserve(NpcPawn, TriggerActor))
+				BTMemory->Attacker = TriggerActor;
 
 		auto BlackboardComponent = BehaviorTreeComponent->GetBlackboardComponent();
 		ChangeUtility(MaxUtility.GetValue(BlackboardComponent), BlackboardComponent, 1.f, BTMemory);

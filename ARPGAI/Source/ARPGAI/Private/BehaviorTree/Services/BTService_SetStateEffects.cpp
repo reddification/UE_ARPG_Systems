@@ -4,7 +4,7 @@
 
 #include "AIHelpers.h"
 #include "BlackboardKeyType_GameplayTag.h"
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Data/LogChannels.h"

@@ -7,7 +7,6 @@
 #include "Data/LogChannels.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Point.h"
-#include "Interfaces/NpcAliveCreature.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Subsystems/NpcSquadSubsystem.h"
 
@@ -30,17 +29,26 @@ void UEQSContext_AllyNpcDestinations::ProvideContext(FEnvQueryInstance& QueryIns
 		if (AllyController == nullptr)
 			continue;
 		
-		if (AllyController->GetMoveStatus() == EPathFollowingStatus::Type::Idle)
-			continue;
+		FVector PredictedLocation = AllyPawn->GetActorLocation();
+		bool bGotPathDestination = false;
+		if (AllyController->GetMoveStatus() != EPathFollowingStatus::Type::Idle)
+		{
+			auto Path = AllyController->GetPathFollowingComponent()->GetPath();
+			if (ensure(Path.IsValid() && Path->IsValid()))
+			{
+				PredictedLocation = Path->GetEndLocation();
+				bGotPathDestination = true;
+			}
+		} 
+		
+		if (!bGotPathDestination)
+			if (bIgnoreNotMovingActors)
+				continue;
 
-		auto Path = AllyController->GetPathFollowingComponent()->GetPath();
-		if (!ensure(Path.IsValid() && Path->IsValid()))
-			continue;
-
-		AlliesDestinations.Add(Path->GetEndLocation());
-
+		AlliesDestinations.Add(PredictedLocation);
+		
 #if WITH_EDITOR
-		FBox Box = FBox::BuildAABB(Path->GetEndLocation(), FVector(30, 30, 90));
+		FBox Box = FBox::BuildAABB(PredictedLocation, FVector(30, 30, 90));
 		UE_VLOG_BOX(QuerierPawn, LogARPGAI, VeryVerbose, Box, FColor::White, TEXT("Ally predicted location %s"), *AllyPawn->GetName());
 #endif
 	}

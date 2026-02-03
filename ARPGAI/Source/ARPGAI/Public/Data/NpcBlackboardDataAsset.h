@@ -158,6 +158,9 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Conversation")
 	FBlackboardKeySelector ConversationGoToAcceptableRadiusBBKey;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Conversation")
+	FBlackboardKeySelector ConversationFollowCounterpartBBKey;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Queue")
 	FBlackboardKeySelector QueuePointLocationBBKey;

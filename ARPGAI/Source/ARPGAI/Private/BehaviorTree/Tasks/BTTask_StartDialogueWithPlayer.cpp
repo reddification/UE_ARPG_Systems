@@ -15,7 +15,6 @@ UBTTask_StartDialogueWithPlayer::UBTTask_StartDialogueWithPlayer()
 	NodeName = "Start dialogue with player";
 	bNotifyTaskFinished = true;
 	TargetCharacterBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_StartDialogueWithPlayer, TargetCharacterBBKey), AActor::StaticClass());
-	bOutDialogueActiveBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_StartDialogueWithPlayer, bOutDialogueActiveBBKey));
 }
 
 EBTNodeResult::Type UBTTask_StartDialogueWithPlayer::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -25,10 +24,6 @@ EBTNodeResult::Type UBTTask_StartDialogueWithPlayer::ExecuteTask(UBehaviorTreeCo
 	auto TargetCharacter = Cast<AActor>(Blackboard->GetValueAsObject(TargetCharacterBBKey.SelectedKeyName));
 	if ((TargetCharacter->GetActorLocation() - Pawn->GetActorLocation()).SizeSquared() > MaxAcceptableDistance * MaxAcceptableDistance)
 		return EBTNodeResult::Failed;
-
-	// TODO trace check to prevent starting dialogue through walls?
-	// 17.08.2025 (aki): No. I think it should be done in behavior tree with a separate decorator (like can NPC see player)
-	// and if the NPC can't see the player - run EQS where NPC can see the player and make NPC go there and only then start the dialogue
 	
 	switch (Reason)
 	{
@@ -75,7 +70,6 @@ EBTNodeResult::Type UBTTask_StartDialogueWithPlayer::StartDialogueFromNpcGoal(UB
 	}
 	
 	bool bDialogueStarted = Npc->StartDialogueWithPlayer(Parameters->OptionalDialogueId, SecondaryDialogueMembers, Parameters->bInterruptActivePlayerInteraction);
-	Blackboard->SetValueAsBool(bOutDialogueActiveBBKey.SelectedKeyName, bDialogueStarted);
 	if (bDialogueStarted)
 	{
 		Super::ExecuteTask(OwnerComp, NodeMemory);
@@ -122,9 +116,8 @@ void UBTTask_StartDialogueWithPlayer::InitializeFromAsset(UBehaviorTree& Asset)
 
 FString UBTTask_StartDialogueWithPlayer::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("Start dialogue with %s if it's in range %.2f\n[out] Dialogue started BB: %s\nDialogue reason: %s\n%s"),
-		*TargetCharacterBBKey.SelectedKeyName.ToString(), MaxAcceptableDistance,
-		*bOutDialogueActiveBBKey.SelectedKeyName.ToString(), *StaticEnum<ENpcStartDialogueWithPlayerReason>()->GetDisplayValueAsText(Reason).ToString(),
+	return FString::Printf(TEXT("Start dialogue with %s if it's in range %.2f\nDialogue reason: %s\n%s"),
+		*TargetCharacterBBKey.SelectedKeyName.ToString(), MaxAcceptableDistance, *StaticEnum<ENpcStartDialogueWithPlayerReason>()->GetDisplayValueAsText(Reason).ToString(),
 		*Super::GetStaticDescription());
 }
 

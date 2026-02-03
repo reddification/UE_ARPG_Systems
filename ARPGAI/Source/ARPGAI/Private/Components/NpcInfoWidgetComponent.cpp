@@ -59,8 +59,8 @@ void UNpcInfoWidgetComponent::InitializeNpc()
 	OwnerNpcComponent = OwnerCharacter->FindComponentByClass<UNpcComponent>();
 	OwnerNpcAttitudesComponent = OwnerCharacter->FindComponentByClass<UNpcAttitudesComponent>();
 	MinDotProductToShowWidget = NpcCombatSettings->MinPlayerToNpcDotProductToShowWidget;
-	ConsiderableDistanceToPlayerForHostile = NpcCombatSettings->NpcInfoWidgetConsiderableDistanceToPlayer;
-	
+	ConsiderableDistanceToPlayerForHostile = NpcCombatSettings->NpcInfoWidgetConsiderableDistanceToHostilePlayer;
+	ConsiderableDistanceToPlayerForNonHostile = NpcCombatSettings->NpcInfoWidgetConsiderableDistanceToNonHostilePlayer;
 	GetWorld()->GetTimerManager().SetTimer(UpdateVisibilityTimer, this, &UNpcInfoWidgetComponent::UpdateVisibility,
 		NpcCombatSettings->NpcInfoWidgetVisibilityUpdateInterval, true);
 
@@ -75,9 +75,7 @@ void UNpcInfoWidgetComponent::UpdateVisibility()
 	if (!PlayerPawn.IsValid())
 		return;
 	
-	FGameplayTag AttitudeToPlayer = OwnerNpcAttitudesComponent->GetAttitude(PlayerPawn.Get());
-
-	bool bHostile = AttitudeToPlayer.MatchesTag(AIGameplayTags::AI_Attitude_Hostile);
+	bool bHostile = OwnerNpcAttitudesComponent->IsHostile(PlayerPawn.Get());
 	float ConsiderableDistance = bHostile ? ConsiderableDistanceToPlayerForHostile : ConsiderableDistanceToPlayerForNonHostile;
 
 	NpcStateWidget->SetHostile(bHostile);
@@ -97,6 +95,7 @@ void UNpcInfoWidgetComponent::UpdateVisibility()
 				CollisionQueryParams.AddIgnoredActor(GetOwner());
 				const FVector StartLocation = GetOwner()->GetActorLocation();
 				const FVector EndLocation = PlayerPawn->GetActorLocation();
+				
 				bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation + (EndLocation - StartLocation).GetSafeNormal() * 50.f, ECC_Visibility,
 					CollisionQueryParams);
 

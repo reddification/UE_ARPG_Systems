@@ -14,7 +14,7 @@ UENUM()
 enum class ENpcDefensiveAction : uint8
 {
 	None,
-	StepOut,
+	Backdash,
 	Parry,
 	Dodge,
 	CounterAttack,
@@ -68,7 +68,7 @@ struct FBehaviorUtilityParameters
 
 	// a player can weight 1.f, a grenade can weight 4.f
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TMap<TSubclassOf<AActor>, FActorAwarenessData> ActorTypeAwarenesses;
+	TMap<FGameplayTag, FActorAwarenessData> ActorTypeAwarenesses;
 };
 
 USTRUCT(BlueprintType)
@@ -174,6 +174,9 @@ public:
 	// Key - attitude to hit causer
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TMap<FGameplayTag, int> ForgivableCountOfReceivedHits;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TMap<FGameplayTag, float> RememberHitsFromCharactersDurationsGameTimeHours;
 };
 
 struct FNpcThreatData

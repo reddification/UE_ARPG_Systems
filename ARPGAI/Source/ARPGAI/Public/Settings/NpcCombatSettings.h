@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "GameplayTagContainer.h"
+#include "Components/NpcCombatLogicComponent.h"
+#include "Components/NpcInfoWidgetComponent.h"
 #include "NpcCombatSettings.generated.h"
 
 UCLASS(Config=Game, defaultconfig, DisplayName="NPC Combat")
@@ -22,7 +24,7 @@ public:
 
 	// Max amount of surrounding taunters
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 1, ClampMin = 1), Category="Surround")
-	int MaxTaunters = 50;
+	int MaxSurrounders = 10;
 
 	// Min space between attackers on inner attacker circle. Used for generating EQS items
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 50.f, ClampMin = 50.f), Category="Surround")
@@ -36,10 +38,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, UIMax = 90.f, ClampMin = 0.f, ClampMax = 90.f), Category="Surround")
 	float SurroundDeltaAngle = 30.f;
 
-	// Rate of updating surrounding mobs roles (i.e. promote taunter to an attacker if there's a vacant place in attackers division)
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.001f, ClampMin = 0.001f), Category="Surround")
-	float MobCoordinatorUpdateRate = 0.5;
-
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category = "Death")
 	FName RagdollRootBone = "pelvis";
 
@@ -48,6 +46,9 @@ public:
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.1f, ClampMin = 0.1f))
 	float AIAttackRangeScale = 1.333;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.1f, ClampMin = 0.1f))
+	float AttackRangeStepExtension = 80.f;
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Perception", meta=(Categories="AI.Noise"))
 	FGameplayTagContainer DangerousSounds;
@@ -62,8 +63,11 @@ public:
 	float NpcInfoWidgetVisibilityUpdateInterval = 1.f;
 
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="UI")
-	float NpcInfoWidgetConsiderableDistanceToPlayer = 3000.f;
+	float NpcInfoWidgetConsiderableDistanceToHostilePlayer = 850.f;
 
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="UI")
+	float NpcInfoWidgetConsiderableDistanceToNonHostilePlayer = 250.f;
+	
 	// Unused
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="UI")
 	TSoftObjectPtr<UCurveFloat> WidgetScaleDistanceToPlayerDependency;

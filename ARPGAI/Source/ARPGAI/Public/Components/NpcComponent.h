@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "BehaviorTree/Tasks/BTTask_Attack.h"
 #include "Data/NpcDTR.h"
 #include "GAS/Attributes/NpcCombatAttributeSet.h"
 #include "NpcComponent.generated.h"
@@ -28,14 +27,12 @@ public:
 	
 	FORCEINLINE bool IsAlive() const { return !bDead; }
 
-	FORCEINLINE void SetDTRH(const FDataTableRowHandle& InNpcDTRH) { NpcDTRH = InNpcDTRH; }
+	FORCEINLINE void SetDTRH(const FDataTableRowHandle& InNpcDTRH);
 	
 	FORCEINLINE const FDataTableRowHandle& GetDTRH() const { return NpcDTRH; }
 	
 	const FNpcDTR* GetNpcDTR() const;
 	
-	void OnDamageReceived(float DamageAmount, const FOnAttributeChangeData& ChangeData);
-
 	const FGameplayTag& GetNpcIdTag() const;
 
 	void SetStateActive(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams, bool bInActive);
@@ -49,6 +46,8 @@ public:
 	bool ExecuteDialogueWalkRequest(const UEnvQuery* EnvQuery, float AcceptableRadius);
 	bool ExecuteDialogueWalkRequest(const FVector& Location, float AcceptableRadius);
 	bool ExecuteDialogueWalkRequest(const AActor* ToCharacter, float AcceptableRadius);
+	bool ExecuteDialogueFollowRequest(AActor* Actor);
+	bool ExecuteDialogueStopFollowingRequest();
 
 	void OnNpcEnteredDialogueWithPlayer(ACharacter* Character);
 	void OnNpcExitedDialogueWithPlayer();
@@ -73,6 +72,11 @@ public:
 	AActor* GetStoredActor(const FGameplayTag& DataTag, bool bConsumeAfterReading = false);
 	FVector GetStoredLocation(const FGameplayTag& DataTag, bool bConsumeAfterReading = false);
 	
+	// used for debugging 31.01.2026. TODO remove ASAP
+	virtual void Debug_RequestStagger() {};
+
+	const UNpcBlackboardDataAsset* GetNpcBlackboardKeys() const { return NpcBlackboardKeys; }
+	
 	mutable FNpcCombatStateChanged OnStateChanged;
 	mutable FNpcCombatStateChanged OnBehaviorChanged;
 	mutable FNpcCombatStateChanged OnActiveAbilityChanged;
@@ -80,6 +84,7 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	virtual void InitializeComponent() override;
+	
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 	virtual void InitializeNpcDTR(const FNpcDTR* NpcDTR);
@@ -124,6 +129,8 @@ private:
 	void RegisterDeathEvents();
 	void ApplyGameplayEffectsForState_Obsolete(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams, bool bInActive, const FGameplayEffectsWrapper* StateEffects);
 	void ApplyGameplayEffectsForState(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams, bool bInActive, const FGameplayEffectsWrapper* StateEffects);
+	bool SetDialogueFollowRequestState(AActor* Actor, bool bActive);
+	void InitializeNpcComponent();
 	
 	UFUNCTION()
 	void OnNpcDeathStarted(AActor* OwningActor);
@@ -136,4 +143,13 @@ private:
 	int GroupWalkingIndex = -1;
 	
 	FGameplayTag CachedNpcId = FGameplayTag::EmptyTag;
+	
+	UPROPERTY()
+	const UNpcBlackboardDataAsset* NpcBlackboardKeys = nullptr;
+	
+	UPROPERTY()
+	UNpcStatesDataAsset* NpcStates = nullptr;
+	
+	UPROPERTY()
+	TArray<UNpcPhrasesDataAsset*> NpcPhrases;
 };

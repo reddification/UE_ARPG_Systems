@@ -97,8 +97,9 @@ void UFlowNodeAddon_SetCharacterState::ExecuteInput(const FName& PinName)
 	if (ensure(CharacterStateTag.IsValid()))
 	{
 		auto Controller = Cast<AAIController>(TryGetRootFlowActorOwner());
-		auto NpcDTR = Controller->GetPawn()->FindComponentByClass<UNpcComponent>()->GetNpcDTR();
-		Controller->GetBlackboardComponent()->SetValue<UBlackboardKeyType_GameplayTag>(NpcDTR->NpcBlackboardDataAsset->NpcActivityStateBBKey.SelectedKeyName, CharacterStateTag.GetSingleTagContainer());
+		auto BlackboardKeys = Controller->GetPawn()->FindComponentByClass<UNpcComponent>()->GetNpcBlackboardKeys();
+		Controller->GetBlackboardComponent()->SetValue<UBlackboardKeyType_GameplayTag>(BlackboardKeys->NpcActivityStateBBKey.SelectedKeyName, 
+			CharacterStateTag.GetSingleTagContainer());
 	}
 }
 
@@ -107,8 +108,8 @@ void UFlowNodeAddon_SetCharacterState::FinishState()
 	if (ensure(CharacterStateTag.IsValid()))
 	{
 		auto Controller = Cast<AAIController>(TryGetRootFlowActorOwner());
-		auto NpcDTR = Controller->GetPawn()->FindComponentByClass<UNpcComponent>()->GetNpcDTR();
-		Controller->GetBlackboardComponent()->ClearValue(NpcDTR->NpcBlackboardDataAsset->NpcActivityStateBBKey.SelectedKeyName);
+		auto BlackboardKeys = Controller->GetPawn()->FindComponentByClass<UNpcComponent>()->GetNpcBlackboardKeys();
+		Controller->GetBlackboardComponent()->ClearValue(BlackboardKeys->NpcActivityStateBBKey.SelectedKeyName);
 	}
 	
 	Super::FinishState();

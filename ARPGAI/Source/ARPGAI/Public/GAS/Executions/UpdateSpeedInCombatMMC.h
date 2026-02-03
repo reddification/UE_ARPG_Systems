@@ -7,7 +7,7 @@
 #include "UpdateSpeedInCombatMMC.generated.h"
 
 /**
- * 
+ *  This MMC calculates scale for MoveSpeed attribute to match required speed based on data
  */
 UCLASS()
 class ARPGAI_API UUpdateSpeedInCombatMMC : public UGameplayModMagnitudeCalculation
@@ -15,5 +15,12 @@ class ARPGAI_API UUpdateSpeedInCombatMMC : public UGameplayModMagnitudeCalculati
 	GENERATED_BODY()
 
 public:
+	UUpdateSpeedInCombatMMC();
 	virtual float CalculateBaseMagnitude_Implementation(const FGameplayEffectSpec& Spec) const override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayEffectAttributeCaptureDefinition DistanceToTargetDef;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bReturnScale = false;;
 };

@@ -29,6 +29,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UNpcCombatAttributeSet, Aggression);
 	ATTRIBUTE_ACCESSORS(UNpcCombatAttributeSet, AggressionRestoreRate);
 	ATTRIBUTE_ACCESSORS(UNpcCombatAttributeSet, MaxAggression);
+	ATTRIBUTE_ACCESSORS(UNpcCombatAttributeSet, DistanceToTarget);
 	
 protected:
 
@@ -64,4 +65,7 @@ protected:
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData MaxAnxiety;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Combat", Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData DistanceToTarget;
 };

@@ -69,22 +69,6 @@ struct FCombatMoveSpeedsData
 	bool bStrafe = true;	
 };
 
-UCLASS()
-class ARPGAI_API UNpcCommonParametersDataAsset : public UDataAsset
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float MaxCatchUpSpeedScale = 1.5f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float MaxSpeed = 1000.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float MinCatchupSpeed = 150.f;
-};
-
 struct FNpcPatrolRouteData
 {
 	FVector RoutePointLocation = FVector::ZeroVector;

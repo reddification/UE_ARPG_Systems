@@ -5,7 +5,9 @@
 
 #include "AIController.h"
 #include "BlackboardKeyType_GameplayTag.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
+#include "Components/NpcCombatLogicComponent.h"
 #include "Components/Controller/NpcBehaviorEvaluatorComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/AiDataTypes.h"
@@ -27,6 +29,7 @@ void UBTService_BehaviorEvaluator_Base::OnBecomeRelevant(UBehaviorTreeComponent&
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
 	auto BTMemory = reinterpret_cast<FBTMemory_BehaviorEvaluator_Base*>(NodeMemory);
 	BTMemory->PerceptionComponent = AIController->FindComponentByClass<UNpcPerceptionComponent>();
+	BTMemory->CombatLogicComponent = GetNpcCombatLogicComponent(OwnerComp);
 	BTMemory->InactiveUtilityAccumulationRate = InactiveUtilityAccumulationRate.GetValue(Blackboard);
 	BTMemory->InactiveUtilityRegressionOffset = InactiveUtilityRegressionOffset.GetValue(Blackboard);
 	BTMemory->ActiveUtilityAccumulationRate = ActiveUtilityAccumulationRate.GetValue(Blackboard);
@@ -39,7 +42,7 @@ void UBTService_BehaviorEvaluator_Base::OnBecomeRelevant(UBehaviorTreeComponent&
 	if (!CurrentlyActiveEvaluators.HasTag(BehaviorEvaluatorTag))
 	{
 		SetNextTickTime(NodeMemory, FLT_MAX);
-		BTMemory->bBlocked = true;
+		BTMemory->bEvaluationBlocked = true;
 	}
 
 	FOnBlackboardChangeNotification UtilityChangeObserver = FOnBlackboardChangeNotification::CreateUObject(this, &UBTService_BehaviorEvaluator_Base::OnUtilityChangeParameterChanged);
@@ -74,6 +77,13 @@ void UBTService_BehaviorEvaluator_Base::OnCeaseRelevant(UBehaviorTreeComponent& 
 		BlackboardComponent->UnregisterObserversFrom(this);
 	}
 	
+	if (NodeMemory)
+	{
+		auto BTMemory = reinterpret_cast<FBTMemory_BehaviorEvaluator_Base*>(NodeMemory);
+		if (BTMemory->CombatLogicComponent.IsValid())
+			BTMemory->CombatLogicComponent->ClearCurrentCombatTarget();
+	}
+	
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
 }
 
@@ -95,16 +105,16 @@ EBlackboardNotificationResult UBTService_BehaviorEvaluator_Base::OnActiveBehavio
 	auto BTComponent = Cast<UBehaviorTreeComponent>(BlackboardComponent.GetBrainComponent());
 	auto RawNodeMemory = BTComponent->GetNodeMemory(this, BTComponent->FindInstanceContainingNode(this));
 	FBTMemory_BehaviorEvaluator_Base* BTMemory = reinterpret_cast<FBTMemory_BehaviorEvaluator_Base*>(RawNodeMemory);
-	if (!BTMemory->bBlocked && !CurrentlyActiveEvaluators.HasTag(BehaviorEvaluatorTag))
+	if (!BTMemory->bEvaluationBlocked && !CurrentlyActiveEvaluators.HasTag(BehaviorEvaluatorTag))
 	{
 		SetNextTickTime(RawNodeMemory, FLT_MAX);
-		BTMemory->bBlocked = true;
+		BTMemory->bEvaluationBlocked = true;
 		BTComponent->GetBlackboardComponent()->SetValueAsFloat(UtilityBBKey.SelectedKeyName, 0.f);
 	}
-	else if (BTMemory->bBlocked && CurrentlyActiveEvaluators.HasTag(BehaviorEvaluatorTag))
+	else if (BTMemory->bEvaluationBlocked && CurrentlyActiveEvaluators.HasTag(BehaviorEvaluatorTag))
 	{
 		SetNextTickTime(RawNodeMemory, 0.f);
-		BTMemory->bBlocked = false;
+		BTMemory->bEvaluationBlocked = false;
 	}
 
 	return EBlackboardNotificationResult::ContinueObserving;
@@ -162,6 +172,8 @@ void UBTService_BehaviorEvaluator_Base::FinalizeBehaviorState(UBehaviorTreeCompo
 
 	auto BTMemory = reinterpret_cast<FBTMemory_BehaviorEvaluator_Base*>(BTComponent->GetNodeMemory(this, BTComponent->FindInstanceContainingNode(this)));
 	BTMemory->bActive = false;
+	if (BTMemory->CombatLogicComponent.IsValid())
+		BTMemory->CombatLogicComponent->ClearCurrentCombatTarget();
 }
 
 void UBTService_BehaviorEvaluator_Base::SetCooldown(UBehaviorTreeComponent* BTComponent, float Cooldown) const

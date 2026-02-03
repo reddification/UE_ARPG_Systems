@@ -87,6 +87,7 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Dialogue_Npc_Completed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_SmartObjectInteraction_Completed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Dialogue_Player_Completed);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Backdash_Completed);
 	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Conversation_OnHold);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Conversation_Completed);
@@ -104,9 +105,10 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_ReactionEvaluator_ExecutionResult_Failure);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_ReactionEvaluator_ExecutionResult_Abort);
 	
-	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_Time);
-	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_MinSpeed);
-	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_UpdateSpeedToBeAtLocationMMC_MaxSpeed);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_Time);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_Speed_Min);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_Speed_Max);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_SetByCaller_Speed_Scale);
 	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Activity_Goal_Result_SmartObject_NotFound);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Activity_Goal_Result_SmartObject_InteractionFinished);
@@ -122,6 +124,4 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Activity);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Arbitrary);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Spawner);
-	
-	FGameplayTag ;
 }

@@ -1,7 +1,7 @@
 ﻿#include "BehaviorTree/Tasks/Activity/BTTask_AdvanceNpcGoal.h"
 
 #include "BlackboardKeyType_GameplayTag.h"
-#include "Activities/ActivityInstancesHelper.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Interfaces/NpcGoalManager.h"

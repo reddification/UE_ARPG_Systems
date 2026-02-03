@@ -2,7 +2,9 @@
 
 #include "BehaviorTree/Tasks/BTTask_HandleGameplayAbility.h"
 #include "AbilitySystemBlueprintLibrary.h"
+#include "AIController.h"
 #include "Data/AIGameplayTags.h"
+#include "Data/LogChannels.h"
 
 UBTTask_HandleGameplayAbility::UBTTask_HandleGameplayAbility()
 {
@@ -14,12 +16,17 @@ EBTNodeResult::Type UBTTask_HandleGameplayAbility::ExecuteTask(UBehaviorTreeComp
 	WaitForMessage(OwnerComp, CompletedMessageTag.GetTagName());
 	WaitForMessage(OwnerComp, ActivationFailedCantAffordTag.GetTagName());
 	WaitForMessage(OwnerComp, ActivationFailedConditionsNotMetTag.GetTagName());
+	UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, VeryVerbose, TEXT("%s: waiting for brain message %s"), *NodeName, *CompletedMessageTag.ToString());
+	UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, VeryVerbose, TEXT("%s: waiting for brain message %s"), *NodeName, *ActivationFailedCantAffordTag.ToString());
+	UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, VeryVerbose, TEXT("%s: waiting for brain message %s"), *NodeName, *ActivationFailedConditionsNotMetTag.ToString());
 	return EBTNodeResult::InProgress;
 }
 
 void UBTTask_HandleGameplayAbility::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, FName Message, int32 RequestID,
 	bool bSuccess)
 {
+	UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, Verbose, TEXT("%s ::OnMessage: %s %s"), *NodeName, *Message.ToString(), bSuccess ? TEXT("success") : TEXT("failure"));
+	
 	const EBTTaskStatus::Type Status = OwnerComp.GetTaskStatus(this);
 	if (Status == EBTTaskStatus::Active)
 	{

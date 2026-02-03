@@ -155,6 +155,15 @@ void UNpcFlowComponent::RemoveGoalTagParameter(const FGameplayTag& ParameterId)
 	GoalTagParameters.Remove(ParameterId);
 }
 
+FEQSParametrizedQueryExecutionRequest* UNpcFlowComponent::GetGoalEQSRequest(const FGameplayTag& EqsId)
+{
+	UE_VLOG(GetOwner(), LogARPGAI_Activity, Verbose, TEXT("UNpcFlowComponent::get goal EQS %s"), *EqsId.ToString());
+	if (!ActivitiesStack.IsEmpty() && ActivitiesStack.Last().ActiveGoalNode.IsValid())
+		return ActivitiesStack.Last().ActiveGoalNode->GetEQSRequest(EqsId);
+	
+	return nullptr;
+}
+
 void UNpcFlowComponent::ExternalCompleteGoal()
 {
 	UE_VLOG(GetOwner(), LogARPGAI_Activity, Verbose, TEXT("UNpcFlowComponent::external complete goal"));

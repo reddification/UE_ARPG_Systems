@@ -25,8 +25,10 @@ namespace NpcCombatEvaluation
 		float PerceptionScore = 0.f;
 		float ThreatScore = 0.f;
 		bool bCharacter = false;
+		FGameplayTagContainer Tags;
 		
 		EDetectionSource DetectionSource = EDetectionSource::None;
+		
 		void AddDetectionSource(EDetectionSource NewDetectionSource);
 		bool HasDetectionSource(EDetectionSource TestDetectionSource) const;
 	};

@@ -1,6 +1,7 @@
 ﻿#include "Components/Controller/NpcSquadMemberComponent.h"
 
 #include "AIController.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "Navigation/CrowdFollowingComponent.h"
@@ -8,7 +9,9 @@
 
 void UNpcSquadMemberComponent::Initialize(const FDataTableRowHandle& InNpcDTRH)
 {
-	NpcDTRH = InNpcDTRH;
+	if (auto NpcDTR = InNpcDTRH.GetRow<FNpcDTR>(""))
+		BlackboardKeys = NpcDTR->NpcBlackboardDataAsset;
+	
 	OwnerController = Cast<AAIController>(GetOwner());
 	ensure(OwnerController.IsValid());
 }
@@ -25,7 +28,6 @@ bool UNpcSquadMemberComponent::FollowLeader()
 		return false;
 
 	auto BlackboardComponent = OwnerController->GetBlackboardComponent();
-	auto BlackboardKeys = GetNpcDTR()->NpcBlackboardDataAsset;
 	switch (SquadParameters->NpcSquadFollowType)
 	{
 		case ENpcSquadFollowType::Around:
@@ -62,7 +64,6 @@ bool UNpcSquadMemberComponent::FollowLeader()
 void UNpcSquadMemberComponent::StopFollowing()
 {
 	auto BlackboardComponent = OwnerController->GetBlackboardComponent();
-	auto BlackboardKeys = GetNpcDTR()->NpcBlackboardDataAsset;
 	BlackboardComponent->ClearValue(BlackboardKeys->FollowTargetBBKey.SelectedKeyName);
 }
 
@@ -133,12 +134,4 @@ void UNpcSquadMemberComponent::AddBehaviorCooldownToAllies(const FGameplayTag& C
 		auto AllyBTComponent = Cast<UBehaviorTreeComponent>(AllyController->GetBrainComponent());
 		AllyBTComponent->AddCooldownTagDuration(CooldownTag, Time, false);
 	}
-}
-
-const FNpcDTR* UNpcSquadMemberComponent::GetNpcDTR() const
-{
-	if (ensure(NpcDTRH.DataTable && NpcDTRH.RowName.IsNone()))
-		return NpcDTRH.GetRow<FNpcDTR>("");
-
-	return nullptr;
 }

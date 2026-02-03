@@ -16,24 +16,40 @@ void UNpcAttitudesComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	NpcAttitudesDurationGameTime = GetDefault<UNpcSettings>()->NpcAttitudesDurationGameTime;
+	if (!ReceivedHitsFromCharacters.IsEmpty())
+	{
+		GetWorld()->GetTimerManager().SetTimer(ForgiveAttacksFromNonHostilesTimer, 
+			this, &UNpcAttitudesComponent::CleanRememberedHitsFromCharacters, CleanupRememberedHitsInterval, true);
+	}
+}
+
+void UNpcAttitudesComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (auto WorldLocal = GetWorld())
+		WorldLocal->GetTimerManager().ClearTimer(ForgiveAttacksFromNonHostilesTimer);
+	
+	Super::EndPlay(EndPlayReason);
 }
 
 void UNpcAttitudesComponent::InitializeNpcAttitudes(const FGameplayTag& InNpcId, const FDataTableRowHandle& InNpcDTRH)
 {
 	NpcDTRH = InNpcDTRH;
 	auto NpcDTR = GetNpcDTR();
-	BaseAttitudes = NpcDTR->BaseAttitudes;
+	if (ensure(NpcDTR))
+		BaseAttitudes = NpcDTR->BaseAttitudes;
+	
 	NpcId = InNpcId;
+	ForgivableCountOfHitsForAttitude = NpcDTR->NpcCombatParametersDataAsset->ForgivableCountOfReceivedHits;
+	RememberHitsFromCharactersDurationsGTH = NpcDTR->NpcCombatParametersDataAsset->RememberHitsFromCharactersDurationsGameTimeHours;
 }
 
 void UNpcAttitudesComponent::AddTemporaryCharacterAttitude(const AActor* Character, const FGameplayTag& Attitude, bool bShareableWithAllies)
 {
-	// TODO
-	// 1. Subscribe to IAliveCreature::OnDeathStarted to clean up the map
 	if (const float* AttitudeDurationPtr = NpcAttitudesDurationGameTime.Find(Attitude); ensure(AttitudeDurationPtr))
 	{
 		auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
 		const FDateTime& CurrentGameTime = NpcGameMode->GetARPGAIGameTime();
+		// Currently, this map is cleared in ::GetAttitude
 		FTemporaryCharacterAttitudeMemory& TemporaryCharacterAttitude = TemporaryCharacterAttitudes.FindOrAdd(Character);
 		TemporaryCharacterAttitude.AttitudeTag = Attitude;
 		TemporaryCharacterAttitude.ValidUntilGameTime = CurrentGameTime + FTimespan::FromHours(*AttitudeDurationPtr);
@@ -84,6 +100,25 @@ void UNpcAttitudesComponent::SetAttitudePresetInternal(const FGameplayTag& InAtt
 	// TODO sort NpcAttributes priority
 }
 
+void UNpcAttitudesComponent::CleanRememberedHitsFromCharacters()
+{
+	auto GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
+	if (GameMode == nullptr)
+		return;
+	
+	const auto& DateTime = GameMode->GetARPGAIGameTime();
+	TArray<TWeakObjectPtr<const AActor>> ForgetHitsFromActors;
+	for (const auto& RememberedHit : ReceivedHitsFromCharacters)
+		if (DateTime >= RememberedHit.Value.ForgetAtGameTime)
+			ForgetHitsFromActors.Add(RememberedHit.Key);
+	
+	for (const auto& ForgetHitsFromActor : ForgetHitsFromActors)
+		ReceivedHitsFromCharacters.Remove(ForgetHitsFromActor);
+	
+	if (ReceivedHitsFromCharacters.IsEmpty())
+		GetWorld()->GetTimerManager().ClearTimer(ForgiveAttacksFromNonHostilesTimer);
+}
+
 void UNpcAttitudesComponent::ResetTemporaryAttitudePreset()
 {
 	CurrentTemporaryAttitudePreset = FGameplayTag::EmptyTag;
@@ -110,6 +145,11 @@ void UNpcAttitudesComponent::ShareAttitudes(UNpcAttitudesComponent* OtherNpcAtti
 	for (const auto& TemporaryCharacterAttitude : TemporaryCharacterAttitudes)
 		if (TemporaryCharacterAttitude.Value.bShareableWithAllies && !OtherNpcAttitudesComponent->TemporaryCharacterAttitudes.Contains(TemporaryCharacterAttitude.Key))
 			OtherNpcAttitudesComponent->TemporaryCharacterAttitudes.Add(TemporaryCharacterAttitude.Key, TemporaryCharacterAttitude.Value);
+}
+
+void UNpcAttitudesComponent::SetBaseAttitudes(const FNpcAttitudes& Attitudes)
+{
+	BaseAttitudes = Attitudes;
 }
 
 // There are 3 sources of attitudes:
@@ -158,4 +198,51 @@ FGameplayTag UNpcAttitudesComponent::GetAttitude(const AActor* Actor) const
 	}
 
 	return AIGameplayTags::AI_Attitude_Neutral;
+}
+
+bool UNpcAttitudesComponent::OnHitReceivedFromActor(const AActor* DamageCauser)
+{
+	FGameplayTag Attitude = GetAttitude(DamageCauser);
+	if (Attitude.MatchesTag(AIGameplayTags::AI_Attitude_Hostile))
+		return false;
+	
+	int* ForgivableCountOfHits = ForgivableCountOfHitsForAttitude.Find(Attitude);
+	if (ForgivableCountOfHits == nullptr)
+		return false;
+
+	bool bMustSetTimer = ReceivedHitsFromCharacters.IsEmpty();
+	FReceivedHitsCountMemory& ReceivedHitsFromCharacterMemory = ReceivedHitsFromCharacters.FindOrAdd(DamageCauser);
+	ReceivedHitsFromCharacterMemory.Count++;
+	bool bForgive = ReceivedHitsFromCharacterMemory.Count <= *ForgivableCountOfHits;
+	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
+	const auto& CurrentGameTime = NpcGameMode->GetARPGAIGameTime();
+	float RememberHitDurationGameHours = 1.f;
+	if (RememberHitsFromCharactersDurationsGTH.Contains(Attitude))
+		RememberHitDurationGameHours = RememberHitsFromCharactersDurationsGTH[Attitude];
+	
+	ReceivedHitsFromCharacterMemory.ForgetAtGameTime = CurrentGameTime + FTimespan::FromHours(RememberHitDurationGameHours);
+	if (bMustSetTimer)
+	{
+		GetWorld()->GetTimerManager().SetTimer(ForgiveAttacksFromNonHostilesTimer, 
+			this, &UNpcAttitudesComponent::CleanRememberedHitsFromCharacters, CleanupRememberedHitsInterval, true);
+	}
+	
+	if (!bForgive)
+	{
+		bool bWasFriendly = Attitude.MatchesTag(AIGameplayTags::AI_Attitude_Friendly);
+		FGameplayTag NewTempAttitude = bWasFriendly ? AIGameplayTags::AI_Attitude_Hostile_NonLethal : AIGameplayTags::AI_Attitude_Hostile_Lethal;
+		AddTemporaryCharacterAttitude(DamageCauser, NewTempAttitude, !bWasFriendly);
+	}
+	
+	return bForgive;
+}
+
+bool UNpcAttitudesComponent::IsHostile(const AActor* Actor)
+{
+	return GetAttitude(Actor).MatchesTag(AIGameplayTags::AI_Attitude_Hostile);
+}
+
+bool UNpcAttitudesComponent::IsFriendly(const AActor* Actor)
+{
+	return GetAttitude(Actor).MatchesTag(AIGameplayTags::AI_Attitude_Friendly);
 }
