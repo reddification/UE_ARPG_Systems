@@ -140,7 +140,7 @@ void UGameplayAbility_MeleeWeaponCombat::OnAttackCommited()
 	
 	bool bCommited = CommitAbility(SpecHandle, ActorInfo, CurrentActivationInfo);
 	if (!bCommited)
-		EndAbility(SpecHandle, ActorInfo, CurrentActivationInfo, true, true);
+		EndAbility(SpecHandle, ActorInfo, CurrentActivationInfo, true, false);
 }
 
 void UGameplayAbility_MeleeWeaponCombat::OnAttackWhiffed()

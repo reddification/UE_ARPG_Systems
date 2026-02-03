@@ -187,6 +187,8 @@ void UPlayerSwingControlCombatComponent::RequestReleaseAttack()
 void UPlayerSwingControlCombatComponent::RequestReactivateAttack()
 {
 	Super::RequestReactivateAttack();
+	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("RequestReactivateAttack"));
+	
 	if (!ensure(!bPlayerRequestsAttack))
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red,
@@ -249,8 +251,11 @@ void UPlayerSwingControlCombatComponent::BeginRecover(float TotalDuration, const
 	// if (bPlayerRequestsAttack)
 	// 	SetRegisteringAttack(true);
 
-	OwnerPlayerCombat->SetLookEnabled(false);
-	OwnerPlayerCombat->DisableAttackCameraDampering();
+	if (ActiveAttack != EMeleeAttackType::None)
+	{
+		OwnerPlayerCombat->SetLookEnabled(false);
+		OwnerPlayerCombat->DisableAttackCameraDampering();
+	}
 }
 
 void UPlayerSwingControlCombatComponent::EndRecover(const uint32 AnimationId)
@@ -507,6 +512,7 @@ void UPlayerSwingControlCombatComponent::DeduceComplexAttackInput(const TArray<F
 
 void UPlayerSwingControlCombatComponent::SetRegisteringAttack(bool bEnabled)
 {
+	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("Set registering attack: %s"), bEnabled ? TEXT("true") : TEXT("false"));
 	bRegisteringAttack = bEnabled;
 	// SetComponentTickEnabled(bEnabled);
 	OwnerPlayerCombat->SetLookEnabled(false);
