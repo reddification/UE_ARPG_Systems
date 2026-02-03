@@ -70,4 +70,7 @@ protected:
 
 private:
 	EBlackboardNotificationResult OnCheckConditionUpdated(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
+	EBlackboardNotificationResult OnTargetChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
+	
+	void ResetEvaluations(UBlackboardComponent& BlackboardComponent, const APawn& NpcPawn, UNpcCombatLogicComponent* CombatLogicComponent) const;
 };

@@ -34,7 +34,11 @@ public:
 	virtual void InitializeComponent() override;
 	
 	void SetDayTime(const FGameplayTag& DayTime);
+	
+	UFUNCTION(BlueprintCallable)
 	void RequestQuestActivity(const FGameplayTag& QuestActivityId);
+
+	UFUNCTION(BlueprintCallable)
 	void StopQuestActivity(const FGameplayTag& QuestActivityId);
 	
 	void PauseGoal();
