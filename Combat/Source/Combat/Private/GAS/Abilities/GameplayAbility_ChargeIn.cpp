@@ -44,6 +44,7 @@ void UGameplayAbility_ChargeIn::ActivateAbility(const FGameplayAbilitySpecHandle
 	FGameplayTagContainer OwnerTags;
 	auto Character = Cast<ACharacter>(ActorInfo->AvatarActor.Get());
 	auto OwnerTagInterface = Cast<IGameplayTagAssetInterface>(Character);
+	auto CombatantOwner = Cast<ICombatant>(Character);
 	OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
 	UAnimMontage* ChargeInMontage = nullptr; 
 	for (const auto& ChargeInMontageOption : ChargeInMontageOptions)
@@ -61,21 +62,46 @@ void UGameplayAbility_ChargeIn::ActivateAbility(const FGameplayAbilitySpecHandle
 	
 	if (ensure(ChargeInMontage))
 	{
-		ChargeInMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("ChargeIn"), ChargeInMontage);
+		float TranslationScale = 1.f;
+		float Dexterity = 0.f;
+		float MontageSpeedScale = 1.f;
+		float DistanceToTarget = (Character->GetActorLocation() - ActivationData->ToLocation).Size();
+		if (CombatantOwner)
+			Dexterity = CombatantOwner->GetDexterity();
+		
+		if (auto RootMotionDistanceScaleDependency = RootMotionTranslationScaleDistanceDependency.GetRichCurveConst())
+			if (RootMotionDistanceScaleDependency->GetNumKeys() > 0)
+				TranslationScale = RootMotionDistanceScaleDependency->Eval(DistanceToTarget);
+
+		// if (Dexterity > 0.f)
+		// 	if (auto TranslationScaleFromDexterityDependency = RootMotionTranslationScaleDexterityDependency.GetRichCurveConst())
+		// 		if (TranslationScaleFromDexterityDependency->GetNumKeys() > 0)
+		// 			TranslationScale *= TranslationScaleFromDexterityDependency->Eval(Dexterity);
+		
+		if (Dexterity > 0)
+			if (auto SpeedScaleDependency = MontageSpeedFromDexterityDependency.GetRichCurveConst())
+				if (SpeedScaleDependency->GetNumKeys() > 0)
+					MontageSpeedScale = SpeedScaleDependency->Eval(Dexterity);
+		
+		ChargeInMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("ChargeIn"),
+			ChargeInMontage, MontageSpeedScale, NAME_None, true, TranslationScale);
 		ChargeInMontageTask->OnCompleted.AddDynamic(this, &UGameplayAbility_ChargeIn::OnChargeInMontageCompleted);
 		ChargeInMontageTask->OnInterrupted.AddDynamic(this, &UGameplayAbility_ChargeIn::OnChargeInMontageInterrupted);
 		ChargeInMontageTask->OnCancelled.AddDynamic(this, &UGameplayAbility_ChargeIn::OnChargeInMontageCancelled);
 		ChargeInMontageTask->ReadyForActivation();
-
-		bool bPushCapsule = ActivationData->Direction != FVector::ZeroVector
+		
+		bool bPushCapsule = ActivationData->ToLocation != FVector::ZeroVector
 			&& (ActivationData->ForwardImpulse > 0.f || ActivationData->VerticalImpulse > 0.f);
 		bPushCapsule = bPushCapsule && !ChargeInMontage->HasRootMotion();
+		
 		if (bPushCapsule)
 		{
-			if (auto CMC = GetAvatarActorFromActorInfo()->FindComponentByClass<UCharacterMovementComponent>())
+			if (auto CMC = Character->FindComponentByClass<UCharacterMovementComponent>())
 			{
-				FVector ImpulseVector = FVector(ActivationData->Direction.X * ActivationData->ForwardImpulse,
-					ActivationData->Direction.Y * ActivationData->ForwardImpulse, ActivationData->VerticalImpulse);
+				// TODO 30.01.2026 apply translation scale?
+				FVector Direction = (ActivationData->ToLocation - Character->GetActorLocation()).GetSafeNormal();
+				FVector ImpulseVector = FVector(Direction.X * ActivationData->ForwardImpulse,
+					Direction.Y * ActivationData->ForwardImpulse, ActivationData->VerticalImpulse);
 				CMC->AddImpulse(ImpulseVector, true);
 			}
 		}
@@ -90,8 +116,6 @@ void UGameplayAbility_ChargeIn::ActivateAbility(const FGameplayAbilitySpecHandle
 	// Launching/adding impulse is useless here, because the montage has root motion.
 	// Ideally, the montage should get rid of root motion and launch the character at anim notify
 	// Or perhaps add 2 impulses: 1 at start, 1 at some animation moment when the character is making a leap
-	// FVector Impulse(ActivationData->Direction.X * ActivationData->ForwardImpulse, ActivationData->Direction.Y * ActivationData->ForwardImpulse, ActivationData->VerticalImpulse);
-	// Character->LaunchCharacter(Impulse, true, true);
 	auto Combatant = Cast<ICombatant>(Character);
 	Combatant->ChargeInStarted();
 	Combatant->PlayCombatSound(CombatGameplayTags::Combat_FX_Sound_Grunt);
@@ -109,9 +133,6 @@ void UGameplayAbility_ChargeIn::EndAbility(const FGameplayAbilitySpecHandle Hand
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
-	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
-	Combatant->ChargeInFinished();
-	
 	if (ActiveChargeEffectHandle.IsValid())
 	{
 		BP_RemoveGameplayEffectFromOwnerWithHandle(ActiveChargeEffectHandle);
@@ -119,19 +140,25 @@ void UGameplayAbility_ChargeIn::EndAbility(const FGameplayAbilitySpecHandle Hand
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	
+	if (auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get()))
+		Combatant->ChargeInFinished();
 }
 
 void UGameplayAbility_ChargeIn::OnChargeInMontageCompleted()
 {
+	UE_VLOG(GetCurrentActorInfo()->AvatarActor.Get(), LogCombat, Verbose, TEXT("UGameplayAbility_ChargeIn::OnChargeInMontageCompleted"));
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGameplayAbility_ChargeIn::OnChargeInMontageInterrupted()
 {
+	UE_VLOG(GetCurrentActorInfo()->AvatarActor.Get(), LogCombat, Verbose, TEXT("UGameplayAbility_ChargeIn::OnChargeInMontageInterrupted"));
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGameplayAbility_ChargeIn::OnChargeInMontageCancelled()
 {
+	UE_VLOG(GetCurrentActorInfo()->AvatarActor.Get(), LogCombat, Verbose, TEXT("UGameplayAbility_ChargeIn::OnChargeInMontageCompleted"));
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }

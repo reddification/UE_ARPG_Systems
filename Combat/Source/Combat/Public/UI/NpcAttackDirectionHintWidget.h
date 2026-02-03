@@ -29,6 +29,7 @@ public:
 	UAttackHintChipsContainerWidget* ChipsWidget;
 	
 private:
+	void OnAttackPhaseChanged(EMeleeAttackPhase OldAttackPhase, EMeleeAttackPhase NewAttackPhase);
 	void InitializeNpcCombatComponent();
 	void SetPreparedAttack(EMeleeAttackType AttackType);
 	void OnAttackCompleted();

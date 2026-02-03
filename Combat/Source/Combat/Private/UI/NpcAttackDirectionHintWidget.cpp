@@ -4,6 +4,7 @@
 #include "UI/NpcAttackDirectionHintWidget.h"
 
 #include "Components/NpcMeleeCombatComponent.h"
+#include "Data/CombatLogChannels.h"
 #include "UI/AttackHintChipsContainerWidget.h"
 
 void UNpcAttackDirectionHintWidget::NativeConstruct()
@@ -21,13 +22,27 @@ void UNpcAttackDirectionHintWidget::NativeConstruct()
 void UNpcAttackDirectionHintWidget::InitializeNpcCombatComponent()
 {
 	NpcCombatComponent->OnAttackStartedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::SetPreparedAttack);
+	NpcCombatComponent->OnAttackActivePhaseChanged.AddUObject(this, &UNpcAttackDirectionHintWidget::OnAttackPhaseChanged);
 	NpcCombatComponent->OnAttackEndedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::OnAttackCompleted);
 	NpcCombatComponent->OnAttackFeintedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::OnAttackCompleted);
 }
 
+void UNpcAttackDirectionHintWidget::OnAttackPhaseChanged(EMeleeAttackPhase OldAttackPhase, EMeleeAttackPhase NewAttackPhase)
+{
+	bool bVisible = NewAttackPhase == EMeleeAttackPhase::WindUp || NewAttackPhase == EMeleeAttackPhase::Release;
+	SetVisibility(bVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	
+#if WITH_EDITOR
+	auto AttackPhaseEnum = StaticEnum<EMeleeAttackPhase>();
+	UE_VLOG(NpcCombatComponent->GetOwner(), LogCombat_UI, Verbose, TEXT("Attack phase changed from %s to %s. New visibility state = %s"),
+		*AttackPhaseEnum->GetDisplayValueAsText(OldAttackPhase).ToString(), *AttackPhaseEnum->GetDisplayValueAsText(NewAttackPhase).ToString(),
+		bVisible ? TEXT("Visible") : TEXT("Non-Visible"));
+#endif
+}
+
 void UNpcAttackDirectionHintWidget::SetCombatComponent(UNpcMeleeCombatComponent* InMeleeCombatComponent)
 {
-	if (ensure(InMeleeCombatComponent))
+	if (InMeleeCombatComponent)
 	{
 		NpcCombatComponent = InMeleeCombatComponent;
 		InitializeNpcCombatComponent();
@@ -41,6 +56,7 @@ void UNpcAttackDirectionHintWidget::NativeDestruct()
 		NpcCombatComponent->OnAttackStartedEvent.RemoveAll(this);
 		NpcCombatComponent->OnAttackEndedEvent.RemoveAll(this);
 		NpcCombatComponent->OnAttackFeintedEvent.RemoveAll(this);
+		NpcCombatComponent->OnAttackActivePhaseChanged.RemoveAll(this);
 	}
 	
 	Super::NativeDestruct();
@@ -50,9 +66,11 @@ void UNpcAttackDirectionHintWidget::SetPreparedAttack(EMeleeAttackType AttackTyp
 {
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	ChipsWidget->SetChipActive(AttackType);
+	UE_VLOG(NpcCombatComponent->GetOwner(), LogCombat_UI, Verbose, TEXT("Showing NPC attack hint widget"));
 }
 
 void UNpcAttackDirectionHintWidget::OnAttackCompleted()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
+	UE_VLOG(NpcCombatComponent->GetOwner(), LogCombat_UI, Verbose, TEXT("Hiding NPC attack hint widget"));
 }

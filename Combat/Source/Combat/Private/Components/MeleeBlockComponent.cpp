@@ -6,6 +6,7 @@
 #include "Data/MeleeCombatSettings.h"
 #include "Helpers/CombatCommonHelpers.h"
 #include "Interfaces/ICombatant.h"
+#include "Interfaces/PlayerCombat.h"
 
 UMeleeBlockComponent::UMeleeBlockComponent()
 {
@@ -19,8 +20,10 @@ void UMeleeBlockComponent::BeginPlay()
 	auto CombatSettings = GetDefault<UMeleeCombatSettings>();
 	CollinearBlockInputsDotProductThreshold = CombatSettings->CollinearBlockInputsDotProductThreshold;
 	StrongBlockActivationThreshold = CombatSettings->StrongBlockActivationThreshold;
-	OwnerCombatant.SetObject(GetOwner());
-	OwnerCombatant.SetInterface(Cast<ICombatant>(GetOwner()));
+	auto OwnerLocal = GetOwner();
+	OwnerCombatant.SetObject(OwnerLocal);
+	OwnerCombatant.SetInterface(Cast<ICombatant>(OwnerLocal));
+	
 	CombatAnimInstance = OwnerCombatant->GetCombatAnimInstance();
 	BlockStrengthDecayRate = CombatSettings->BlockStrengthDecayRate;
 	DecayDelay = CombatSettings->BlockDecayDelay;
@@ -59,21 +62,22 @@ void UMeleeBlockComponent::StopBlocking()
 	OnBlockActiveChangedEvent.Broadcast(false);
 }
 
-EBlockResult UMeleeBlockComponent::BlockAttack(const FVector& AttackDirection, float AttackerStrength, FMeleeAttackDebugInfo AttackDebugInfo) const
+EBlockResult UMeleeBlockComponent::BlockAttack(const FVector& AttackDirection, float AttackerStrength, const FHitResult& HitResult,
+	AActor* Attacker, const FMeleeAttackDebugInfo& AttackDebugInfo) const
 {
 	if (!bRegisteringBlock)
 		return EBlockResult::None;
 
 	FVector AccumulatedBlock3DRelative = FVector(1.f, AccumulatedBlock.X, AccumulatedBlock.Y);
 	FVector AccumulatedBlock3D = GetOwner()->GetTransform().TransformVectorNoScale(AccumulatedBlock3DRelative).GetSafeNormal();
-	const float dp = AttackDebugInfo.HitResult.ImpactNormal | AccumulatedBlock3D;
+	const float dp = HitResult.ImpactNormal | AccumulatedBlock3D;
 	bool bBlockDirectionBlocksAttack = dp >= -0.5f;
 
 	auto OwnerLocal = GetOwner();
 	
 #if WITH_EDITOR
 	UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Attempting block:\nBlock strength = %.2f\nAttack direction: %s\nImpact normal: %s\nBlock input 3D: %s\ndp3=%.2f"),
-		BlockStrength, *AttackDirection.ToString(), *AttackDebugInfo.HitResult.ImpactNormal.ToString(),
+		BlockStrength, *AttackDirection.ToString(), *HitResult.ImpactNormal.ToString(),
 		*AccumulatedBlock3D.ToString(), dp);
 	
 	auto BlockCollisionSkelMesh = OwnerCombatant->GetBlockCollisionsComponent();
@@ -85,20 +89,20 @@ EBlockResult UMeleeBlockComponent::BlockAttack(const FVector& AttackDirection, f
 	// 	AttackDebugInfo.Rotation, FColor::Orange, TEXT("Sweep start"));
 	// UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.TraceEnd + AttackDebugInfo.Rotation.Vector() * AttackDebugInfo.HalfHeight, AttackDebugInfo.HalfHeight, AttackDebugInfo.Radius,
 	// 	AttackDebugInfo.Rotation, FColor::Orange, TEXT("Sweep end"));
-	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.TraceStart, AttackDebugInfo.Radius, FColor::Orange, TEXT("Sweep start"));
-	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.TraceEnd, AttackDebugInfo.Radius, FColor::Orange, TEXT("Sweep end"));
-	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.ImpactPoint, 5.f, FColor::Red, TEXT("Hit impact point"));
-	UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.Attacker->GetActorLocation() - FVector::UpVector * 90.f, 90.f, 25.f,
+	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, HitResult.TraceStart, AttackDebugInfo.Radius, FColor::Orange, TEXT("Sweep start"));
+	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, HitResult.TraceEnd, AttackDebugInfo.Radius, FColor::Orange, TEXT("Sweep end"));
+	UE_VLOG_LOCATION(OwnerLocal, LogCombat_Block, Verbose, HitResult.ImpactPoint, 5.f, FColor::Red, TEXT("Hit impact point"));
+	UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, Attacker->GetActorLocation() - FVector::UpVector * 90.f, 90.f, 25.f,
 		FQuat::Identity, FColor::Black, TEXT("Attacker"));
 	UE_VLOG_CAPSULE(OwnerLocal, LogCombat_Block, Verbose, OwnerLocal->GetActorLocation() - FVector::UpVector * 90.f, 90.f, 25.f,
 		FQuat::Identity, FColor::White, TEXT("Defender"));
-	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.Attacker->GetActorLocation(), AttackDebugInfo.Attacker->GetActorLocation() + AttackDebugInfo.Attacker->GetActorForwardVector() * 100.f,
+	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, Attacker->GetActorLocation(), Attacker->GetActorLocation() + Attacker->GetActorForwardVector() * 100.f,
 		FColor::Black, TEXT("Attacker FV"));
 	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, OwnerLocal->GetActorLocation(), OwnerLocal->GetActorLocation() + OwnerLocal->GetActorForwardVector() * 100.f,
 		FColor::White, TEXT("Defender FV"));
-	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.ImpactPoint, AttackDebugInfo.HitResult.ImpactPoint + AttackDebugInfo.HitResult.ImpactNormal * 100.f,
+	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, HitResult.ImpactPoint, HitResult.ImpactPoint + HitResult.ImpactNormal * 100.f,
 		FColor::White, TEXT("Hit impact normal"));
-	// UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, AttackDebugInfo.HitResult.ImpactPoint, AttackDebugInfo.HitResult.ImpactPoint + AttackDebugInfo.HitResult.Normal * 100.f,
+	// UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, HitResult.ImpactPoint, HitResult.ImpactPoint + HitResult.Normal * 100.f,
 	// 	FColor::White, TEXT("Hit Normal"));
 	UE_VLOG_ARROW(OwnerLocal, LogCombat_Block, Verbose, BlockCollisionSkelMesh->GetComponentLocation(), BlockCollisionSkelMesh->GetComponentLocation() + AccumulatedBlock3D * 100.f,
 		FColor::White, TEXT("Block input"));
@@ -114,14 +118,14 @@ EBlockResult UMeleeBlockComponent::BlockAttack(const FVector& AttackDirection, f
 	if (BlockStrength >= BlockStrengthToParry)
 	{
 		UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Attack parried, [%.2f >= %.2f]"), BlockStrength, BlockStrengthToParry);
-		OnAttackParriedEvent.Broadcast();
+		OnAttackParriedEvent.Broadcast(Attacker);
 		return EBlockResult::Parry;
 	}
 	
 	float BlockScaledOwnerStrength = OwnerCombatant->GetStrength() * FMath::Max(BlockStrength, MinHeldBlockStrength);
 	const float StrengthRatio = AttackerStrength * AttackerStrengthScaleWhenHitBlock / BlockScaledOwnerStrength;
 	UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Attack just blocked, [%.2f < %.2f]"), BlockStrength, BlockStrengthToParry);
-	OnAttackBlockedEvent.ExecuteIfBound(StrengthRatio);
+	OnAttackBlockedEvent.Broadcast(StrengthRatio, Attacker);
 	return EBlockResult::Block;
 }
 

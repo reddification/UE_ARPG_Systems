@@ -37,6 +37,10 @@ namespace CombatGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Death_Event_Activate, "Combat.Ability.Death.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_HitReact_Event_Activate, "Combat.Ability.HitReact.Event.Activate", "");
 	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Backdash, "Combat.Ability.Backdash", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Backdash_Event_Activate, "Combat.Ability.Backdash.Event.Activate", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Backdash_Event_Abort, "Combat.Ability.Backdash.Event.Activate", "");
+	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Stagger_Event_Activate, "Combat.Ability.Stagger.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Stagger_Event_Abort, "Combat.Ability.Stagger.Event.Abort", "");
 
@@ -45,17 +49,23 @@ namespace CombatGameplayTags
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Knockdown_Event_Activate, "Combat.Ability.Knockdown.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Knockdown_Event_Abort, "Combat.Ability.Knockdown.Event.Abort", "");
+	
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Dodge, "Combat.Ability.Dodge", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Dodge_Event_Activate, "Combat.Ability.Dodge.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Dodge_Event_Abort, "Combat.Ability.Dodge.Event.Abort", "");
+	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Clash_Event_Activate, "Combat.Ability.Clash.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Clash_Event_Finished, "Combat.Ability.Clash.Event.Finished", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Clash_Cause_Parried, "Combat.Ability.Clash.Cause.Parried", "");
+
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_ChargeIn, "Combat.Ability.ChargeIn", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_ChargeIn_Event_Activate, "Combat.Ability.ChargeIn.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_ChargeIn_Event_Abort, "Combat.Ability.ChargeIn.Event.Abort", "");
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Block, "Combat.Ability.Block", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Block_Event_Activate, "Combat.Ability.Block.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Block_Event_Stop, "Combat.Ability.Block.Event.Stop", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Block_ActivationFailed_AttackDoesntAllow, "Combat.Ability.Block.ActivationFailed.AttackDoesntAllow", "");
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_SetByCaller_Damage_Health, "SetByCaller.Attack.Damage.Health", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_SetByCaller_Damage_Poise, "SetByCaller.Attack.Damage.Poise", "");

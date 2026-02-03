@@ -23,10 +23,11 @@ void UNpcBlockComponent::StartBlocking(const AActor* AttackingActor, EMeleeAttac
 	}
 	
 	PendingBlockInputs.Reset();
+	CurrentPendingBlockIndex = 0;
 	
 #if WITH_EDITOR
 	FVector DebugDrawAttackStart = AttackingActor->GetActorLocation() + FVector::UpVector * 35.f;
-	UE_VLOG_ARROW(GetOwner(), LogCombat, Log, DebugDrawAttackStart, DebugDrawAttackStart + IncomingAttackDirection * 100.f, FColor::Red, TEXT("Incoming attack"));
+	UE_VLOG_ARROW(GetOwner(), LogCombat_Block, Log, DebugDrawAttackStart, DebugDrawAttackStart + IncomingAttackDirection * 100.f, FColor::Red, TEXT("Incoming attack"));
 #endif
 
 	// thrust is a special case
@@ -37,12 +38,45 @@ void UNpcBlockComponent::StartBlocking(const AActor* AttackingActor, EMeleeAttac
 	}
 	else
 	{
+		// is it even correct? 
+		// TODO 16.01.2026: check if it's a proper direction 
 		FVector Projection = FVector::VectorPlaneProject(IncomingAttackDirection, AttackingActor->GetActorForwardVector());
 		PendingBlockInputs.Add(-FVector2D(Projection.Y, Projection.Z).GetSafeNormal());
 	}
 
-	CurrentReactionDelay = 0.f;
+	bNpcStartedBlocking = false;
+	SetBlockReactionDelay();
+}
+
+void UNpcBlockComponent::StartBlocking(float Angle)
+{
+	StartBlocking();
+	const float Radians = FMath::DegreesToRadians(Angle);
+	FVector2D NewBlockInput(FMath::Cos(Radians), FMath::Sin(Radians));
+#if WITH_EDITOR
+	ensure(NewBlockInput.Size() == 1.f);
+#endif
+	
+	bool bAddZero = IsBlocking() && PendingBlockInputs.Num() > 0 && (PendingBlockInputs.Last() | NewBlockInput) > 0.5f;
+	PendingBlockInputs.Reset();
 	CurrentPendingBlockIndex = 0;
+	if (bAddZero)
+		PendingBlockInputs.Add(FVector2D(0.f, 0.f));
+	
+	PendingBlockInputs.Add(NewBlockInput);
+
+	bNpcStartedBlocking = false;
+	SetBlockReactionDelay();
+}
+
+void UNpcBlockComponent::StartBlocking()
+{
+	Super::StartBlocking();
+}
+
+void UNpcBlockComponent::SetBlockReactionDelay()
+{
+	CurrentReactionDelay = 0.f;
 	const UMeleeCombatSettings* MeleeCombatSettings = GetDefault<UMeleeCombatSettings>();
 	if (auto BlockReactionDelayDependency = MeleeCombatSettings->AIBlockReactionDelayDependency.GetRichCurveConst())
 		CurrentReactionDelay += BlockReactionDelayDependency->Eval(NpcCombatant->GetReaction());
@@ -50,13 +84,6 @@ void UNpcBlockComponent::StartBlocking(const AActor* AttackingActor, EMeleeAttac
 	float StaminaRatio = OwnerCombatant->GetStaminaRatio();
 	if (auto BlockStaminaDelayDependency = MeleeCombatSettings->AIBlockStaminaDelayDependency.GetRichCurveConst())
 		CurrentReactionDelay += BlockStaminaDelayDependency->Eval(StaminaRatio);
-
-	bNpcStartedBlocking = false;
-}
-
-void UNpcBlockComponent::StartBlocking()
-{
-	Super::StartBlocking();
 }
 
 FVector2D UNpcBlockComponent::GetBlockInput(float DeltaTime) const

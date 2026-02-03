@@ -86,8 +86,17 @@ struct FReceivedHitData
 	FGameplayTag HitTypeTag;	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	bool bHardHit = false;	
+	bool bHardHit = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	AActor* Causer;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGuid CauserId;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FDateTime ReceivedAtGameTime;
+
 };
 
 UENUM(BlueprintType)
@@ -180,7 +189,7 @@ struct FCombatCollisionShapeData
 		if (Type == ECombatCollisionShapeType::Cylinder)
 			return HalfHeight * 2.f;
 		else
-			return Extent.Z * 2.f;
+			return Extent.Z;
 	}
 };
 
@@ -213,9 +222,7 @@ enum class EPlayerCombatControl : uint8
 
 struct FMeleeAttackDebugInfo
 {
-	FHitResult HitResult;
 	FQuat Rotation = FQuat::Identity;
 	float HalfHeight = 0.f;
 	float Radius = 0.f;
-	AActor* Attacker = nullptr;
 };

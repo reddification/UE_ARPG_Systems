@@ -4,12 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
+#include "Interfaces/ICombatant.h"
 #include "GameplayAbilityTargetData_ReceivedHit.generated.h"
 
-//@AK 19.09.2024:
-// Exposed all UPROPERTYies to be EditAnywhere and BlueprintReadWrite to try to call ReceiveHit ability from blueprints
-// Alas couldn't find a way to pass this fucking struct to the TargetData in BP
-// So actually no reason to keep EditAnywhere and BlueprintReadWrite anymore. TODO remove these accessors later
 USTRUCT(BlueprintType)
 struct COMBAT_API FGameplayAbilityTargetData_ReceivedHit : public FGameplayAbilityTargetData
 {
@@ -18,21 +15,14 @@ struct COMBAT_API FGameplayAbilityTargetData_ReceivedHit : public FGameplayAbili
 public:
 	FGameplayAbilityTargetData_ReceivedHit() {};
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector HitLocation = FVector::ZeroVector;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FGameplayTag HitDirectionTag;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float PoiseDamage = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float HealthDamage = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient)
 	FHitResult HitResult;
-
+	TWeakObjectPtr<AActor> Causer;
+	FGuid CauserId;
+	
 	virtual UScriptStruct* GetScriptStruct() const override
 	{
 		return FGameplayAbilityTargetData_ReceivedHit::StaticStruct();
@@ -45,9 +35,17 @@ public:
 		HitDirectionTag.NetSerialize(Ar, Map, bOutSuccess);
 		Ar << PoiseDamage;
 		Ar << HealthDamage;
+		Ar << CauserId;
 		bOutSuccess = true;
 		return true;
 	}
+
+	void SetCauser(AActor* Actor)
+	{
+		Causer = Actor;
+		if (auto Combatant = Cast<ICombatant>(Actor))
+			CauserId = Combatant->GetCombatantId();
+	};
 };
 
 template<>

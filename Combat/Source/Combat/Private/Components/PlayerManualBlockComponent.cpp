@@ -47,7 +47,7 @@ void UPlayerManualBlockComponent::StopBlocking()
 void UPlayerManualBlockComponent::UpdateFocus()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPlayerManualBlockComponent::UpdateFocus)
-	TSet<AActor*> DangerousEnemies = OwnerCombatant->GetDangerousEnemies();
+	TSet<AActor*> DangerousEnemies = OwnerPlayerCombat->GetDangerousEnemies();
 	if (DangerousEnemies.Num() <= 0)
 		return;
 	

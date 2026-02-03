@@ -7,14 +7,11 @@
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemInterface.h"
-#include "AbilitySystemLog.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
-#include "Components/MeleeBlockComponent.h"
 #include "Components/PlayerSwingControlCombatComponent.h"
 #include "Data/CombatGameplayTags.h"
 #include "Data/CombatLogChannels.h"
 #include "Engine/DamageEvents.h"
-#include "GAS/AttributeSets/ProtectionAttributeSet.h"
 #include "GAS/Data/GameplayAbilityTargetData_Clash.h"
 #include "GAS/Data/GameplayAbilityTargetData_ReceivedHit.h"
 #include "Interfaces/CombatAliveCreature.h"
@@ -41,18 +38,6 @@ void UGameplayAbility_MeleeWeaponCombat::OnGiveAbility(const FGameplayAbilityAct
 	GetMeleeCombatComponent();
 }
 
-bool UGameplayAbility_MeleeWeaponCombat::CanBeCanceled() const
-{
-	// TODO there is a different set of abilities that can cancel attack, it depends on the phase of active attack.
-	// if (CombatComponentCached.IsValid())
-	// {
-	// 	auto ActiveAttackPhase = CombatComponentCached->GetCurrentAttackPhase();
-	// 	return ActiveAttackPhase != EMeleeAttackPhase::Release && ActiveAttackPhase != EMeleeAttackPhase::Recover;
-	// }
-	
-	return Super::CanBeCanceled();
-}
-
 void UGameplayAbility_MeleeWeaponCombat::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
                                                          const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
                                                          const FGameplayEventData* TriggerEventData)
@@ -63,28 +48,45 @@ void UGameplayAbility_MeleeWeaponCombat::ActivateAbility(const FGameplayAbilityS
 	WaitForAbortEvent = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, CombatGameplayTags::Combat_Ability_Attack_Event_Abort);
 	WaitForAbortEvent->EventReceived.AddDynamic(this, &UGameplayAbility_MeleeWeaponCombat::OnAbilityAborted);
 	WaitForAbortEvent->ReadyForActivation();
+	
+	SubscribeToLifecycleDelegates();
 }
 
 void UGameplayAbility_MeleeWeaponCombat::EndAbility(const FGameplayAbilitySpecHandle Handle,
                                                     const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
                                                     bool bReplicateEndAbility, bool bWasCancelled)
 {
-	auto CombatComponent = GetMeleeCombatComponent();
-	if (CombatComponent)
+	UnsubscribeFromLifecycleDelegates();
+	if (auto CombatComponent = GetMeleeCombatComponent())
 	{
 		if (bWasCancelled)
 			CombatComponent->CancelAttack();
 		else
 			CombatComponent->ResetAttackState();
 	}
+
+	if (auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get()))
+	{
+		if (bWasCancelled)
+			Combatant->OnAttackCanceled();
+		else
+			Combatant->OnAttackEnded();
+	}
 	
-	// GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Orange, TEXT("Attack ended"));
 	UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat, VeryVerbose, TEXT("UGameplayAbility_MeleeWeaponCombat::EndAbility"));
 
 	if (WaitForAbortEvent)
 	{
 		WaitForAbortEvent->EventReceived.RemoveAll(this);
 		WaitForAbortEvent = nullptr;
+	}
+
+	if (ActiveAttackEffectHandle.IsValid())
+	{
+		if (auto ASC = GetAbilitySystemComponentFromActorInfo())
+			ASC->RemoveActiveGameplayEffect(ActiveAttackEffectHandle);
+		
+		ActiveAttackEffectHandle.Invalidate();
 	}
 	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -95,9 +97,6 @@ void UGameplayAbility_MeleeWeaponCombat::CancelAbility(const FGameplayAbilitySpe
 	bool bReplicateCancelAbility)
 {
 	UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat, VeryVerbose, TEXT("UGameplayAbility_MeleeWeaponCombat::CancelAbility"));
-	if (auto MeleeCombatComponent = GetMeleeCombatComponent())
-		MeleeCombatComponent->CancelAttack();
-	
 	Super::CancelAbility(Handle, ActorInfo, ActivationInfo, bReplicateCancelAbility);
 }
 
@@ -106,23 +105,27 @@ UMeleeCombatComponent* UGameplayAbility_MeleeWeaponCombat::GetMeleeCombatCompone
 	if (!CombatComponentCached.IsValid())
 	{
 		CombatComponentCached = GetAvatarActorFromActorInfo()->FindComponentByClass<UMeleeCombatComponent>();
-		InitializeCombatComponent();
-	}
-
-	return CombatComponentCached.Get();
-}
-
-void UGameplayAbility_MeleeWeaponCombat::InitializeCombatComponent()
-{
-	if (CombatComponentCached.IsValid())
-	{
-		CombatComponentCached->OnAttackEndedEvent.AddUObject(this, &UGameplayAbility_MeleeWeaponCombat::OnAttackEnded);
 		CombatComponentCached->OnAttackFeintedEvent.AddUObject(this, &UGameplayAbility_MeleeWeaponCombat::OnAttackFeinted);
 		CombatComponentCached->OnAttackActivePhaseChanged.AddUObject(this, &UGameplayAbility_MeleeWeaponCombat::OnAttackActivePhaseChanged);
 		CombatComponentCached->OnWeaponHitEvent.AddUObject(this, &UGameplayAbility_MeleeWeaponCombat::OnWeaponHit);
 		CombatComponentCached->OnAttackWhiffedEvent.AddUObject(this, &UGameplayAbility_MeleeWeaponCombat::OnAttackWhiffed);
 		CombatComponentCached->OnAttackCommitedEvent.AddUObject(this, &UGameplayAbility_MeleeWeaponCombat::OnAttackCommited);
 	}
+
+	return CombatComponentCached.Get();
+}
+
+void UGameplayAbility_MeleeWeaponCombat::SubscribeToLifecycleDelegates()
+{
+	if (CombatComponentCached.IsValid())
+		if (ensure(!CombatComponentCached->OnAttackEndedEvent.IsBoundToObject(this)))
+			CombatComponentCached->OnAttackEndedEvent.AddUObject(this, &UGameplayAbility_MeleeWeaponCombat::OnAttackEnded);
+}
+
+void UGameplayAbility_MeleeWeaponCombat::UnsubscribeFromLifecycleDelegates()
+{
+	if (CombatComponentCached.IsValid())
+		CombatComponentCached->OnAttackEndedEvent.RemoveAll(this);
 }
 
 void UGameplayAbility_MeleeWeaponCombat::OnAttackCommited()
@@ -227,8 +230,8 @@ void UGameplayAbility_MeleeWeaponCombat::OnWeaponHit(UPrimitiveComponent* OtherA
 
 	UE_VLOG(OwnerActor, LogCombat, VeryVerbose, TEXT("UGameplayAbility_MeleeWeaponCombat::OnWeaponHit"));
 
-	if (WeaponHitSituation != EWeaponHitSituation::Body)
-		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
+	// if (WeaponHitSituation != EWeaponHitSituation::Body)
+	// 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 	
 	switch (WeaponHitSituation)
 	{
@@ -238,6 +241,7 @@ void UGameplayAbility_MeleeWeaponCombat::OnWeaponHit(UPrimitiveComponent* OtherA
 		break;
 		case EWeaponHitSituation::AttackBlocked:
 			HandleAttackBlocked(EnemyActor, SweepDirection, HitResult);
+			CombatComponentCached->OnAttackBlocked();
 			break;
 		case EWeaponHitSituation::AttackParried:
 			HandleAttackParried(OwnerActor);
@@ -286,13 +290,14 @@ void UGameplayAbility_MeleeWeaponCombat::HandleWeaponsCollide(const UMeleeCombat
 void UGameplayAbility_MeleeWeaponCombat::HandleAttackBlocked(AActor* EnemyActor, const FVector& SweepDirection, const FHitResult& HitResult)
 {
 	ApplyEffect(EffectForOwnerWhenItsAttackBlockedClass, 1.f);
-
+	auto EnemyCombatant = Cast<ICombatant>(EnemyActor);
 	FGameplayEventData OwnerPayload; // TODO strike data
 	FGameplayAbilityTargetData_ReceivedHit* OwnerData = new FGameplayAbilityTargetData_ReceivedHit();
 	OwnerData->HealthDamage = 0.f;
 	OwnerData->PoiseDamage = 0.f;
 	OwnerData->HitResult = HitResult;
 	OwnerData->HitLocation = HitResult.ImpactPoint;
+	OwnerData->SetCauser(EnemyActor);
 	OwnerData->HitDirectionTag = GetHitDirectionTag(EnemyActor, SweepDirection, HitResult.ImpactPoint);
 	OwnerPayload.TargetData.Add(OwnerData);
 
@@ -385,7 +390,9 @@ void UGameplayAbility_MeleeWeaponCombat::ApplyCost(const FGameplayAbilitySpecHan
 	
 	if (UGameplayEffect* CostGE = GetCostGameplayEffect())
 	{
-		ApplyGameplayEffectToOwner(Handle, ActorInfo, ActivationInfo, CostGE, CombatComponentCached->GetCurrentComboTotalAttackCount());
+		// assumption is that the effect is instant
+		auto AppliedEffectHandle = ApplyGameplayEffectToOwner(Handle, ActorInfo, ActivationInfo, CostGE,
+			CombatComponentCached->GetCurrentComboTotalAttackCount());
 	}
 }
 
@@ -434,6 +441,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
 			ResultingDamage, DamageProtection, PoiseReduction);
 		ResultingDamage = ResultingDamage * FMath::Exp (-DamageProtection / CombatSettings->ProtectionEffectivenessScale); // chat gpt suggested this
 		PoiseReduction *= CombatantEnemy->GetPoiseDamageScale();
+		PoiseReduction *= CombatSettings->GlobalPoiseDamageScale;
 		auto DamageEffectSpec = OwnerASC->MakeOutgoingSpec(DamageEffect, 1.f, GEContext);
 		DamageEffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Health, -ResultingDamage);
 		DamageEffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Poise, -PoiseReduction);
@@ -450,6 +458,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
 		OwnerData->HitDirectionTag = GetHitDirectionTag(EnemyActor, SweepDirection, HitResult.ImpactPoint);
 		OwnerData->HitLocation = HitResult.ImpactPoint;
 		OwnerData->HealthDamage = ResultingDamage;
+		OwnerData->SetCauser(EnemyActor);
 		OwnerData->PoiseDamage = PoiseReduction;
 		OwnerData->HitResult = HitResult;
 		OwnerPayload.TargetData.Add(OwnerData);
@@ -463,6 +472,9 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
 			? CombatGameplayTags::Combat_Ability_Stagger_Event_Activate
 			: CombatGameplayTags::Combat_Ability_HitReact_Event_Activate;
 
+		if (bStaggeringHit)
+			CombatantOwner->OnStaggeredActor(EnemyActor);
+		
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(EnemyActor, HitReactAbilityTag, OwnerPayload);
 	}
 	else
@@ -484,7 +496,17 @@ TSubclassOf<UGameplayEffect> UGameplayAbility_MeleeWeaponCombat::GetDamageGamepl
 
 void UGameplayAbility_MeleeWeaponCombat::OnAbilityAborted(FGameplayEventData Payload)
 {
-	EndAbility(GetCurrentAbilitySpecHandle(),  GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
+	if (CombatComponentCached->CanCancel())
+	{
+		CombatComponentCached->CancelAttack();
+	}
+	else
+	{
+		UE_VLOG(GetAvatarActorFromActorInfo(), LogCombat, Verbose, TEXT("Can't abort current attack, it is in phase = %s"), 
+			*StaticEnum<EMeleeAttackPhase>()->GetDisplayValueAsText(CombatComponentCached->GetActiveAttackPhase()).ToString());
+	}
+	
+	// EndAbility(GetCurrentAbilitySpecHandle(),  GetCurrentActorInfo(), GetCurrentActivationInfo(), true, true);
 }
 
 FGameplayTag UGameplayAbility_MeleeWeaponCombat::GetHitDirectionTag(const AActor* HitActor, const FVector& HitDirection, const FVector& HitLocation) const

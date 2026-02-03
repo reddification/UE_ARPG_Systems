@@ -61,6 +61,8 @@ void UGameplayAbility_Knockdown::EndAbility(const FGameplayAbilitySpecHandle Han
 	if (!IsEndAbilityValid(Handle, ActorInfo))
 		return;
 
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	
 	if (!ActorInfo->AvatarActor.IsValid() || !IsValid(ActorInfo->AvatarActor.Get()))
 		return;
 	
@@ -70,13 +72,23 @@ void UGameplayAbility_Knockdown::EndAbility(const FGameplayAbilitySpecHandle Han
 	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
 	Combatant->FinishKnockdown();
 	
-	for (TSubclassOf<UGameplayEffect> RecoverEffect : RecoverEffects)
+	if (RecoverEffects.IsEmpty())
+		return;
+	
+	auto ASC = GetAbilitySystemComponentFromActorInfo();
+	if (!IsValid(ASC))
+		return;
+	
+	auto EffectContext = ASC->MakeEffectContext();
+	for (const auto& RecoverEffect : RecoverEffects)
 	{
-		if(RecoverEffect != nullptr && (RecoverEffect.GetDefaultObject()->DurationPolicy == EGameplayEffectDurationType::Instant || RecoverEffect.GetDefaultObject()->DurationPolicy == EGameplayEffectDurationType::HasDuration))
-		{
-			GetAbilitySystemComponentFromActorInfo()->ApplyGameplayEffectToSelf(RecoverEffect.GetDefaultObject(), 1.0f, GetAbilitySystemComponentFromActorInfo()->MakeEffectContext());
-		}
+		if (!IsValid(RecoverEffect)) continue; 
+
+		auto DurationPolicy = RecoverEffect.GetDefaultObject()->DurationPolicy;
+		if (DurationPolicy != EGameplayEffectDurationType::Instant && DurationPolicy != EGameplayEffectDurationType::HasDuration)
+			continue;
+		
+		ASC->ApplyGameplayEffectToSelf(RecoverEffect.GetDefaultObject(),1.0f, EffectContext);
 	}
 
-	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

@@ -5,8 +5,10 @@
 
 #include "AbilitySystemBlueprintLibrary.h"
 #include "AbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Components/MeleeBlockComponent.h"
+#include "Components/MeleeCombatComponent.h"
 #include "Data/CombatGameplayTags.h"
 #include "GAS/Data/GameplayAbilityTargetData_ReceivedHit.h"
 #include "Interfaces/ICombatant.h"
@@ -37,6 +39,9 @@ void UGameplayAbility_Block::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		return;
 	}
 
+	if (bApplyPenaltyOnActivation)
+		ApplyBlockActivationPenalty(ActorInfo->AbilitySystemComponent.Get());
+	
 	if (ActiveBlockEffect)
 	{
 		auto OwnerCombatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
@@ -60,10 +65,6 @@ void UGameplayAbility_Block::EndAbility(const FGameplayAbilitySpecHandle Handle,
 		return;
 	}
 	
-	auto MeleeBlockComponent = ActorInfo->AvatarActor->FindComponentByClass<UMeleeBlockComponent>();
-	if (ensure(MeleeBlockComponent))
-		MeleeBlockComponent->StopBlocking();
-
 	if (ActiveEffectSpecHandle.IsValid())
 	{
 		ActorInfo->AbilitySystemComponent->RemoveActiveGameplayEffect(ActiveEffectSpecHandle);
@@ -76,8 +77,35 @@ void UGameplayAbility_Block::EndAbility(const FGameplayAbilitySpecHandle Handle,
 		WaitAbortGameplayEvent->ExternalCancel();
 		WaitAbortGameplayEvent = nullptr;
 	}
-	
+
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	
+	auto MeleeBlockComponent = ActorInfo->AvatarActor->FindComponentByClass<UMeleeBlockComponent>();
+	if (ensure(MeleeBlockComponent))
+		MeleeBlockComponent->StopBlocking();
+}
+
+bool UGameplayAbility_Block::CanActivateAbility(const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags,
+	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
+{
+	bool bCanActivateBase = Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+	if (!bCanActivateBase)
+		return false;
+
+	if (auto CombatComponentLocal = ActorInfo->AvatarActor.Get()->FindComponentByClass<UMeleeCombatComponent>())
+	{
+		bool bCanBlock = CombatComponentLocal->CanChangeAttackToBlock();
+		if (!bCanBlock && OptionalRelevantTags)
+			OptionalRelevantTags->AddTagFast(CombatGameplayTags::Combat_Ability_Block_ActivationFailed_AttackDoesntAllow);
+		
+		if (bCanBlock && CombatComponentLocal->GetActiveAttackPhase() != EMeleeAttackPhase::None)
+			bApplyPenaltyOnActivation = true;
+		
+		return bCanBlock;
+	}
+	
+	return true;
 }
 
 bool UGameplayAbility_Block::StartBlocking(const FGameplayAbilityActorInfo* ActorInfo,
@@ -96,10 +124,10 @@ void UGameplayAbility_Block::OnGiveAbility(const FGameplayAbilityActorInfo* Acto
 	Super::OnGiveAbility(ActorInfo, Spec);
 	auto OwnerBlockComponent = ActorInfo->AvatarActor->FindComponentByClass<UMeleeBlockComponent>();
 	OwnerBlockComponent->OnAttackParriedEvent.AddUObject(this, &UGameplayAbility_Block::OnAttackParried);
-	OwnerBlockComponent->OnAttackBlockedEvent.BindUObject(this, &UGameplayAbility_Block::OnAttackBlocked);
+	OwnerBlockComponent->OnAttackBlockedEvent.AddUObject(this, &UGameplayAbility_Block::OnAttackBlocked);
 }
 
-void UGameplayAbility_Block::OnAttackParried()
+void UGameplayAbility_Block::OnAttackParried(AActor* Attacker)
 {
 	if (AttackParriedEffect)
 	{
@@ -120,7 +148,19 @@ void UGameplayAbility_Block::ApplyInstantEffect(const TSubclassOf<UGameplayEffec
 	ASC->ApplyGameplayEffectSpecToSelf(*EffectSpec.Data);
 }
 
-void UGameplayAbility_Block::OnAttackBlocked(float ConsumptionScale)
+void UGameplayAbility_Block::ApplyBlockActivationPenalty(UAbilitySystemComponent* ASC)
+{
+	bApplyPenaltyOnActivation = false;
+	if (!IsValid(StartedBlockingDuringAttackPenaltyEffect))
+		return;
+	
+	auto Combatant = Cast<ICombatant>(GetCurrentActorInfo()->AvatarActor.Get());
+	auto EffectContext = ASC->MakeEffectContext();
+	auto EffectSpec = ASC->MakeOutgoingSpec(StartedBlockingDuringAttackPenaltyEffect, Combatant->GetActiveWeaponMasteryLevel(), EffectContext);
+	ASC->ApplyGameplayEffectSpecToSelf(*EffectSpec.Data);
+}
+
+void UGameplayAbility_Block::OnAttackBlocked(float ConsumptionScale, AActor* Attacker)
 {
 	if (AttackBlockedEffect)
 	{

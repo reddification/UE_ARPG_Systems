@@ -29,8 +29,6 @@ public:
 		const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateCancelAbility) override;
 	virtual void OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec) override;
 	
-	virtual bool CanBeCanceled() const override;
-	
 protected:
 	mutable TWeakObjectPtr<UMeleeCombatComponent> CombatComponentCached;
 
@@ -51,9 +49,11 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	bool Debug_IgnoreAttackCost = false;
-
+	
 	UMeleeCombatComponent* GetMeleeCombatComponent();
-	void InitializeCombatComponent();
+	
+	void SubscribeToLifecycleDelegates();
+	void UnsubscribeFromLifecycleDelegates();
 
 	void OnAttackCommited();
 	void OnAttackWhiffed();

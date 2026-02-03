@@ -16,6 +16,8 @@ class COMBAT_API UNpcBlockComponent : public UMeleeBlockComponent
 
 public:
 	void StartBlocking(const AActor* AttackingActor, EMeleeAttackType IncomingAttackType);
+	void StartBlocking(float Angle);
+	
 	virtual void StartBlocking() override;
 	mutable FSimpleDelegate OnNpcFinishedBlockingEvent;
 
@@ -26,6 +28,8 @@ protected:
 	virtual void AddBlockInput(const FVector2D& BlockDirectionInput, float DeltaTime) override;
 	
 private:
+	void SetBlockReactionDelay();
+	
 	TArray<FVector2D> PendingBlockInputs;
 	FVector2D CurrentAccumulatedBlock = FVector2D::ZeroVector;
 	int CurrentPendingBlockIndex = 0;

@@ -101,7 +101,7 @@ void UPlayerSwingControlCombatComponent::TickComponent(float DeltaTime, ELevelTi
 void UPlayerSwingControlCombatComponent::UpdateFocus(float DeltaTime)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPlayerSwingControlCombatComponent::UpdateFocus)
-	TSet<AActor*> DangerousEnemies = OwnerCombatant->GetDangerousEnemies();
+	TSet<AActor*> DangerousEnemies = OwnerPlayerCombat->GetDangerousEnemies();
 	if (DangerousEnemies.Num() <= 0)
 		return;
 	
@@ -296,7 +296,8 @@ void UPlayerSwingControlCombatComponent::IncreaseNoInputFrames()
 	{
 		ResetAttackAccumulationData();
 		ResetAttackState();
-		OnAttackEndedEvent.Broadcast();
+		FinalizeAttack();
+		// OnAttackEndedEvent.Broadcast();
 	}
 
 	if (!bRegisteringAttack)

@@ -30,7 +30,7 @@ public:
 	virtual void OnAttackRequested(EMeleeAttackType Attack, const FVector& Direction, const FVector& InRelativeAttackAcceleration) = 0;
 
 	virtual void SetCombatantMovementEnabled(const FGameplayTag& LockTag, bool bEnabled) = 0;
-	virtual void SetAttackPhase(EMeleeAttackPhase NewAttackPhase) = 0;
+	virtual void SetAttackPhase(EMeleeAttackPhase NewAttackPhase, EMeleeAttackPhase OldAttackPhase) = 0;
 
 	virtual TScriptInterface<ICombatAnimInstance> GetCombatAnimInstance() const = 0;
 	virtual float GetAttackRange() const = 0;
@@ -50,10 +50,12 @@ public:
 	virtual FWeaponDamageData GetWeaponDamageData() const = 0;
 	virtual void TakeHit(const FReceivedHitData& ReceivedHitData) = 0;
 
-	virtual void StartStagger() = 0;
-	virtual void FinishStagger() = 0;
+	virtual void OnStaggerStarted(const FGuid& StaggeredBy) = 0;
+	virtual void OnStaggerFinished() = 0;
 	virtual float GetStaggerPoiseThreshold() const = 0;
 	virtual float GetStaggerDuration() const = 0;
+	virtual void OnStaggeredActor(AActor* Actor) {}
+	virtual const FGuid& GetCombatantId() const = 0;
 
 	virtual void OnAttackStarted() = 0;
 	virtual void OnAttackFeinted() = 0;
@@ -87,8 +89,7 @@ public:
 
 	virtual const FWeaponFX* GetWeaponFX(const FGameplayTag& FXSourceTag) const = 0;
 	virtual void PlayCombatSound(const FGameplayTag& SoundTag) const = 0;
-	virtual TSet<AActor*> GetDangerousEnemies() const = 0;
-	virtual TSet<AActor*> GetObservedEnemies() const = 0;
+	virtual TSet<AActor*> GetCombatObservedActors() const = 0;
 	virtual void PlayCombatMontage(UAnimMontage* Montage) const = 0;
 	virtual AActor* GetTarget() const = 0;
 

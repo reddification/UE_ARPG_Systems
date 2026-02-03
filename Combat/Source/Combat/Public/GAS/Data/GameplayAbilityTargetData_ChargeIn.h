@@ -11,14 +11,14 @@ public:
 	FGameplayAbilityTargetData_ChargeIn();
 	
 	UPROPERTY()
-	FVector Direction;
-
+	FVector ToLocation;
+	
 	UPROPERTY()
 	float VerticalImpulse = 0.f;
 
 	UPROPERTY()
 	float ForwardImpulse = 0.f;
-	
+
 	virtual UScriptStruct* GetScriptStruct() const override
 	{
 		return FGameplayAbilityTargetData_ChargeIn::StaticStruct();
@@ -27,7 +27,8 @@ public:
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		// The engine already defined NetSerialize for FName & FPredictionKey, thanks Epic!
-		Direction.NetSerialize(Ar, Map, bOutSuccess);
+		ToLocation.NetSerialize(Ar, Map, bOutSuccess);
+		Ar << ToLocation;
 		Ar << VerticalImpulse;
 		Ar << ForwardImpulse;
 		

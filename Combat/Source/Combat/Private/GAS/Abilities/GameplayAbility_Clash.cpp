@@ -71,9 +71,7 @@ void UGameplayAbility_Clash::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	}
 	
 	if (auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get()))
-	{
-		Combatant->StartStagger();
-	}
+		Combatant->OnStaggerStarted(FGuid(0,0,0,0));
 }
 
 void UGameplayAbility_Clash::EndAbility(const FGameplayAbilitySpecHandle Handle,
@@ -86,12 +84,10 @@ void UGameplayAbility_Clash::EndAbility(const FGameplayAbilitySpecHandle Handle,
 		HitReactMontageTask = nullptr;
 	}
 	
-	if (auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get()))
-	{
-		Combatant->FinishStagger();
-	}
-	
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	
+	if (auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get()))
+		Combatant->OnStaggerFinished();
 }
 
 void UGameplayAbility_Clash::OnHitReactMontageCompleted()

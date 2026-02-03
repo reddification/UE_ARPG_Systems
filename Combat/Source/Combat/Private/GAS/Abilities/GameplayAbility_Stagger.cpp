@@ -4,6 +4,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "Data/CombatGameplayTags.h"
+#include "GAS/Data/GameplayAbilityTargetData_ReceivedHit.h"
+#include "Helpers/GASHelpers.h"
 #include "Interfaces/CombatAliveCreature.h"
 #include "Interfaces/ICombatant.h"
 
@@ -29,7 +31,16 @@ void UGameplayAbility_Stagger::ActivateAbility(const FGameplayAbilitySpecHandle 
 {
 	// TODO stagger animation must be 3 phases (enter stagger, looped 'shaking-wobbling part, recover from stagger') in ABP and total playtime must correlate with the UCombatAttributeSet::StaggerDuration
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
+	if (!IsActive() || bIsAbilityEnding)
+		return;
+	
+	const FGameplayAbilityTargetData_ReceivedHit* ActivationData = GetActivationData<FGameplayAbilityTargetData_ReceivedHit>(TriggerEventData->TargetData);
+	if (!ensure(ActivationData))
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
+		return;
+	}
+	
 	auto OwnerCombatantAliveCreature = Cast<ICombatAliveCreature>(ActorInfo->AvatarActor.Get());
 	if(OwnerCombatantAliveCreature->GetCombatantHealth() <= 0.f)
 	{
@@ -38,7 +49,7 @@ void UGameplayAbility_Stagger::ActivateAbility(const FGameplayAbilitySpecHandle 
 	}
 	
 	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
-	Combatant->StartStagger();
+	Combatant->OnStaggerStarted(ActivationData->CauserId);
 	Combatant->PlayCombatSound(CombatGameplayTags::Combat_FX_Sound_Staggered);
 	auto OwnerASC = ActorInfo->AbilitySystemComponent.Get();
 	if (ensure(StaggerRecoverEffectClass))
@@ -53,9 +64,6 @@ void UGameplayAbility_Stagger::EndAbility(const FGameplayAbilitySpecHandle Handl
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
-	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
-	Combatant->FinishStagger();
-	
 	if (ActiveStaggerEffectHandle.IsValid())
 	{
 		BP_RemoveGameplayEffectFromOwnerWithHandle(ActiveStaggerEffectHandle);
@@ -63,4 +71,6 @@ void UGameplayAbility_Stagger::EndAbility(const FGameplayAbilitySpecHandle Handl
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
+	Combatant->OnStaggerFinished();
 }

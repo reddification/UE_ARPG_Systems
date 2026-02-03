@@ -58,6 +58,9 @@ protected:
 	UPROPERTY(meta=(BindWidget))
 	UImage* StepDirectionImage;
 	
+	UFUNCTION(BlueprintImplementableEvent)
+	void BP_SetBlockWindowActive(bool bActive);
+	
 private:
 	TMap<EMeleeAttackType, TWeakObjectPtr<UManualAttackInputWidget>> AttackTypesToProgressBars;
 	TWeakObjectPtr<UPlayerSwingControlCombatComponent> CombatComponent;
@@ -67,6 +70,7 @@ private:
 	void SetAttackStepDirection(EAttackStepDirection AttackStepDirection);
 	void SetValidNextAttacks(const TSet<EMeleeAttackType>& ValidNextAttacks);
 	void SetAttackRegistering(bool bRegistering);
+	void SetBlockWindowActive(bool bActive);
 	void HideOverlay();
 	
 	void OnAttackStarted(EMeleeAttackType AttackType);

@@ -44,14 +44,23 @@ namespace CombatGameplayTags
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Knockdown_Event_Abort);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_HitReact_Event_Activate);
 
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Backdash);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Backdash_Event_Activate);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Backdash_Event_Abort);
+	
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Block);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Block_Event_Activate);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Block_Event_Stop);
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Block_ActivationFailed_AttackDoesntAllow);
 	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Dodge);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Dodge_Event_Activate);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Dodge_Event_Abort);
+	
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Clash_Event_Activate);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Clash_Event_Finished);
+	
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_ChargeIn);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_ChargeIn_Event_Activate);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_ChargeIn_Event_Abort);
 	

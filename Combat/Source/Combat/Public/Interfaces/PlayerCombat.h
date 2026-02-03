@@ -36,4 +36,5 @@ public:
 	virtual FRotator GetPlayerCombatantViewDirection() const = 0;
 	virtual void SetOrientationFollowsAttack(bool bActive) = 0;
 	virtual void PlayCameraShake_Combat(const FGameplayTag& CameraShakeTag) = 0;
+	virtual TSet<AActor*> GetDangerousEnemies() const = 0;
 };

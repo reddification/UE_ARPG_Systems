@@ -30,6 +30,7 @@ void UGameplayAbility_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat, Verbose, TEXT("UGameplayAbility_Dodge::ActivateAbility"));
 	if (TriggerEventData == nullptr || TriggerEventData->TargetData.Num() == 0)
 	{
 		// @AK 19.06.2025 this is probably because of loading game when this ability was active at save time. TODO handle
@@ -115,12 +116,6 @@ void UGameplayAbility_Dodge::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
 	UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat, Verbose, TEXT("UGameplayAbility_Dodge::EndAbility"));
-
-	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
-	if (bWasCancelled)
-		Combatant->DodgeCanceled();
-	else
-		Combatant->DodgeFinished();
 	
 	if (ActiveDodgeEffectHandle.IsValid())
 	{
@@ -129,6 +124,14 @@ void UGameplayAbility_Dodge::EndAbility(const FGameplayAbilitySpecHandle Handle,
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+	
+	if (auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get()))
+	{
+		if (bWasCancelled)
+			Combatant->DodgeCanceled();
+		else
+			Combatant->DodgeFinished();
+	}
 }
 
 void UGameplayAbility_Dodge::OnDodgeMontageCompleted()

@@ -46,6 +46,7 @@ void UManualAttackOverlayWidget::InitializeAttackOverlay(UPlayerSwingControlComb
 	CombatComponent->AttackInputProgressUpdatedEvent.AddUObject(this, &UManualAttackOverlayWidget::SetAttackInputProgress);
 	CombatComponent->AttackStepDirectionUpdatedEvent.AddUObject(this, &UManualAttackOverlayWidget::SetAttackStepDirection);
 	CombatComponent->RegisteringAttackStateChangedEvent.AddUObject(this, &UManualAttackOverlayWidget::SetAttackRegistering);
+	CombatComponent->AttackBlockWindowActiveChangedEvent.AddUObject(this, &UManualAttackOverlayWidget::SetBlockWindowActive);
 }
 
 void UManualAttackOverlayWidget::SetAttackInputProgress(EMeleeAttackType AttackType, float Progress)
@@ -79,6 +80,11 @@ void UManualAttackOverlayWidget::SetAttackRegistering(bool bRegistering)
 	{
 		TimerManager.SetTimer(HideOverlayTimer, this, &UManualAttackOverlayWidget::HideOverlay, HideOverlayDelay, false);
 	}
+}
+
+void UManualAttackOverlayWidget::SetBlockWindowActive(bool bActive)
+{
+	BP_SetBlockWindowActive(bActive);
 }
 
 void UManualAttackOverlayWidget::HideOverlay()
@@ -118,4 +124,6 @@ void UManualAttackOverlayWidget::OnAttackEnded()
 {
 	for (const auto& ProgressBar : AttackTypesToProgressBars)
 		ProgressBar.Value->SetIntermediateState();
+	
+	BP_SetBlockWindowActive(false);
 }

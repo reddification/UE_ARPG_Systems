@@ -57,19 +57,19 @@ bool UGameplayAbility_BaseCombat::CanActivateAbility(const FGameplayAbilitySpecH
 
 	if (!AbilitySystemGlobals.ShouldIgnoreCooldowns() && !CheckCooldown(Handle, ActorInfo, OptionalRelevantTags))
 	{
-		UE_VLOG(ActorInfo->OwnerActor.Get(), LogAbilitySystem, Verbose, TEXT("Ability could not be activated due to Cooldown: %s"), *GetName());
+		UE_VLOG(ActorInfo->OwnerActor.Get(), LogAbilitySystem, VeryVerbose, TEXT("Ability could not be activated due to Cooldown: %s"), *GetName());
 		return false;
 	}
 
 	if (!AbilitySystemGlobals.ShouldIgnoreCosts() && !CheckCost(Handle, ActorInfo, OptionalRelevantTags))
 	{
-		UE_VLOG(ActorInfo->OwnerActor.Get(), LogAbilitySystem, Verbose, TEXT("Ability could not be activated due to Cost: %s"), *GetName());
+		UE_VLOG(ActorInfo->OwnerActor.Get(), LogAbilitySystem, VeryVerbose, TEXT("Ability could not be activated due to Cost: %s"), *GetName());
 		return false;
 	}
 
 	if (!DoesAbilitySatisfyTagRequirements(*AbilitySystemComponent, SourceTags, TargetTags, OptionalRelevantTags))
 	{	// If the ability's tags are blocked, or if it has a "Blocking" tag or is missing a "Required" tag, then it can't activate.
-		UE_VLOG(ActorInfo->OwnerActor.Get(), LogAbilitySystem, Verbose, TEXT("Ability could not be activated due to Blocking Tags or Missing Required Tags: %s"), *GetName());
+		UE_VLOG(ActorInfo->OwnerActor.Get(), LogAbilitySystem, VeryVerbose, TEXT("Ability could not be activated due to Blocking Tags or Missing Required Tags: %s"), *GetName());
 		return false;
 	}
 

@@ -1,42 +1,41 @@
 ﻿#pragma once
 
 #include "Abilities/GameplayAbilityTargetTypes.h"
-#include "Data/CombatDataTypes.h"
-#include "GameplayAbilityTargetData_Attack.generated.h"
+#include "GameplayAbilityTargetData_Block.generated.h"
 
 USTRUCT(BlueprintType)
-struct FGameplayAbilityTargetData_Attack : public FGameplayAbilityTargetData
+struct FGameplayAbilityTargetData_Block : public FGameplayAbilityTargetData
 {
 	GENERATED_BODY()
 	
 public:
-	FGameplayAbilityTargetData_Attack();
+	FGameplayAbilityTargetData_Block();
 	
 	UPROPERTY()
-	EMeleeAttackType AttackType;
-
+	float BlockAngle = 0.f;
+	
 	virtual UScriptStruct* GetScriptStruct() const override
 	{
-		return FGameplayAbilityTargetData_Attack::StaticStruct();
+		return FGameplayAbilityTargetData_Block::StaticStruct();
 	}
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		// The engine already defined NetSerialize for FName & FPredictionKey, thanks Epic!
-		Ar << AttackType;
+		Ar << BlockAngle;
 		
 		bOutSuccess = true;
 		return true;
 	}
 };
 
-inline FGameplayAbilityTargetData_Attack::FGameplayAbilityTargetData_Attack()
+inline FGameplayAbilityTargetData_Block::FGameplayAbilityTargetData_Block()
 {
 	
 }
 
 template<>
-struct TStructOpsTypeTraits<FGameplayAbilityTargetData_Attack> : public TStructOpsTypeTraitsBase2<FGameplayAbilityTargetData_Attack>
+struct TStructOpsTypeTraits<FGameplayAbilityTargetData_Block> : public TStructOpsTypeTraitsBase2<FGameplayAbilityTargetData_Block>
 {
 	enum
 	{

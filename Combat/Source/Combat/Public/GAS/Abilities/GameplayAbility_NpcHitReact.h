@@ -6,6 +6,7 @@
 #include "GameplayAbility_HitReact.h"
 #include "GameplayAbility_NpcHitReact.generated.h"
 
+class UAbilityTask_PlayAnimAndWait;
 /**
  * 
  */
@@ -19,6 +20,6 @@ public:
 		const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TArray<FContextMontages> BackstepMontageOptions;
 };

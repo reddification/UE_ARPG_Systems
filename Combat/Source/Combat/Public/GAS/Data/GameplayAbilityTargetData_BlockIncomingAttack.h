@@ -1,34 +1,35 @@
 ﻿#pragma once
 
 #include "Abilities/GameplayAbilityTargetTypes.h"
-#include "GameplayAbilityTargetData_BlockAttack.generated.h"
+#include "GameplayAbilityTargetData_BlockIncomingAttack.generated.h"
 
 USTRUCT(BlueprintType)
-struct FGameplayAbilityTargetData_BlockAttack : public FGameplayAbilityTargetData
+struct FGameplayAbilityTargetData_BlockIncomingAttack : public FGameplayAbilityTargetData
 {
 	GENERATED_BODY()
 	
 public:
-	FGameplayAbilityTargetData_BlockAttack();
+	FGameplayAbilityTargetData_BlockIncomingAttack();
 	
 	UPROPERTY()
 	EMeleeAttackType IncomingAttackType;
 
 	UPROPERTY()
 	EMeleeAttackType IncomingAttackTrajectory;
-	
+
 	UPROPERTY()
 	AActor* Attacker = nullptr;
 
 	virtual UScriptStruct* GetScriptStruct() const override
 	{
-		return FGameplayAbilityTargetData_BlockAttack::StaticStruct();
+		return FGameplayAbilityTargetData_BlockIncomingAttack::StaticStruct();
 	}
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		// The engine already defined NetSerialize for FName & FPredictionKey, thanks Epic!
-		Ar << IncomingAttackType;//.NetSerialize(Ar, Map, bOutSuccess);
+		Ar << IncomingAttackType;
+		Ar << IncomingAttackTrajectory;
 		Ar << Attacker;
 		
 		bOutSuccess = true;
@@ -36,13 +37,13 @@ public:
 	}
 };
 
-inline FGameplayAbilityTargetData_BlockAttack::FGameplayAbilityTargetData_BlockAttack()
+inline FGameplayAbilityTargetData_BlockIncomingAttack::FGameplayAbilityTargetData_BlockIncomingAttack()
 {
 	
 }
 
 template<>
-struct TStructOpsTypeTraits<FGameplayAbilityTargetData_BlockAttack> : public TStructOpsTypeTraitsBase2<FGameplayAbilityTargetData_BlockAttack>
+struct TStructOpsTypeTraits<FGameplayAbilityTargetData_BlockIncomingAttack> : public TStructOpsTypeTraitsBase2<FGameplayAbilityTargetData_BlockIncomingAttack>
 {
 	enum
 	{

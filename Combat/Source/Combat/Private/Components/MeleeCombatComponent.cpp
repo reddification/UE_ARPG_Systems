@@ -1,7 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "Components/MeleeCombatComponent.h"
+﻿#include "Components/MeleeCombatComponent.h"
 
 #include "NiagaraFunctionLibrary.h"
 #include "Components/MeleeBlockComponent.h"
@@ -41,6 +38,14 @@ void UMeleeCombatComponent::BeginPlay()
 	ConsequitiveComboAttackWindUpSpeedScale = CachedMeleeCombatSettings->ConsequitiveComboAttackWindUpSpeedScale;
 	HeavyAttackWindupSpeedModifier = CachedMeleeCombatSettings->HeavyAttackWindupSpeedModifier;
 	KeepWeaponReadyAfterAttackDelay = CachedMeleeCombatSettings->KeepWeaponReadyAfterAttackDelay;
+}
+
+void UMeleeCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (auto WorldLocal = GetWorld())
+		WorldLocal->GetTimerManager().ClearAllTimersForObject(this);
+	
+	Super::EndPlay(EndPlayReason);
 }
 
 void UMeleeCombatComponent::SetDamageCollisionsEnabled(bool bEnabled)
@@ -113,7 +118,7 @@ float UMeleeCombatComponent::GetAttackDamage(const FAttackDamageEvaluationData& 
 		* AttackSignificanceScore
 		* CurrentAttackEnemiesHitDamageScale;
 
-	return FMath::Min(StatsAffectedDamage, AttackDamageEvaluationData.WeaponDamageData.MaxDamageOutput);
+	return FMath::Min(StatsAffectedDamage, AttackDamageEvaluationData.WeaponDamageData.MaxDamageOutput) * CombatSettings->GlobalHealthDamageScale;
 }
 
 float UMeleeCombatComponent::GetPoiseDamage(const FAttackDamageEvaluationData& AttackDamageEvaluationData,
@@ -209,6 +214,23 @@ FVector UMeleeCombatComponent::GetActiveAttackDirection() const
 	return (AttackLocation - AttackOrigin).GetSafeNormal();
 }
 
+void UMeleeCombatComponent::OnAttackBlocked()
+{
+	if (FMath::RandRange(0.f, 1.f) <= ChanceToStopAttackingOnAttackBlocked)
+		CancelAttack();
+}
+
+bool UMeleeCombatComponent::CanChangeAttackToBlock()
+{
+	if (AttackPhase == EMeleeAttackPhase::Release)
+		return false;
+	
+	if (AttackPhase == EMeleeAttackPhase::None)
+		return true;
+	
+	return bBlockWindowActive;
+}
+
 bool UMeleeCombatComponent::RequestAttack(EMeleeAttackType RequestedAttackType)
 {
 	return true;
@@ -219,7 +241,10 @@ void UMeleeCombatComponent::FinalizeAttack()
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("UMeleeCombatComponent::FinalizeAttack"));
 	
 	if (ActiveAttack == EMeleeAttackType::None && AttackPhase == EMeleeAttackPhase::None)
-		return;
+	{
+		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("UMeleeCombatComponent::FinalizeAttack Suspicious: finalize attack when active attack == none and attack phase == none"));
+		// 	return;
+	}
 	
 	// ResetAttackState();
 	OnAttackEndedEvent.Broadcast();
@@ -227,16 +252,22 @@ void UMeleeCombatComponent::FinalizeAttack()
 
 void UMeleeCombatComponent::ResetAttackState()
 {
+	if (!bNeedsReset)
+		return;
+	
+	bNeedsReset = false;
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("UMeleeCombatComponent::ResetAttackState"));
-	GetWorld()->GetTimerManager().ClearTimer(WeaponCollisionSweepsTimer);
+	GetWorld()->GetTimerManager().ClearAllTimersForObject(this);
 	OwnerCombatant->SetCombatantMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,true);
 	CombatAnimInstance->OnAttackFinished();
 	CurrentComboAttacksHitCount = 0;
 	CurrentComboTotalAttacksCount = 0;
 	ActiveAttack = EMeleeAttackType::None;
 	ActiveAttackTrajectory = EMeleeAttackType::None;
-	SetAttackPhase(EMeleeAttackPhase::None, 0);
 	ActiveAnimationId = 0;
+	SetAttackPhase(EMeleeAttackPhase::None, 0);
+	bComboWindowActive = false;
+	bBlockWindowActive = false;
 }
 
 float UMeleeCombatComponent::GetAttackPhasePlayRate(EMeleeAttackPhase NewAttackPhase) const
@@ -273,25 +304,35 @@ void UMeleeCombatComponent::SetAttackPhase(EMeleeAttackPhase NewAttackPhase, flo
 	
 	auto OldAttackPhase = AttackPhase;
 	AttackPhase = NewAttackPhase;
-	PhaseEndsAt = GetWorld()->GetTimeSeconds() + TotalDuration;
+	PhaseStartedAt = GetWorld()->GetTimeSeconds();
+	PhaseEndsAt = PhaseStartedAt + TotalDuration;
 	
 	CombatAnimInstance->SetAttackPhase(AttackPhase);
 	float PhasePlayRate = GetAttackPhasePlayRate(NewAttackPhase);
 	CombatAnimInstance->SetAttackPlayRate(PhasePlayRate);
 
-	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("UMeleeCombatComponent::SetAttackPhase Changing attack phase from %d to %d for %.2fs until %.2fs world time"),
-		(uint8)OldAttackPhase, (uint8)NewAttackPhase, TotalDuration, PhaseEndsAt);
+#if WITH_EDITOR
+	auto AttackPhaseEnum = StaticEnum<EMeleeAttackPhase>();
+	auto AttackEnum = StaticEnum<EMeleeAttackType>();
+	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("UMeleeCombatComponent::SetAttackPhase Changing attack phase from %s to %s for %.2fs until %.2fs world time"),
+		*AttackPhaseEnum->GetDisplayValueAsText(OldAttackPhase).ToString(), *AttackPhaseEnum->GetDisplayValueAsText(NewAttackPhase).ToString(), TotalDuration, PhaseEndsAt);
+	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Attack: %s %s"), *AttackEnum->GetDisplayValueAsText(ActiveAttack).ToString(), *AttackEnum->GetDisplayValueAsText(ActiveAttackTrajectory).ToString());
+#endif
 	
+	// if (ActiveAttackTrajectory != EMeleeAttackType::None || ActiveAttack != EMeleeAttackType::None)
 	OnAttackActivePhaseChanged.Broadcast(OldAttackPhase, NewAttackPhase);
-	OwnerCombatant->SetAttackPhase(NewAttackPhase);
-
+	
+	OwnerCombatant->SetAttackPhase(NewAttackPhase, OldAttackPhase);
+	auto& TimerManager = GetWorld()->GetTimerManager();
+	TimerManager.ClearTimer(ActivateBlockWindowDelayTimer);
+	TimerManager.ClearTimer(DeactivateBlockWindowTimer);
 }
 
 void UMeleeCombatComponent::CancelAttack()
 {
-	// FinalizeAttack();
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("UMeleeCombatComponent::CancelAttack"));
 	ResetAttackState();
+	FinalizeAttack();
 }
 
 bool UMeleeCombatComponent::Feint()
@@ -302,25 +343,45 @@ bool UMeleeCombatComponent::Feint()
 		return false;
 	}
 	
-	// FinalizeAttack();
-	OnAttackFeintedEvent.Broadcast();
+	FinalizeAttack();
 	OwnerCombatant->OnAttackFeinted();
+	// OnAttackFeintedEvent.Broadcast();
 	return true;
+}
+
+void UMeleeCombatComponent::TryRequestBlockWindow(float TotalDuration)
+{
+	int WeaponMastery = OwnerCombatant->GetActiveWeaponMasteryLevel();
+	const auto& TimingsMappings = CachedMeleeCombatSettings->AttackPhasesBlockWindowActivationTimings;
+	bool bCanRequestBlockWindow = TimingsMappings.Contains(AttackPhase) && TimingsMappings[AttackPhase].WeaponMasteryToTimings.Contains(WeaponMastery);
+	if (ensure(bCanRequestBlockWindow))
+	{
+		float Delay = TimingsMappings[AttackPhase].WeaponMasteryToTimings[WeaponMastery].X;
+		if (Delay + CachedMeleeCombatSettings->MinBlockActivationWindowInAttackTime < TotalDuration)
+		{
+			GetWorld()->GetTimerManager().SetTimer(ActivateBlockWindowDelayTimer, 
+				this, &UMeleeCombatComponent::ActivateBlockWindow, Delay, false);
+		}
+	}
 }
 
 void UMeleeCombatComponent::BeginWindUp(float TotalDuration, const uint32 AnimationId, EMeleeAttackType WindupAttackTrajectoryType)
 {
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin wind up. Animation id = %d"), AnimationId);
+	bNeedsReset = true;
 	SetAttackPhase(EMeleeAttackPhase::WindUp, TotalDuration);
 	ActiveAnimationId = AnimationId;
 	OwnerCombatant->SetCombatantMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,false);
 	CombatAnimInstance->OnAttackWindUpBegin();
 	ActiveAttackTrajectory = WindupAttackTrajectoryType;
+	
+	TryRequestBlockWindow(TotalDuration);
 }
 
 void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 AnimationId)
 {
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin release. Animation id = %d"), AnimationId);
+	bNeedsReset = true;
 	// Ok if we check this on BeginRelease - it's important that each consequitive attack starts within Windup phase in animation!!!!
 	// TODO enforce this in CombatAnimInstance->SetAttack
 	if (ActiveAnimationId != AnimationId || ActiveAttack == EMeleeAttackType::None)
@@ -345,7 +406,8 @@ void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 Anima
 		PreviousWeaponCollisionTransform[i++] = WeaponCollision->GetComponentTransform();
 	}
 	
-	GetWorld()->GetTimerManager().SetTimer(WeaponCollisionSweepsTimer, this, &UMeleeCombatComponent::SweepWeaponCollisions,
+	auto& TimerManager = GetWorld()->GetTimerManager();
+	TimerManager.SetTimer(WeaponCollisionSweepsTimer, this, &UMeleeCombatComponent::SweepWeaponCollisions,
 		1.f / WeaponCollisionSweepsPerSecond, true);
 
 	const FWeaponFX* WeaponFX = OwnerCombatant->GetWeaponFX(CombatGameplayTags::Combat_FX_Sound_Whoosh);
@@ -354,11 +416,19 @@ void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 Anima
 		if (auto SFX = WeaponFX->SFX.LoadSynchronous())
 			UGameplayStatics::PlaySoundAtLocation(this, SFX, GetOwner()->GetActorLocation());
 	}
+	
+	if (bBlockWindowActive)
+	{
+		StopBlockWindow();
+		TimerManager.ClearTimer(ActivateBlockWindowDelayTimer);
+		TimerManager.ClearTimer(DeactivateBlockWindowTimer);
+	}
 }
 
 void UMeleeCombatComponent::BeginRecover(float TotalDuration, const uint32 AnimationId)
 {
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin recover. Animation id = %d"), AnimationId);
+	bNeedsReset = true;
 	// this happens sometimes when feinting. My guess - ABP doesnt instantly stop active animation hence sometimes next attack phase can start even thought the attack has been feinted
 	if (AnimationId != ActiveAnimationId)
 	{
@@ -373,16 +443,27 @@ void UMeleeCombatComponent::BeginRecover(float TotalDuration, const uint32 Anima
 	
 	// ActiveAnimationId = AnimationId; // huh? why did I put it here? it breaks logic in one other place (starting next attack before previous ended)
 	SetAttackPhase(EMeleeAttackPhase::Recover, TotalDuration);
+	TryRequestBlockWindow(TotalDuration);
 }
 
 void UMeleeCombatComponent::EndWindUp(const uint32 AnimationId)
 {
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("End windup. Animation id = %d"), AnimationId);
+#if WITH_EDITOR
+	auto AttackEnum = StaticEnum<EMeleeAttackType>();
+	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Attack: %s %s"), *AttackEnum->GetDisplayValueAsText(ActiveAttack).ToString(), *AttackEnum->GetDisplayValueAsText(ActiveAttackTrajectory).ToString());
+#endif
+	
 }
 
 void UMeleeCombatComponent::EndRelease(const uint32 AnimationId)
 {
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("End release. Animation id = %d"), AnimationId);
+#if WITH_EDITOR
+	auto AttackEnum = StaticEnum<EMeleeAttackType>();
+	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Attack: %s %s"), *AttackEnum->GetDisplayValueAsText(ActiveAttack).ToString(), *AttackEnum->GetDisplayValueAsText(ActiveAttackTrajectory).ToString());
+#endif
+	
 	if (ActiveAnimationId != AnimationId)
 	{
 		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("End release: Active animation id != updated animation id: %d != %d"), ActiveAnimationId, AnimationId);
@@ -398,6 +479,11 @@ void UMeleeCombatComponent::EndRelease(const uint32 AnimationId)
 void UMeleeCombatComponent::EndRecover(const uint32 AnimationId)
 {
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("End recover. Animation id = %d"), AnimationId);
+#if WITH_EDITOR
+	auto AttackEnum = StaticEnum<EMeleeAttackType>();
+	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Attack: %s %s"), *AttackEnum->GetDisplayValueAsText(ActiveAttack).ToString(), *AttackEnum->GetDisplayValueAsText(ActiveAttackTrajectory).ToString());
+#endif
+	
 	if (ActiveAnimationId != AnimationId)
 	{
 		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("End recover: Active animation id != updated animation id: %d != %d"), ActiveAnimationId, AnimationId);
@@ -407,7 +493,8 @@ void UMeleeCombatComponent::EndRecover(const uint32 AnimationId)
 	if (AttackPhase == EMeleeAttackPhase::Recover)
 	{
 		UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("End recover: signalizing attack ended"));
-		OnAttackEndedEvent.Broadcast();
+		FinalizeAttack();
+		// OnAttackEndedEvent.Broadcast();
 		CombatAnimInstance->KeepWeaponReady(KeepWeaponReadyAfterAttackDelay);
 	}
 	else
@@ -477,7 +564,7 @@ void UMeleeCombatComponent::OnWeaponOverlap(AActor* OtherActor, UPrimitiveCompon
 			// 4. Hit shield and character is not blocking - currently just ignore the shield (continue collision detection), alternatively - inflict some substantial poise damage
 
 			ECollisionComponentWeaponType WeaponType = OtherCombatant->GetCollisionWeaponType(OtherComp);
-			if (WeaponType == ECollisionComponentWeaponType::MeleeWeapon && OtherActorMeleeComponent->GetCurrentAttackPhase() == EMeleeAttackPhase::Release)
+			if (WeaponType == ECollisionComponentWeaponType::MeleeWeapon && OtherActorMeleeComponent->GetActiveAttackPhase() == EMeleeAttackPhase::Release)
 			{
 				OnWeaponHitEvent.Broadcast(OtherComp, SweepResult, EWeaponHitSituation::WeaponClash, SweepDirection);
 			}
@@ -486,13 +573,11 @@ void UMeleeCombatComponent::OnWeaponOverlap(AActor* OtherActor, UPrimitiveCompon
 				auto EnemyBlockComponent = OtherActor->FindComponentByClass<UMeleeBlockComponent>();
 				
 				FMeleeAttackDebugInfo AttackDebugInfo; 
-				AttackDebugInfo.HitResult = SweepResult;
 				AttackDebugInfo.Rotation = WeaponCollisionsComponents[0]->GetComponentQuat();
 				AttackDebugInfo.HalfHeight = WeaponCollisionShapes[0].HalfHeight;
 				AttackDebugInfo.Radius = WeaponCollisionShapes[0].Radius;
-				AttackDebugInfo.Attacker = GetOwner();
 				
-				EBlockResult BlockResult = EnemyBlockComponent->BlockAttack(SweepDirection, OwnerCombatant->GetStrength(), AttackDebugInfo);
+				EBlockResult BlockResult = EnemyBlockComponent->BlockAttack(SweepDirection, OwnerCombatant->GetStrength(), SweepResult, GetOwner(), AttackDebugInfo);
 				if (BlockResult == EBlockResult::Block)
 					OnWeaponHitEvent.Broadcast(OtherComp, SweepResult, EWeaponHitSituation::AttackBlocked, SweepDirection);
 				else if (BlockResult == EBlockResult::Parry)
@@ -622,4 +707,25 @@ const TMap<int, FMeleeAttackPhaseSpeedModifier>& UMeleeCombatComponent::GetAttac
 void UMeleeCombatComponent::ReportAttackWhiffed()
 {
 	OnAttackWhiffedEvent.Broadcast();
+}
+
+void UMeleeCombatComponent::ActivateBlockWindow()
+{
+	const auto& TimingsMappings = CachedMeleeCombatSettings->AttackPhasesBlockWindowActivationTimings;
+	
+	float BlockWindowActivationDuration = TimingsMappings[AttackPhase].WeaponMasteryToTimings[OwnerCombatant->GetActiveWeaponMasteryLevel()].Y;
+	float MaxDuration = (PhaseEndsAt - 0.05f) - GetWorld()->GetTimeSeconds();
+	const float ActualDuration = FMath::Min(BlockWindowActivationDuration, MaxDuration);
+	if (ActualDuration > CachedMeleeCombatSettings->MinBlockActivationWindowInAttackTime)
+	{
+		GetWorld()->GetTimerManager().SetTimer(DeactivateBlockWindowTimer, this, &UMeleeCombatComponent::StopBlockWindow, ActualDuration);
+		bBlockWindowActive = true;
+		AttackBlockWindowActiveChangedEvent.Broadcast(bBlockWindowActive);
+	}
+}
+
+void UMeleeCombatComponent::StopBlockWindow()
+{
+	bBlockWindowActive = false;
+	AttackBlockWindowActiveChangedEvent.Broadcast(bBlockWindowActive);
 }

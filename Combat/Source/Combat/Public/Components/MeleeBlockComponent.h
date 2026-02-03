@@ -9,13 +9,15 @@
 #include "MeleeBlockComponent.generated.h"
 
 
+class IPlayerCombatant;
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class COMBAT_API UMeleeBlockComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-	DECLARE_MULTICAST_DELEGATE(FOnAttackParriedEvent)
-	DECLARE_DELEGATE_OneParam(FOnAttackBlockedEvent, float BlockConsumption)
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAttackParriedEvent, AActor* Attacker)
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAttackBlockedEvent, float BlockConsumption, AActor* Attacker)
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBlockAccumulationChangedEvent, FVector2D AccumulatedBlock, float BlockStrength);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBlockActiveChangedEvent, bool bActive);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParryWindowActiveChangedEvent, bool bActive);
@@ -24,7 +26,8 @@ public:
 	UMeleeBlockComponent();
 	virtual void StartBlocking();
 	virtual void StopBlocking();
-	EBlockResult BlockAttack(const FVector& AttackDirection, float AttackerStrength, FMeleeAttackDebugInfo AttackDebugInfo) const;
+	EBlockResult BlockAttack(const FVector& AttackDirection, float AttackerStrength, const FHitResult& HitResult,
+		AActor* Attacker, const FMeleeAttackDebugInfo& AttackDebugInfo) const;
 	bool IsBlocking() const { return bRegisteringBlock; };
 
 protected:

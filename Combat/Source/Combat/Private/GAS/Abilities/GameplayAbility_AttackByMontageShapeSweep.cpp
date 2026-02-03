@@ -35,8 +35,9 @@ void UGameplayAbility_AttackByMontageShapeSweep::ActivateAbility(const FGameplay
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	ActiveAttackIndex = Attacks.Num() > 1 ? FMath::RandRange(0, Attacks.Num() - 1) : 0;
 	ActiveMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("Attack"),
-		AttackMontages[FMath::RandRange(0, AttackMontages.Num() - 1)]);
+		Attacks[ActiveAttackIndex].AttackMontage.LoadSynchronous());
 	ActiveMontageTask->OnCompleted.AddDynamic(this, &UGameplayAbility_AttackByMontageShapeSweep::OnMontageCompleted);
 	ActiveMontageTask->OnCancelled.AddDynamic(this, &UGameplayAbility_AttackByMontageShapeSweep::OnMontageCancelled);
 	ActiveMontageTask->OnInterrupted.AddDynamic(this, &UGameplayAbility_AttackByMontageShapeSweep::OnMontageInterrupted);
@@ -52,13 +53,13 @@ bool UGameplayAbility_AttackByMontageShapeSweep::CanActivateAbility(const FGamep
 	const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
 	return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags)
-		&& AttackMontages.Num() > 0 && IsValid(DamageGE) && DamageSphereRadius > 0.f && !DamageOriginSocketName.IsNone();
+		&& Attacks.Num() > 0 && IsValid(DamageGE);
 }
 
 void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Payload)
 {
 	auto OwnerCharacter = Cast<ACharacter>(GetAvatarActorFromActorInfo());
-	const FVector StartLocation = OwnerCharacter->GetMesh()->GetSocketLocation(DamageOriginSocketName);
+	const FVector StartLocation = OwnerCharacter->GetMesh()->GetSocketLocation(Attacks[ActiveAttackIndex].DamageOriginSocketName);
 	// CollisionObjectQueryParams.AddObjectTypesToQuery();
 	FCollisionQueryParams CollisionQueryParams;
 	CollisionQueryParams.AddIgnoredActor(OwnerCharacter);
@@ -69,11 +70,16 @@ void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Pa
 	auto OwnerCombatant = Cast<ICombatant>(OwnerCharacter);
 	const float AttackRange = OwnerCombatant->GetAttackRange();
 	if (auto AIController = Cast<AAIController>(OwnerCharacter->GetController()))
+	{
 		if (auto Target = AIController->GetFocusActor())
+		{
+			ensure(Target != OwnerCharacter); // temp ensure to debug AI bug
 			AttackDirection = (Target->GetActorLocation() - OwnerCharacter->GetActorLocation()).GetSafeNormal();
-	
+		}
+	}
+	auto CollisionShape = FCollisionShape::MakeSphere(Attacks[ActiveAttackIndex].DamageSphereRadius);
 	bool bHit = GetWorld()->SweepSingleByProfile(HitResult, StartLocation, StartLocation + AttackDirection * AttackRange,
-		FQuat::Identity, MeleeCombatSettings->WeaponCollisionProfileName, FCollisionShape::MakeSphere(DamageSphereRadius), CollisionQueryParams);
+		FQuat::Identity, MeleeCombatSettings->WeaponCollisionProfileName, CollisionShape, CollisionQueryParams);
 
 #if WITH_EDITOR || UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 	if (bDrawSweepDebug)
@@ -83,7 +89,7 @@ void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Pa
 		FVector SweepVector = EndLocation - StartLocation;
 		float CapsuleHalfHeight = SweepVector.Size() * 0.5f;
 		FQuat CapsuleRotation = FRotationMatrix::MakeFromZ(SweepVector).ToQuat();
-		DrawDebugCapsule(GetWorld(), CapsuleCenter, CapsuleHalfHeight, DamageSphereRadius, CapsuleRotation,
+		DrawDebugCapsule(GetWorld(), CapsuleCenter, CapsuleHalfHeight, Attacks[ActiveAttackIndex].DamageSphereRadius, CapsuleRotation,
 			bHit ? FColor::Red : FColor::White, false, 2.0f, 0, 1.0f
 		);
 	}
@@ -91,33 +97,52 @@ void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Pa
 	
 	if (bHit && HitResult.GetActor() != nullptr) 
 	{
-		auto TargetCombatant = Cast<ICombatant>(HitResult.GetActor());
-		if (!TargetCombatant)
-			return;
+		auto DamagedActor = HitResult.GetActor();
+		ensure(DamagedActor != OwnerCharacter);
+		auto TargetCombatant = Cast<ICombatant>(DamagedActor);
+		if (TargetCombatant)
+			if (HitResult.Component->GetCollisionObjectType() == TargetCombatant->GetWeaponCollisionObjectType() && TargetCombatant->IsBlocking())
+				return;
 		
-		if (HitResult.Component->GetCollisionObjectType() == TargetCombatant->GetWeaponCollisionObjectType() && TargetCombatant->IsBlocking())
-			return;
-
-		auto OwnerASC = GetAbilitySystemComponentFromActorInfo();
-		auto EffectContext = OwnerASC->MakeEffectContext();
-		auto EffectSpec = OwnerASC->MakeOutgoingSpec(DamageGE, 1.f, EffectContext);
-		auto TargetASCInterface = Cast<IAbilitySystemInterface>(HitResult.GetActor());
+		auto TargetASCInterface = Cast<IAbilitySystemInterface>(DamagedActor);
 		if (!ensure(TargetASCInterface))
 		{
-			FPointDamageEvent PointDamageEvent(FallbackRawDamage, HitResult, AttackDirection, TSubclassOf<UDamageType>());
+			FPointDamageEvent PointDamageEvent(FallbackRawDamage * MeleeCombatSettings->GlobalHealthDamageScale, HitResult, AttackDirection, TSubclassOf<UDamageType>());
 			HitResult.GetActor()->TakeDamage(FallbackRawDamage, PointDamageEvent, OwnerCharacter->GetController(), OwnerCharacter);
 			return;
 		}
 		
+		auto OwnerASC = GetAbilitySystemComponentFromActorInfo();
 		auto TargetASC = TargetASCInterface->GetAbilitySystemComponent();
+		auto EffectContext = OwnerASC->MakeEffectContext();
+		auto EffectSpec = OwnerASC->MakeOutgoingSpec(DamageGE, 1.f, EffectContext);
+		float HealthDamage = 0.f;
+		float PoiseDamage = Attacks[ActiveAttackIndex].PoiseDamage;
+		for (const auto& AttackDamage : Attacks[ActiveAttackIndex].Damages)
+		{
+			float TargetDamageTypeProtection = 0.f;
+			const auto* ProtectionAttribute = MeleeCombatSettings->DamageTypeToProtectionAttribute.Find(AttackDamage.Key);
+			if (ensure(ProtectionAttribute))
+				TargetDamageTypeProtection = TargetASC->GetNumericAttribute(*ProtectionAttribute);
+
+			HealthDamage = HealthDamage + AttackDamage.Value * FMath::Exp (-TargetDamageTypeProtection / MeleeCombatSettings->ProtectionEffectivenessScale); // chat gpt suggested this
+		}
+		
+		if (TargetCombatant)
+			PoiseDamage *= TargetCombatant->GetPoiseDamageScale();
+		
+		PoiseDamage *= MeleeCombatSettings->GlobalPoiseDamageScale;
+		HealthDamage *= MeleeCombatSettings->GlobalHealthDamageScale;
+		EffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Health, -HealthDamage);
+		EffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Poise, -PoiseDamage);
 		OwnerASC->ApplyGameplayEffectSpecToTarget(*EffectSpec.Data, TargetASC);
 
 		FGameplayEventData OwnerPayload;
 		FGameplayAbilityTargetData_ReceivedHit* OwnerData = new FGameplayAbilityTargetData_ReceivedHit();
 		OwnerData->HitDirectionTag = GetHitDirectionTag(HitResult.GetActor(), HitResult.ImpactPoint);
 		OwnerData->HitLocation = HitResult.ImpactPoint;
-		// OwnerData->HealthDamage = ResultingDamage;
-		// OwnerData->PoiseDamage = PoiseReduction;
+		OwnerData->HealthDamage = HealthDamage;
+		OwnerData->PoiseDamage = PoiseDamage;
 		OwnerData->HitResult = HitResult;
 		OwnerPayload.TargetData.Add(OwnerData);
 

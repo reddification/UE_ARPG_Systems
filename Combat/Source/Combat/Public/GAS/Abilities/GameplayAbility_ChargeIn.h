@@ -35,6 +35,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UGameplayEffect> ChargeInEffectClass;
 
+	// UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	// FRuntimeFloatCurve RootMotionTranslationScaleDexterityDependency;
+
+	// distance to target
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FRuntimeFloatCurve RootMotionTranslationScaleDistanceDependency;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FRuntimeFloatCurve MontageSpeedFromDexterityDependency;
+	
 private:
 	FActiveGameplayEffectHandle ActiveChargeEffectHandle;
 

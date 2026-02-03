@@ -67,73 +67,46 @@ float UNpcMeleeCombatComponent::AddIntelligenceMisperception(float BaseValue, fl
 
 bool UNpcMeleeCombatComponent::RequestAttack(EMeleeAttackType RequestedAttackType)
 {
-	bool bCanRequest = Super::RequestAttack(EMeleeAttackType::LightAttack);
+	bool bCanRequest = Super::RequestAttack(RequestedAttackType);
+	// kind of bullshit to get it everytime, 
+	// but the alternative is to provide SetWeaponMasteryLevel to be called to owner when NPC takes another weapon or improves its skill
+	// TODO 16.01.2026 actually do that one day
 	WeaponMasteryLevel = OwnerCombatant->GetActiveWeaponMasteryLevel();
-	// PreviousAttack = EMeleeAttackType::None;
-	return bCanRequest && RequestNextAttack();
+
+	return bCanRequest && RequestNextAttack(RequestedAttackType);
 }
 
-bool UNpcMeleeCombatComponent::RequestNextAttack()
+EMeleeAttackType UNpcMeleeCombatComponent::GetNextAttack(const ICombatant* TargetCombatant,
+                                                         const FGameplayTag& OwnerCombatStyle, const FGameplayTag& EnemyCombatStyle, const UMeleeCombatSettings* CombatSettings) const
 {
-	// if (AttackPhase != EMeleeAttackPhase::None && !bComboWindowActive)
-	// 	return true; // not really the best way to return "you requested next attack in incorrect timing", but the alternative will lead to aborting attack
-
-	// TODO bullshit, it shouldn't be a problem, NPC should be able to just swing ahead for whatever reason (i.e. player is in invisibility or in the dark)
-	auto Target = AIController->GetFocusActor();
-	if (!ensure(Target))
-	{
-		UE_VLOG(AIController.Get(), LogCombat, Warning, TEXT("UNpcMeleeCombatComponent::RequestNextAttack - no target"));
-		OnAttackEndedEvent.Broadcast();
-		return false;
-	}
-
-	auto CombatSettings = GetDefault<UMeleeCombatSettings>();
-	auto TargetCombatant = Cast<ICombatant>(Target);
-	FGameplayTag OwnerCombatStyle = OwnerCombatant->GetActiveCombatStyleTag();
-	FGameplayTag EnemyCombatStyle = TargetCombatant->GetActiveCombatStyleTag();
-	ensure(OwnerCombatStyle.IsValid());
-	
-	float TargetDistance = (GetOwner()->GetActorLocation() - Target->GetActorLocation()).Size();
-	const float Intelligence = OwnerNPCCombatant->GetIntelligence();
-	TargetDistance = AddIntelligenceMisperception(TargetDistance, Intelligence, CombatSettings->AITargetDistanceIntelligenceMisperceptionFactor);
+	EMeleeAttackType NewAttack = EMeleeAttackType::None;
 	FNpcCombatSituationKey Key(OwnerCombatStyle, EnemyCombatStyle, WeaponMasteryLevel);
 	const auto WeaponCombinationsForNpcWeapon = CombatSettings->AIWeaponTypeChainableAttacks.Find(OwnerCombatStyle);
 	if (!WeaponCombinationsForNpcWeapon)
 	{
 		ensure(false);
-		return false;
+		return NewAttack;
 	}
-	
+		
 	const FChainableAttacksWrapper* ChainableAttacks = &WeaponCombinationsForNpcWeapon->DefaultAttacks;
 	if (auto WeaponCombinationsForWeaponMastery = WeaponCombinationsForNpcWeapon->MasteryLevelChainableAttacks.Find(WeaponMasteryLevel))
 	{
 		ChainableAttacks = &WeaponCombinationsForWeaponMastery->DefaultAttacks;
-		if (TargetCombatant)
+		if (EnemyCombatStyle.IsValid())
 			if (auto WeaponCombinationsAgainstWeapon = WeaponCombinationsForWeaponMastery->AttacksAgainstWeapon.Find(EnemyCombatStyle))
 				ChainableAttacks = WeaponCombinationsAgainstWeapon;
 	}
-	
+		
 	if (!ensure(ChainableAttacks))
-		return false;
-	
-	// criterias:
-	// 1. distance
-	// 2. enemy active weapon type
-	// 3. active enemy attack at the moment (if any)
-	// 4. enemy stamina and health
-	// pizdec
-
-	const float RawAttackRange = OwnerCombatant->GetAttackRange();
-	float AttackRange = AddIntelligenceMisperception(RawAttackRange, Intelligence, CombatSettings->AIAttackRangeIntelligenceMisperceptionFactor);
-	bool bNeedLongRangeAttack = TargetDistance - AttackRange > CombatSettings->AIRangeDiffForLongAttack;
+		return NewAttack;
+		
 	// TODO include active enemy attack into search for best moveset?
-	EMeleeAttackType ActiveEnemyAttack = TargetCombatant->GetActiveAttack();
-	EMeleeAttackType ActiveEnemyAttackTrajectory = TargetCombatant->GetActiveAttackTrajectory();
+	EMeleeAttackType ActiveEnemyAttack = TargetCombatant != nullptr ? TargetCombatant->GetActiveAttack() : EMeleeAttackType::None;
+	EMeleeAttackType ActiveEnemyAttackTrajectory = TargetCombatant != nullptr ? TargetCombatant->GetActiveAttackTrajectory() : EMeleeAttackType::None;
 
 	// TODO figure out some smarter way for starting attack. Ideally AI should analyze active stance
-	EMeleeAttackType NewAttack = EMeleeAttackType::None;
 	TArray<EMeleeAttackType> PossibleAttacks;
-	
+		
 	if (PreviousAttack != EMeleeAttackType::None)
 	{
 		auto PossibleContinuations = ChainableAttacks->ChainableAttacks.Find(PreviousAttack);
@@ -148,8 +121,8 @@ bool UNpcMeleeCombatComponent::RequestNextAttack()
 			PossibleAttacks.Add(ChainableAttack.Key);
 	}
 
-	NewAttack = PossibleAttacks[FMath::RandRange(0, PossibleAttacks.Num() - 1)];		
-
+	NewAttack = PossibleAttacks[FMath::RandRange(0, PossibleAttacks.Num() - 1)];
+		
 	// currently attack animations are in states of an ABP
 	// however, there is no way to handle a situation when you need to chain a horizontal swing into the same horizontal swing - the ABP will just think that it is already
 	// in the required state and hence NPC won't continue attack but AI controller will stuck because it waits for calls from the NPC attack gameplay ability
@@ -160,7 +133,38 @@ bool UNpcMeleeCombatComponent::RequestNextAttack()
 		while (NewAttack == PreviousAttack);
 	}
 	
-	const FVector AttackVector = Target->GetActorLocation() - GetOwner()->GetActorLocation();
+	return NewAttack;
+}
+
+bool UNpcMeleeCombatComponent::RequestNextAttack(EMeleeAttackType NewAttack)
+{
+	// if (AttackPhase != EMeleeAttackPhase::None && !bComboWindowActive)
+	// 	return true; // not really the best way to return "you requested next attack in incorrect timing", but the alternative will lead to aborting attack
+
+	// TODO bullshit, it shouldn't be a problem, NPC should be able to just swing ahead for whatever reason (i.e. player is in invisibility or in the dark)
+	auto Target = AIController->GetFocusActor();
+	ICombatant* TargetCombatant = Target != nullptr ? Cast<ICombatant>(Target) : nullptr;
+	FGameplayTag OwnerCombatStyle = OwnerCombatant->GetActiveCombatStyleTag();
+	FGameplayTag EnemyCombatStyle = TargetCombatant != nullptr ? TargetCombatant->GetActiveCombatStyleTag() : FGameplayTag::EmptyTag;
+	ensure(OwnerCombatStyle.IsValid());
+	
+	auto CombatSettings = GetDefault<UMeleeCombatSettings>();
+	const float Intelligence = OwnerNPCCombatant->GetIntelligence();
+	const float TrueTargetDistance = Target != nullptr ? (GetOwner()->GetActorLocation() - Target->GetActorLocation()).Size() : 200.f;
+	float TargetDistance = AddIntelligenceMisperception(TrueTargetDistance, Intelligence, CombatSettings->AITargetDistanceIntelligenceMisperceptionFactor);
+	const float RawAttackRange = OwnerCombatant->GetAttackRange();
+	float AttackRange = AddIntelligenceMisperception(RawAttackRange, Intelligence, CombatSettings->AIAttackRangeIntelligenceMisperceptionFactor);
+	if (NewAttack == EMeleeAttackType::None)
+		NewAttack = GetNextAttack(TargetCombatant, OwnerCombatStyle, EnemyCombatStyle, CombatSettings);
+	
+	bool bNeedLongRangeAttack = ShouldMakeLongRangeAttack(Target, TargetDistance, AttackRange, CombatSettings);
+	
+	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("UNpcMeleeCombatComponent::RequestNextAttack:"));
+	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("Raw attack range = %.2f\nAssumed attack range = %.2f"), RawAttackRange, AttackRange);
+	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("Raw distance to target = %.2f\nAssumed distance to target = %.2f"), TrueTargetDistance, TargetDistance);
+	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("%s"), bNeedLongRangeAttack ? TEXT("Need long range attack") : TEXT("Don't need long range attack"));
+	
+	const FVector AttackVector = Target != nullptr ? Target->GetActorLocation() - GetOwner()->GetActorLocation() : GetOwner()->GetActorForwardVector();
 	const FVector Direction = AttackVector.GetSafeNormal();
 	const float ApproachTime = 0.25f; // TODO parametrize
 	FVector Acceleration = bNeedLongRangeAttack ? AttackVector / ApproachTime : FVector::ZeroVector;
@@ -168,6 +172,16 @@ bool UNpcMeleeCombatComponent::RequestNextAttack()
 	EAttackStepDirection AttackStepDirection = bNeedLongRangeAttack ? EAttackStepDirection::Forward : EAttackStepDirection::None;
 	UE_VLOG(AIController.Get(), LogCombat, Verbose, TEXT("Npc starting attack %s"), *UEnum::GetValueAsString(NewAttack));
 	RequestedAttacksCount++;
+	
+#if WITH_EDITOR
+	// debug 01.02.2026 REMOVE ASAP
+	if (!Debug_ForcedAttacksSequence.IsEmpty())
+	{
+		NewAttack = Debug_ForcedAttacksSequence[ForcedAttackSequenceIndex];
+		ForcedAttackSequenceIndex = (ForcedAttackSequenceIndex + 1) % Debug_ForcedAttacksSequence.Num();
+	}
+#endif
+
 	CombatAnimInstance->SetAttack(NewAttack, Acceleration, AttackStepDirection, RequestedAttacksCount);
 	OnAttackStartedEvent.Broadcast(NewAttack);
 	if (NewAttack <= EMeleeAttackType::SpinRightOberhauw)
@@ -182,5 +196,17 @@ void UNpcMeleeCombatComponent::ResetAttackState()
 {
 	Super::ResetAttackState();
 	RequestedAttacksCount = 0;
-	PreviousAttack = EMeleeAttackType::None;
+	FTimerHandle Timer;
+	auto Lambdos = [this]()
+	{
+		if (IsValid(this))
+			PreviousAttack = EMeleeAttackType::None;
+	};
+	
+	GetWorld()->GetTimerManager().SetTimer(Timer, Lambdos, 0.25f, false);
+}
+
+bool UNpcMeleeCombatComponent::ShouldMakeLongRangeAttack(AActor* Target, float TargetDistance, float AttackRange, const UMeleeCombatSettings* Settings) const
+{
+	return TargetDistance - AttackRange > Settings->AIRangeDiffForLongAttack;
 }

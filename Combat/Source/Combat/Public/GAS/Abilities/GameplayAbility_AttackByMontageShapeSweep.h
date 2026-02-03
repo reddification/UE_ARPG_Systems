@@ -8,9 +8,29 @@
 
 class UAbilityTask_WaitGameplayEvent;
 class UAbilityTask_PlayMontageAndWait;
-/**
- * 
- */
+
+USTRUCT(BlueprintType)
+struct FAttackByMontageData
+{
+	GENERATED_BODY()
+
+	// different damage types: puncturing, cutting, bludgeoning
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TMap<FGameplayTag, float> Damages;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	float PoiseDamage = 0.2f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TSoftObjectPtr<UAnimMontage> AttackMontage;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	float DamageSphereRadius = 25.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FName DamageOriginSocketName;
+};
+
 UCLASS()
 class COMBAT_API UGameplayAbility_AttackByMontageShapeSweep : public UGameplayAbility
 {
@@ -24,18 +44,22 @@ public:
 		const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const override;
 	
 protected:
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TArray<UAnimMontage*> AttackMontages;
+	TArray<FAttackByMontageData> Attacks;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<UAnimMontage*> AttackMontages_Obsolete;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UGameplayEffect> DamageGE;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float DamageSphereRadius = 25.f;
+	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	// float DamageSphereRadius = 25.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FName DamageOriginSocketName;
-
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FGameplayTag OverlapCollisionEventTag;
 
@@ -66,4 +90,6 @@ private:
 	void OnMontageInterrupted();
 
 	FGameplayTag GetHitDirectionTag(const AActor* Actor, const FVector& ImpactPoint) const;
+	
+	int ActiveAttackIndex = 0;
 };

@@ -3,6 +3,9 @@
 
 #include "GAS/Abilities/GameplayAbility_NpcHitReact.h"
 
+#include "AbilitySystemComponent.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Data/CombatGameplayTags.h"
 #include "Interfaces/ICombatant.h"
 #include "Interfaces/NpcCombatant.h"
 
@@ -11,29 +14,17 @@ void UGameplayAbility_NpcHitReact::ActivateAbility(const FGameplayAbilitySpecHan
                                                    const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-
+	if (!IsActive() || bIsAbilityEnding)
+		return;
+	
 	auto Combatant = Cast<ICombatant>(ActorInfo->OwnerActor.Get());;
 	auto NpcCombatant = Cast<INpcCombatant>(ActorInfo->OwnerActor.Get());
 	
 	float Reaction = NpcCombatant->GetReaction();
 	float NormalizedStamina = Combatant->GetStaminaRatio();
-	if (FMath::RandRange(0.f, 1.f) < 2.f * Reaction * NormalizedStamina)
-	// if (true)
+	if (FMath::RandRange(0.f, 1.f) <= 2.f * Reaction * NormalizedStamina)
 	{
-		UAnimMontage* BackstepMontage = nullptr;
-		FGameplayTagContainer OwnerTags;
-		auto OwnerTagInterface = Cast<IGameplayTagAssetInterface>(ActorInfo->AvatarActor.Get());
-		OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
-		for (const auto& BackstepMontageOption : BackstepMontageOptions)
-		{
-			if (BackstepMontageOption.ContextTags.Matches(OwnerTags))
-			{
-				BackstepMontage = BackstepMontageOption.Montages_Deprecated[FMath::RandRange(0, BackstepMontageOption.Montages_Deprecated.Num() - 1)];
-				break;				
-			}
-		}
-
-		if (BackstepMontage)
-			ActorInfo->GetAnimInstance()->Montage_Play(BackstepMontage);
+		FGameplayEventData EventData;
+		ActorInfo->AbilitySystemComponent->HandleGameplayEvent(CombatGameplayTags::Combat_Ability_Backdash_Event_Activate, &EventData);
 	}
 }

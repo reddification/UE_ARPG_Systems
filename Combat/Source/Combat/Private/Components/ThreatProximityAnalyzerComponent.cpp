@@ -41,7 +41,7 @@ void UThreatProximityAnalyzerComponent::TickComponent(float DeltaTime, ELevelTic
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(UThreatProximityAnalyzerComponent::TickComponent)
 	
-	TSet<AActor*> EnemiesInSight = CombatantOwner->GetObservedEnemies();
+	TSet<AActor*> EnemiesInSight = CombatantOwner->GetCombatObservedActors();
 	
 	const FVector OwnerLocation = GetOwner()->GetActorLocation();
 	FVector OwnerViewLocation;

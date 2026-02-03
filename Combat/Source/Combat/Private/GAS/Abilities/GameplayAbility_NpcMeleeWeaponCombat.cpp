@@ -7,6 +7,8 @@
 #include "Components/NpcMeleeCombatComponent.h"
 #include "Data/CombatGameplayTags.h"
 #include "Data/CombatLogChannels.h"
+#include "GAS/Data/GameplayAbilityTargetData_Attack.h"
+#include "Helpers/GASHelpers.h"
 #include "Interfaces/NpcCombatant.h"
 
 void UGameplayAbility_NpcMeleeWeaponCombat::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
@@ -14,8 +16,14 @@ void UGameplayAbility_NpcMeleeWeaponCombat::ActivateAbility(const FGameplayAbili
                                                             const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	if (!IsActive() || bIsAbilityEnding)
+		return;
 	// TODO apply effects to reduce reaction while attacking!!!
-	bool bAttackRequested = GetMeleeCombatComponent()->RequestAttack(EMeleeAttackType::LightAttack);
+	EMeleeAttackType AttackType = EMeleeAttackType::None;
+	if (const auto* ActivationData = GetActivationData<FGameplayAbilityTargetData_Attack>(TriggerEventData->TargetData))
+		AttackType = ActivationData->AttackType;
+	
+	bool bAttackRequested = GetMeleeCombatComponent()->RequestAttack(AttackType);
 	if (!bAttackRequested)
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
@@ -34,15 +42,6 @@ void UGameplayAbility_NpcMeleeWeaponCombat::EndAbility(const FGameplayAbilitySpe
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
-	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
-	if (Combatant)
-	{
-		if (bWasCancelled)
-			Combatant->OnAttackCanceled();
-		else
-			Combatant->OnAttackEnded();
-	}
-	
 	if (WaitForContinueAttackRequestEvent)
 	{
 		WaitForContinueAttackRequestEvent->EventReceived.RemoveAll(this);
@@ -100,6 +99,6 @@ void UGameplayAbility_NpcMeleeWeaponCombat::RequestNextAttack(FGameplayEventData
 	if (!bAttackContinued)
 	{
 		UE_VLOG(AbilityOwner, LogCombat, Log, TEXT("Ending attack because request next attack failed"));
-		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
+		// EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 	}
 }

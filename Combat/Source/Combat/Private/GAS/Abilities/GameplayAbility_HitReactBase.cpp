@@ -26,7 +26,7 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 	auto AliveCreature = Cast<ICombatAliveCreature>(ActorInfo->AvatarActor.Get());
 	if(AliveCreature->GetCombatantHealth() <= 0.f )
 	{
-		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), false, false);
+		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
 		return;
 	}
 	
@@ -73,6 +73,8 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 	ReceivedHitData.PoiseDamage = ActivationData->PoiseDamage;
 	ReceivedHitData.HitResult = ActivationData->HitResult;
 	ReceivedHitData.HitTypeTag = HitTypeTag;
+	ReceivedHitData.Causer = ActivationData->Causer.Get();
+	ReceivedHitData.CauserId = ActivationData->CauserId;
 	CombatantOwner->TakeHit(ReceivedHitData);
 }
 

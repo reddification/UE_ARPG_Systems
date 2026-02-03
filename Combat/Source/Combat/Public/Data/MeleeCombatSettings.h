@@ -270,6 +270,16 @@ struct FCombatStyleMapping
 	FGameplayTag CombatStyle;
 };
 
+USTRUCT(BlueprintType)
+struct FWeaponMasteryToBlockWindowTimingsWrapper
+{
+	GENERATED_BODY()
+	
+	// Value.X = block window activation delay; Value.Y = block window duration (capped by attack phase duration)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TMap<int, FVector2D> WeaponMasteryToTimings;
+};
+
 // This class is getting out of control with the amount of anim montages stored in it.
 // TODO leave all data here, move moveset-related stuff to separate data assets and "SoftObjectPtr" it
 UCLASS(Config=Game, defaultconfig, DisplayName="Combat")
@@ -278,16 +288,16 @@ class COMBAT_API UMeleeCombatSettings : public UDeveloperSettings
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Attack|Player")
 	FMeleeCombatDirectionalInputParameters MeleeCombatDirectionalInputParameters;
 
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Attack|Player")
 	TArray<FMultipleAttackInputsMapping> MultipleAttacksToAttackCombination;
 
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
 	float OutstrikeStrengthDelta = 15.f;
 
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Attack")
 	float ConsequitiveComboAttackWindUpSpeedScale = 1.5f;
 	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="AI")
@@ -321,7 +331,7 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Protection", meta=(ClampMin = 0.1, UIMin = 0.1f))
 	double ProtectionEffectivenessScale = 50.f;
 	
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Block")
 	FRuntimeFloatCurve BlockStaminaAccumulationScaleDependency;
 	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Poise")
@@ -333,55 +343,62 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Poise")
 	FRuntimeFloatCurve DexterityPoiseDamageReductionScale;
 
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Damage Calculation")
 	FRuntimeFloatCurve TargetPoiseToReceivedDamagedScaleDependency;
 
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Damage Calculation")
 	FRuntimeFloatCurve CurrentAttackEnemiesHitDamageDependency;
 
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Damage Calculation")
 	FRuntimeFloatCurve TargetToAttackerDotProductPoiseDamageDependency;
 	
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Damage Calculation")
 	TMap<FGameplayTag, FWeaponDamageAttributeDependency> WeaponDamageAttributesDependencies;
 
 	// if bone is not present in the list then 1.f is taken
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Damage Calculation")
 	TMap<FName, float> HitBonesDamageScore;
 
 	// if bone is not present in the list then 1.f is taken
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Damage Calculation")
 	TMap<FName, float> HitBonesPoiseScore;
 
-	// Sweeps are done only in weapon release phase
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
-	int WeaponCollisionSweepsPerSeconds = 100;
-
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
-	FName WeaponCollisionProfileName = FName("Weapon");
 	
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
-	bool bDrawDebugSweeps = true;
-
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
-	TMap<int, FMeleeAttackPhaseSpeedModifier> PlayerWeaponMasteryAttackPhaseSpeedScales;
-	
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
-	TMap<int, FMeleeAttackPhaseSpeedModifier> NpcWeaponMasteryAttackPhaseSpeedScales;
-
 	// It is expected that skeletal meshes physics asset primitives have a box primitive with this name that must be used as the combat collision (or just 1 box primitive with any name)
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Collisions")
 	FName CombatCollisionName = FName("CombatCollision");
 
 	// Socket for the center of the blade. Used for locations of shape sweeps. Most important for spears where not all weapon is a damaging part
 	// Sockets Z axis must be oriented along the blade
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Collisions")
 	FName CombatCollisionCenterSocketName = FName("CombatCollisionCenter");
 	
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Collisions")
+	FName WeaponCollisionProfileName = FName("Weapon");
+	
+	// Sweeps are done only in weapon release phase
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Shape Sweeps")
+	int WeaponCollisionSweepsPerSeconds = 100;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Shape Sweeps")
+	bool bDrawDebugSweeps = true;
+
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	TMap<int, FMeleeAttackPhaseSpeedModifier> PlayerWeaponMasteryAttackPhaseSpeedScales;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Attack")
+	TMap<int, FMeleeAttackPhaseSpeedModifier> NpcWeaponMasteryAttackPhaseSpeedScales;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, UIMax = 1.f, ClampMax = 1.f), Category="Attack|BlockWindow")
+	TMap<EMeleeAttackPhase, FWeaponMasteryToBlockWindowTimingsWrapper> AttackPhasesBlockWindowActivationTimings;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Attack|BlockWindow")
+	float MinBlockActivationWindowInAttackTime = 0.2f;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Attack")
 	float OberhauAttackStrengthFactor = 1.4f;
 
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Attack")
 	float HeavyAttackWindupSpeedModifier = 0.7f;
 	
 	// UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(Category="Block"))
@@ -410,13 +427,19 @@ public:
 
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, Category="Block"))
 	float BlockStrengthAccumulationScale = 2.f;
-
+	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, UIMax = 1.f, ClampMax = 1.f, Category="Block"))
 	float BlockStrengthToParry = 0.5f;
-	
+
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(Category="TargetLock"))
 	TArray<TEnumAsByte<ECollisionChannel>> TargetLockObjectChannels;
 
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, Category="Anim stance"))
 	float KeepWeaponReadyAfterAttackDelay = 3.f;
+
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Global")
+	float GlobalHealthDamageScale = 1.5f;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Global")
+	float GlobalPoiseDamageScale = 1.f;
 };

@@ -7,7 +7,7 @@ template<typename TGameplayAbilityTargetDataStruct>
 const TGameplayAbilityTargetDataStruct* GetActivationData(const FGameplayAbilityTargetDataHandle& TargetData)
 {
 	const auto Data = TargetData.Get(0);
-	if (ensure(Data))
+	if (Data)
 	{
 		if (ensure(Data->GetScriptStruct() == TGameplayAbilityTargetDataStruct::StaticStruct()))
 		{
