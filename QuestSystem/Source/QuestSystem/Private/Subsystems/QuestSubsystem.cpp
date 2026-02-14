@@ -25,8 +25,7 @@ void UQuestSubsystem::RegisterPlayerCharacter(ACharacter* InPlayerCharacter)
 void UQuestSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	ActiveQuests.Empty();
-	CompletedQuests.Empty();
+	Reset();
 }
 
 void UQuestSubsystem::OnItemAcquired(IQuestCharacter* QuestCharacter, const FGameplayTag& ItemTagId, const FGameplayTagContainer& ItemTags, int Count)
@@ -281,17 +280,48 @@ void UQuestSubsystem::CompleteQuest(FQuestProgress& CompletedQuest, EQuestState 
 	CompletedQuests.Add(CompletedQuest.QuestDTRH.RowName, MoveTemp(CompletedQuest));
 	ActiveQuests.Remove(CompletedQuest.QuestDTRH.RowName);
 	
+	if (!QuestDTR->QuestFlow.IsNull())
+		if (auto FS = GetGameInstance()->GetSubsystem<UFlowSubsystem>())
+			FS->FinishRootFlow(this, QuestDTR->QuestFlow.LoadSynchronous(), EFlowFinishPolicy::Keep);
+	
 	if (QuestCompletedEvent.IsBound())
 		QuestCompletedEvent.Broadcast(QuestDTR, bQuestAutocompleted);
 }
 
 void UQuestSubsystem::Load()
 {
-	ActiveQuests.Empty();
-	CompletedQuests.Empty();
+	Reset();
 	auto WSS = UWorldStateSubsystem::Get(this);
 	if (WSS)
 		WSS->Load();
+}
+
+void UQuestSubsystem::Reset()
+{
+	QuestStartedEvent.Clear();
+	QuestCompletedEvent.Clear();
+	QuestEventOccuredEvent.Clear();
+	QuestCharacterReachedLocationEvent.Clear();
+	QuestCharacterLeftLocationEvent.Clear();
+	QuestCharacterKilledEvent.Clear();
+	QuestCharacterAcquiredItemEvent.Clear();
+	QuestCharacterInteractedWithItemEvent.Clear();
+	QuestDialogueLineHeardEvent.Clear();
+	QuestCharacterKnockdownedEvent.Clear();
+	QuestNpcGoalCompletedEvent.Clear();
+	PlayerDiedEvent.Clear();
+	
+	FlowAssetToQuestIdLookup.Reset();
+	DelayedQuestActions.Reset();
+	if (auto FS = GetGameInstance()->GetSubsystem<UFlowSubsystem>())
+		for (const auto& ActiveQuest : ActiveQuests)
+			if (auto QuestDTR = ActiveQuest.Value.QuestDTRH.GetRow<FQuestDTR>(""))
+				if (!QuestDTR->QuestFlow.IsNull())
+					FS->FinishRootFlow(this, QuestDTR->QuestFlow.LoadSynchronous(), EFlowFinishPolicy::Abort);
+	
+	ActiveQuests.Empty();
+	CompletedQuests.Empty();
+	bStateLoaded = false;
 }
 
 void UQuestSubsystem::ExecuteQuestActions(const FQuestSystemContext& QuestSystemContext, const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions)

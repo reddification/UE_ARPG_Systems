@@ -43,5 +43,11 @@ bool UWorldStateSubsystem::IsAtWorldState(const FGameplayTagQuery& TestWorldStat
 
 void UWorldStateSubsystem::Load()
 {
+	Reset();
+}
+
+void UWorldStateSubsystem::Reset()
+{
 	WorldState.Reset();
+	WorldStateChangedEvent.Clear();
 }

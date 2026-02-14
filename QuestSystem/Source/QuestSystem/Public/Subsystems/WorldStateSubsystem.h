@@ -26,6 +26,8 @@ public:
 	const FGameplayTagContainer& GetWorldState() const { return WorldState; }
 
 	void Load();
+	
+	void Reset();
 
 	mutable FWorldStateChangedEvent WorldStateChangedEvent;
 	

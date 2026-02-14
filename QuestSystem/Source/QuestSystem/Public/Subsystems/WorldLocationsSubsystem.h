@@ -18,11 +18,16 @@ public:
 	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
+	UFUNCTION(BlueprintCallable)
 	UWorldLocationComponent* GetWorldLocationRandom(const FGameplayTag& WorldLocationTag) const;
+	
+	UFUNCTION(BlueprintCallable)
     TArray<UWorldLocationComponent*> GetWorldLocations(const FGameplayTag& WorldLocationTag) const;
 	
+	UFUNCTION(BlueprintCallable)
 	const UWorldLocationComponent* GetClosestQuestLocationSimple(const FGameplayTag& LocationIdTag,
 	                                                             const FVector& QuerierLocation) const;
+	UFUNCTION(BlueprintCallable)
 	const UWorldLocationComponent* GetClosestQuestLocationComplex(const FGameplayTag& QuestLocationTag,
 	                                                              const FVector& QuerierLocation,
 	                                                              UObject* WorldContextObject);

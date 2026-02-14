@@ -100,14 +100,13 @@ public:
 	
 	UFUNCTION(BlueprintCallable)
 	void Load();
+
+	void Reset();
 	
 private:
     UPROPERTY()
     TScriptInterface<IQuestCharacter> PlayerCharacter;
 
-	UPROPERTY()
-	TScriptInterface<IQuestSystemGameMode> GameMode;
-	
     UPROPERTY(SaveGame)
     TMap<FName, FQuestProgress> ActiveQuests;
 
