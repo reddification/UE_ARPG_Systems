@@ -23,7 +23,7 @@ private:
 		float AttackRange = 0.f;
 		float TooCloseDistance = 0.f;
 		TWeakObjectPtr<UNpcCombatLogicComponent> NpcCombatComponent = nullptr;
-		FDelegateHandle OnAttackRangeChangedDelegateHandle;
+		TWeakObjectPtr<AActor> TargetActor;
 	};
 	
 public:
@@ -53,24 +53,31 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FBlackboardKeySelector AttackRangeBBKey;
 
+	// when target is out of attack range, if NPC is already attacking, add this threshold to prevent frequent toggling on/off "want to attack" state if target hasn't got too far away
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float ResetPreparedAttackDistanceThreshold = 50.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float NextTickDelayAfterRequestToAttack = 2.f;
 
+	// added to attack range. use it to control how far or close you want NPC to approach enemies before it decides to attack
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float LittleExtraAttackRange = 33.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, UIMax = 1.f, ClampMax = 1.f))
 	float TooCloseRangeDistanceCoefficient = 0.4f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = -1.f, ClampMin = -1.f, UIMax = 1.f, ClampMax = 1.f))
+	float AttackRelevantDotProductThreshold = 0.8f;
 	
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	bool bShowDebugInfo = false;
-#endif
+	FBlackboardKeySelector NpcToTargetDotProductBBKey;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FBlackboardKeySelector TargetToNpcDotProductBBKey;
 	
 private:
 	EBlackboardNotificationResult OnAttackRangeChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
+	EBlackboardNotificationResult OnTargetChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
 
 };

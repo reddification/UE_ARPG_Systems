@@ -1,12 +1,10 @@
-﻿// 
-
-
-#include "GAS/Executions/UpdateSpeedInCombatMMC.h"
+﻿#include "GAS/Executions/UpdateSpeedInCombatMMC.h"
 
 #include "Components/NpcCombatLogicComponent.h"
 #include "Components/NpcComponent.h"
 #include "Components/NpcInterfaceComponent.h"
 #include "Data/LogChannels.h"
+#include "Data/NpcCombatParametersDataAsset.h"
 #include "Interfaces/Npc.h"
 
 UUpdateSpeedInCombatMMC::UUpdateSpeedInCombatMMC()

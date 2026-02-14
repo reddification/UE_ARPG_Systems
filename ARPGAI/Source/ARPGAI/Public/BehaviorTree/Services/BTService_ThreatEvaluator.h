@@ -2,16 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTService.h"
-#include "BehaviorTree/Composites/BTComposite_Utility.h"
 #include "Data/CombatEvaluationData.h"
 #include "Data/NpcDTR.h"
 #include "GameplayTagContainer.h"
+#include "BehaviorTree/Composites/BTComposite_Utility.h"
 #include "Perception/AIPerceptionTypes.h"
 #include "BTService_ThreatEvaluator.generated.h"
 
 class UNpcComponent;
 class ALyraCharacter;
 class UAIPerceptionComponent;
+class UNpcCombatParametersDataAsset;
 struct FBehaviorUtilityParameters;
 using namespace NpcCombatEvaluation;
 
@@ -21,7 +22,7 @@ class ARPGAI_API UBTService_ThreatEvaluator : public UBTService
 	GENERATED_BODY()
 
 private:
-	struct FBTCombatEvaluatorNodeMemory
+	struct FBTCombatEvaluatorMemory
 	{
 		float DamageScoreFactor = 1.f;
 		float TeammateTargetScoreFactor = 1.f;
@@ -80,25 +81,24 @@ protected:
 	float TimeSeenToReact = 1.f;
 
 private:
-	void EvaluateThreats(UBehaviorTreeComponent& OwnerComp, FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory);
+	void EvaluateThreats(UBehaviorTreeComponent& OwnerComp, FBTCombatEvaluatorMemory* CombatEvaluatorNodeMemory);
 	void ProcessDangerousItemPerception(FCombatEvaluationResult& OutResult, AActor* TargetActor, const FVector& MobLocation) const;
 	void ProcessDangerousItemPerception(FCombatEvaluationResult& OutResult, AActor* Target, float DangerousItemScore, const FVector& MobLocation, EDetectionSource DetectionSource) const;
-	void ProcessPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorNodeMemory* NodeMemory, FCombatEvaluationResult& OutResult) const;
+	void ProcessPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorMemory* NodeMemory, FCombatEvaluationResult& OutResult) const;
 	void ProcessCharacterVisualPerception(const FCombatEvaluationParameters& Parameters, FCombatEvaluationResult& OutResult,
 	                                      ACharacter* PerceivedCharacter) const;
-	void ProcessCharacterPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorNodeMemory* NodeMemory, FCombatEvaluationResult& OutResult,
+	void ProcessCharacterPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorMemory* NodeMemory, FCombatEvaluationResult& OutResult,
 	                                float MobMaxHealth, const FAIStimulus& AIStimulus,
 	                                ACharacter* PerceivedCharacter) const;
 	void ReceiveTeammateAwareness(FCombatEvaluationResult& CombatEvaluationResult, const FCombatEvaluationParameters& CombatEvaluationParameters,
-	                              const FBTCombatEvaluatorNodeMemory* CombatEvalulatorNodeMemory) const;
+	                              const FBTCombatEvaluatorMemory* CombatEvaluatorMemory) const;
 	bool AssignBestTarget(UNpcCombatLogicComponent* MobComponent, UBlackboardComponent* BlackboardComponent,
-	                      FBTCombatEvaluatorNodeMemory* NodeMemory, FCombatEvaluationResult& CombatEvaluationResult, const FGameplayTag& BestBehaviorUtilityTag) const;
-	void EvaluateBehaviorUtilities(const FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory,
-	                               const APawn* ThisNpc, FCombatEvaluationResult& CombatEvaluationResult, TMap<FGameplayTag, float>& BehaviorUtilitiesScores, const
-	                               UNpcCombatParametersDataAsset
-	                               * NpcCombatParameters);
+	                      FBTCombatEvaluatorMemory* NodeMemory, FCombatEvaluationResult& CombatEvaluationResult, const FGameplayTag& BestBehaviorUtilityTag) const;
+	void EvaluateBehaviorUtilities(const FBTCombatEvaluatorMemory* CombatEvaluatorNodeMemory,
+	                               const APawn* ThisNpc, FCombatEvaluationResult& CombatEvaluationResult, TMap<FGameplayTag, float>& BehaviorUtilitiesScores, 
+	                               const UNpcCombatParametersDataAsset* NpcCombatParameters);
 	float EvaluateBehaviorUtility(FCombatEvaluationResult& CombatEvaluationResult, const FBehaviorUtilityParameters& BehaviorUtilityParameters,
-		const APawn* ThisNpc, const FBTCombatEvaluatorNodeMemory* NodeMemory, const FGameplayTag& BehaviorUtilityTag) const;
+		const APawn* ThisNpc, const FBTCombatEvaluatorMemory* NodeMemory, const FGameplayTag& BehaviorUtilityTag) const;
 	void GetBestBehaviorUtility(const TMap<FGameplayTag, float>& BehaviorUtilities, FGameplayTag& OutBestBehaviorTypeTag,
 		float& OutBestBehaviorUtility) const;
 	void SetActiveThreats(UNpcCombatLogicComponent* MobComponent, const FCombatEvaluationResult& CombatEvaluationResult) const;

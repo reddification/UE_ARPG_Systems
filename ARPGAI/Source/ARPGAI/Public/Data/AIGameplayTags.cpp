@@ -69,8 +69,11 @@ namespace AIGameplayTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Dodge_Completed, "AI.BrainMessage.Dodge.Complete", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Gesture_Completed, "AI.BrainMessage.Gesture.Complete", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Stagger_Completed, "AI.BrainMessage.Stagger.Complete", "");
+	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Block_Completed, "AI.BrainMessage.Block.Complete", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Block_BlockedAttack, "AI.BrainMessage.Block.BlockedAttack", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_Block_ParriedAttack, "AI.BrainMessage.Block.ParriedAttack", "");
+	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_ChargeIn_Completed, "AI.BrainMessage.ChargeIn.Complete", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(AI_BrainMessage_LookAt_Completed, "AI.BrainMessage.LookAt.Complete", "");
 

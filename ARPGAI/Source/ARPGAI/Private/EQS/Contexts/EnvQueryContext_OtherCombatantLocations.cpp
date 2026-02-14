@@ -5,6 +5,7 @@
 
 #include "AIController.h"
 #include "Activities/NpcComponentsHelpers.h"
+#include "Components/EnemiesCoordinatorComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
 #include "Data/LogChannels.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"

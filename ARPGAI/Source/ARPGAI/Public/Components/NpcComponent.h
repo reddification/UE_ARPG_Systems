@@ -27,7 +27,7 @@ public:
 	
 	FORCEINLINE bool IsAlive() const { return !bDead; }
 
-	FORCEINLINE void SetDTRH(const FDataTableRowHandle& InNpcDTRH);
+	void SetDTRH(const FDataTableRowHandle& InNpcDTRH);
 	
 	FORCEINLINE const FDataTableRowHandle& GetDTRH() const { return NpcDTRH; }
 	

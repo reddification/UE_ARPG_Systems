@@ -1,19 +1,17 @@
-﻿// 
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "EnemiesCoordinatorComponent.h"
+#include "DebugDataTypes.h"
 #include "GameplayTagContainer.h"
 #include "Data/CombatEvaluationData.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "BehaviorTree/Tasks/Combat/BTTask_AttackSequence.h"
 #include "Data/NpcCombatTypes.h"
-#include "Data/NpcDTR.h"
 
 #include "NpcCombatLogicComponent.generated.h"
 
-
+struct FNpcFeintParameters;
+class UNpcBlackboardDataAsset;
+class UNpcCombatParametersDataAsset;
 class UNpcCombatAttributeSet;
 struct FOnAttributeChangeData;
 class UAttributeSet;
@@ -36,11 +34,12 @@ public:
 	FORCEINLINE float GetPoise() const { return Poise; }
 	FORCEINLINE float GetIntelligence() const { return Intelligence; }
 	FORCEINLINE float GetReaction() const { return Reaction; }
-	FORCEINLINE FNpcDTR* GetNpcDTR() const { return NpcDTRH.GetRow<FNpcDTR>(""); }
-	FORCEINLINE const FNpcActiveTargetData& GetPrimaryTargetData() const { return PrimaryTargetData; };
+	FORCEINLINE float GetNormalizedStamina() const { return NormalizedStamina; }
+	FORCEINLINE const FNpcActiveTargetData& GetPrimaryTargetData() const { return PrimaryTargetData; }
 	FORCEINLINE const AActor* GetPrimaryTargetActor() const { return PrimaryTargetData.ActiveTarget.Get(); }
+	FORCEINLINE void SetBrainPaused(bool bPaused) { bBrainPaused = bPaused; }
 	
-	FORCEINLINE const UNpcCombatParametersDataAsset* GetNpcCombatParameters() const { return NpcCombatParameters; };
+	FORCEINLINE const UNpcCombatParametersDataAsset* GetNpcCombatParameters() const { return NpcCombatParameters; }
 	
 	bool IsRetreating() const;
 	bool IsSurrounding() const;
@@ -50,8 +49,8 @@ public:
 	const FNpcFeintParameters& GetAttackFeintParameters() const;
 	float GetIntellectAffectedDistance(float BaseDistance) const;
 	float GetTauntProbabilityOnSuccessfulAttack() const;
-	float GetBackstepProbabilityOnWhiff() const;
-	
+	float GetBackdashProbabilityOnWhiff() const;
+
 	void SetActiveThreats(const FNpcActiveThreatsContainer& EvaluatedThreats);
 	const FNpcActiveThreatsContainer& GetActiveThreats() const;
 	FGameplayTag GetThreatLevel(float BestTargetThreat) const;
@@ -79,21 +78,43 @@ public:
 	TArray<APawn*> GetAllies(bool bIgnoreSquadLeader) const;
 	void TrackEnemyAlive(AActor* Actor);
 	void ResetTrackingEnemyAlive();
+
+	bool ShouldRetaliateAfterSuccessfulBlock(ENpcBlockResult BlockResult);
+	
+	bool IsReactingToIncomingAttack() const { return DefensiveActionCauser.IsValid(); }
+	void ReactToReceivedHit(const FGameplayTag& HitTypeTag, AActor* HitCauser, float HealthDamage, const FHitResult& HitResult);
 	
 	// (aki) 02.02.2026: used for investigation of a bug. TODO remove ASAP
 	virtual void Debug_RequestDodge();
+	
+	bool DecideWantToBaitAttack();
+	float GetBaitAttackDuration() const;
 
 protected:
 	FNpcActiveTargetData PrimaryTargetData;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FDebugOptionsContainer DebugOptions;
+#endif
+	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void InitializeComponent() override;
 
-private:
-	FDataTableRowHandle NpcDTRH;
-	bool bNpcComponentInitialized = false;
+	UPROPERTY()
+	TScriptInterface<INpc> OwnerNPC;
 
+	UPROPERTY()
+	TScriptInterface<INpcAliveCreature> OwnerAliveCreature;
+
+	TWeakObjectPtr<APawn> OwnerPawn;
+	
+private:
+	bool bNpcComponentInitialized = false;
+	bool bDead = false;
+	bool bBrainPaused = false;
+	
 	float AttackRange = 0.f;
 	float SurroundRange = 0.f;
 	float Aggressiveness = 0.f;
@@ -105,32 +126,26 @@ private:
 
 	float Reaction = 0.f;
 	float Health = 0.f;
+	float NormalizedHealth = 0.f;
 	float Stamina = 0.f;
+	float NormalizedStamina = 0.f;
 	float CombatEvaluatorInterval = 1.0f;
 	float Anxiety = 0.f;
 
-	// think about removing it and using Attribute instead 
 	float DistanceToTarget = 0.f;
-	ENpcTargetDistanceEvaluation TargetMoveDirectionEvaluation = ENpcTargetDistanceEvaluation::TargetIsStationary;
-	
 	float AttackRangeScale = 1.f;
 	float AttackRangeStepExtension = 80.f;
+	float BaitAttackAvailableAtWorldTime = 0.f;
 
-	UPROPERTY()
-	TScriptInterface<INpc> OwnerNPC;
-
-	UPROPERTY()
-	TScriptInterface<INpcAliveCreature> OwnerAliveCreature;
+	ENpcTargetDistanceEvaluation TargetMoveDirectionEvaluation = ENpcTargetDistanceEvaluation::TargetIsStationary;
 	
-	TWeakObjectPtr<APawn> OwnerPawn;
-
 	mutable TWeakObjectPtr<UBlackboardComponent> BlackboardComponent;
 	
 	ENpcCombatRole ActiveAttackerRole = ENpcCombatRole::None;
 	FGameplayTag ActiveThreatLevelTag = FGameplayTag::EmptyTag;
-	TWeakObjectPtr<const AActor> ActiveReactToAttackActor = nullptr;
+	TWeakObjectPtr<const AActor> DefensiveActionCauser = nullptr;
 	FNpcActiveThreatsContainer ActiveThreats;
-	
+	TArray<TWeakObjectPtr<const AActor>> AttackingThreats;
 	TWeakObjectPtr<AActor> TrackedEnemyAlive;
 	
 	TMap<TWeakObjectPtr<const AActor>, float> IgnoreIncomingAttackUntil;
@@ -148,11 +163,13 @@ private:
 	void InitializeNpcCombatAttributeSet(const UNpcCombatAttributeSet* NpcCombatAttributeSet);
 
 	void ReactToIncomingAttack(AActor* Actor);
+	void ReactToThreatAttackCompleted(AActor* Actor);
 	void ReactToFeintedAttack(AActor* Attacker);
 	void ReactToEnemyWhiffedAttack(AActor* Actor);
 	void ReactToEnemyBlock(AActor* Actor);
 	void ReactToEnemyChangeWeapon(AActor* Actor);
 	void ResetReactionToIncomingAttack();
+	void GetRelevantThreatsCounts(int& RelevantEnemiesCount, int& EnemiesThatCanAttackMeCount, float RelevantDistanceScale = 1.25f, float Angle = 30.f) const;
 	
 	void SetAttackRange(float NewValue);
 	void SetSurroundRange(float NewValue);
@@ -173,6 +190,8 @@ private:
 	void UnsubscribeFromDelegates();
 	void OnEnemyDied(AActor* Actor);
 	void ReceiveReportEnemyDied(AActor* KilledActor);
+	
+	bool IsImmobilized() const { return bBrainPaused || bDead; }
 	
 	UPROPERTY()
 	const UNpcCombatParametersDataAsset* NpcCombatParameters = nullptr;

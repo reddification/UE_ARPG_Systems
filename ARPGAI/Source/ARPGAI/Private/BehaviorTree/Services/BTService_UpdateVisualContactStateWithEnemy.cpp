@@ -4,7 +4,9 @@
 #include "BehaviorTree/Services/BTService_UpdateVisualContactStateWithEnemy.h"
 
 #include "AIController.h"
+#include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Chaos/Utilities.h"
 #include "Components/Controller/NpcSquadMemberComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Interfaces/Npc.h"
@@ -17,8 +19,14 @@ UBTService_UpdateVisualContactStateWithEnemy::UBTService_UpdateVisualContactStat
 	NodeName = "Update visual contact state with enemy";
 	OutNpcSeesEnemyBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateVisualContactStateWithEnemy, OutNpcSeesEnemyBBKey));
 	OutEnemySeesNpcBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateVisualContactStateWithEnemy, OutEnemySeesNpcBBKey));
-	OutDotProduct_NpcFV_EnemyFV_BBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateVisualContactStateWithEnemy, OutDotProduct_NpcFV_EnemyFV_BBKey));
+	
+	OutDotProduct_NpcFVToTarget_BBKey.AllowNoneAsValue(true);
+	OutDotProduct_NpcFVToTarget_BBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateVisualContactStateWithEnemy, OutDotProduct_NpcFVToTarget_BBKey));
+	OutDotProduct_TargetFVToNpc_BBKey.AllowNoneAsValue(true);
+	OutDotProduct_TargetFVToNpc_BBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateVisualContactStateWithEnemy, OutDotProduct_TargetFVToNpc_BBKey));
+	OutVisualContactDurationBBKey.AllowNoneAsValue(true);
 	OutVisualContactDurationBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateVisualContactStateWithEnemy, OutVisualContactDurationBBKey));
+	
 	TargetBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateVisualContactStateWithEnemy, TargetBBKey), AActor::StaticClass());
 	bNotifyCeaseRelevant = true;
 }
@@ -36,16 +44,22 @@ void UBTService_UpdateVisualContactStateWithEnemy::TickNode(UBehaviorTreeCompone
 	{
 		Blackboard->SetValueAsBool(OutNpcSeesEnemyBBKey.SelectedKeyName, false);
 		Blackboard->SetValueAsBool(OutEnemySeesNpcBBKey.SelectedKeyName, false);
-		Blackboard->SetValueAsFloat(OutDotProduct_NpcFV_EnemyFV_BBKey.SelectedKeyName, FLT_MAX);
-		Blackboard->SetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName, 0.f);
+		
+		if (!OutDotProduct_NpcFVToTarget_BBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutDotProduct_NpcFVToTarget_BBKey.SelectedKeyName, -FLT_MAX);
+		if (!OutDotProduct_TargetFVToNpc_BBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutDotProduct_TargetFVToNpc_BBKey.SelectedKeyName, -FLT_MAX);
+		if (!OutVisualContactDurationBBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName, -1.f);
+		
 		if (bPreviousNpcSeesEnemy)
 		{
 			auto Npc = Cast<INpc>(NpcPawn);
 			Npc->RemoveNpcTags(AIGameplayTags::AI_State_DirectVisualContact.GetTag().GetSingleTagContainer());
 			if (BTMemory->LastSeenLocation != FAISystem::InvalidLocation)
 			{
-				const float DotProductNpcFVToNpcToEnemy = NpcPawn->GetActorForwardVector() | (BTMemory->LastSeenLocation - NpcPawn->GetActorLocation()).GetSafeNormal();
-				if (DotProductNpcFVToNpcToEnemy > 0.2f) // if NPC didn't turn back himself
+				const float DotProductNpcFVToEnemy = NpcPawn->GetActorForwardVector() | (BTMemory->LastSeenLocation - NpcPawn->GetActorLocation()).GetSafeNormal();
+				if (DotProductNpcFVToEnemy > 0.2f) // if NPC didn't turn back himself
 					ReportVisualContactStateChanged(OwnerComp, NpcPawn, ChanceToReportVisualContactLost, AIGameplayTags::AI_Behavior_Combat_Event_LostContact);
 			}
 		}
@@ -58,7 +72,8 @@ void UBTService_UpdateVisualContactStateWithEnemy::TickNode(UBehaviorTreeCompone
 	const FVector NpcLocation = NpcPawn->GetActorLocation();
 	const FVector TargetLocation = Target->GetActorLocation();
 
-	if ((NpcPawn->GetActorForwardVector() | (TargetLocation - NpcLocation).GetSafeNormal()) >= NpcSeesEnemyDotProductThreshold)
+	const float NpcToEnemyDP = NpcPawn->GetActorForwardVector() | (TargetLocation - NpcLocation).GetSafeNormal();
+	if (NpcToEnemyDP >= NpcSeesEnemyDotProductThreshold)
 	{
 		FActorPerceptionBlueprintInfo TargetPerception;
 		bool bHasTargetPerception = OwnerComp.GetAIOwner()->GetAIPerceptionComponent()->GetActorsPerception(Target, TargetPerception);
@@ -84,10 +99,15 @@ void UBTService_UpdateVisualContactStateWithEnemy::TickNode(UBehaviorTreeCompone
 	bool bEnemyCanSeeNpc = false;
 	if (bNpcCanSeeEnemy)
 	{
-		const float DotProduct = Target->GetActorForwardVector() | NpcPawn->GetActorForwardVector();
-		Blackboard->SetValueAsFloat(OutDotProduct_NpcFV_EnemyFV_BBKey.SelectedKeyName, DotProduct);
+		if (!OutDotProduct_NpcFVToTarget_BBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutDotProduct_NpcFVToTarget_BBKey.SelectedKeyName, NpcToEnemyDP);
+		
+		float TargetFVToNpcDP = Target->GetActorForwardVector() | (NpcLocation - TargetLocation).GetSafeNormal();
+		if (!OutDotProduct_TargetFVToNpc_BBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutDotProduct_TargetFVToNpc_BBKey.SelectedKeyName, TargetFVToNpcDP);
+		
 		BTMemory->LastSeenLocation = Target->GetActorLocation();
-		if (DotProduct < NpcFVToEnemyFVDotProductThreshold)
+		if (TargetFVToNpcDP >= EnemyCanSeeNpcDotProductThreshold)
 		{
 			FVector EnemyEyesLocation = Target->GetActorLocation() + FVector::UpVector * 75.f;
 			FCollisionQueryParams CollisionQueryParams;
@@ -99,11 +119,14 @@ void UBTService_UpdateVisualContactStateWithEnemy::TickNode(UBehaviorTreeCompone
 		}
 	}	
 
-	float CurrentDirectVisualContactDuration = Blackboard->GetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName);
-	if (bNpcCanSeeEnemy && bEnemyCanSeeNpc)
-		Blackboard->SetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName, CurrentDirectVisualContactDuration + DeltaSeconds);
-	else if (CurrentDirectVisualContactDuration >= 0.f)
-		Blackboard->SetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName, FMath::Max(0.f, CurrentDirectVisualContactDuration - DeltaSeconds * VisualContactTimerDecayRate));
+	if (!OutVisualContactDurationBBKey.IsNone())
+	{
+		float CurrentDirectVisualContactDuration = Blackboard->GetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName);
+		if (bNpcCanSeeEnemy && bEnemyCanSeeNpc)
+			Blackboard->SetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName, CurrentDirectVisualContactDuration + DeltaSeconds);
+		else if (CurrentDirectVisualContactDuration >= 0.f)
+			Blackboard->SetValueAsFloat(OutVisualContactDurationBBKey.SelectedKeyName, FMath::Max(0.f, CurrentDirectVisualContactDuration - DeltaSeconds * VisualContactTimerDecayRate));
+	}
 	
 	Blackboard->SetValueAsBool(OutNpcSeesEnemyBBKey.SelectedKeyName, bNpcCanSeeEnemy);
 	Blackboard->SetValueAsBool(OutEnemySeesNpcBBKey.SelectedKeyName, bEnemyCanSeeNpc);
@@ -148,8 +171,16 @@ void UBTService_UpdateVisualContactStateWithEnemy::OnCeaseRelevant(UBehaviorTree
 	{
 		Blackboard->SetValueAsBool(OutNpcSeesEnemyBBKey.SelectedKeyName, false);
 		Blackboard->SetValueAsBool(OutEnemySeesNpcBBKey.SelectedKeyName, false);
-	}
+		if (!OutDotProduct_TargetFVToNpc_BBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutDotProduct_TargetFVToNpc_BBKey.SelectedKeyName, -FLT_MAX);
 
+		if (!OutDotProduct_NpcFVToTarget_BBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutDotProduct_NpcFVToTarget_BBKey.SelectedKeyName, -FLT_MAX);
+			
+		if (!OutVisualContactDurationBBKey.IsNone())
+			Blackboard->SetValueAsFloat(OutDotProduct_NpcFVToTarget_BBKey.SelectedKeyName, -1.f);
+	}
+	
 	if (auto AIController = OwnerComp.GetAIOwner())
 		if (auto AICharacter = Cast<INpc>(AIController->GetPawn()))
 			AICharacter->RemoveNpcTags(AIGameplayTags::AI_State_DirectVisualContact.GetTag().GetSingleTagContainer());
@@ -160,7 +191,20 @@ void UBTService_UpdateVisualContactStateWithEnemy::OnCeaseRelevant(UBehaviorTree
 FString UBTService_UpdateVisualContactStateWithEnemy::GetStaticDescription() const
 {
 	const FString VisualContactTagString = AIGameplayTags::AI_State_DirectVisualContact.GetTag().GetTagName().ToString();
-	return FString::Printf(TEXT("Target BB: %s\n[out]Npc sees enemy BB: %s\n[out]Enemy sees NPC BB: %s\n[out]Dot product between NPC FV and enemy FV BB: %s\nNpc sight dot product threshold = %.2f\nGrants tag %s when NPC sees enemy\n%s"),
+	FString Result = FString::Printf(TEXT("Target BB: %s\n[out]Npc sees enemy BB: %s\n[out]Enemy sees NPC BB: %s\n[out]Npc to target DP BB: %s\n[out]Target to NPC DP BB: %s\nNpc sight dot product threshold = %.2f\nGrants tag %s when NPC sees enemy"),
 		*TargetBBKey.SelectedKeyName.ToString(), *OutNpcSeesEnemyBBKey.SelectedKeyName.ToString(), *OutEnemySeesNpcBBKey.SelectedKeyName.ToString(),
-		*OutDotProduct_NpcFV_EnemyFV_BBKey.SelectedKeyName.ToString(), NpcFVToEnemyFVDotProductThreshold, *VisualContactTagString, *Super::GetStaticDescription());
+		*OutDotProduct_NpcFVToTarget_BBKey.SelectedKeyName.ToString(), *OutDotProduct_TargetFVToNpc_BBKey.SelectedKeyName.ToString(), EnemyCanSeeNpcDotProductThreshold, *VisualContactTagString);
+	
+	return FString::Printf(TEXT("%s\n%s"), *Result, *Super::GetStaticDescription());
+}
+
+void UBTService_UpdateVisualContactStateWithEnemy::InitializeFromAsset(UBehaviorTree& Asset)
+{
+	Super::InitializeFromAsset(Asset);
+	if (auto BB = Asset.GetBlackboardAsset())
+	{
+		OutDotProduct_TargetFVToNpc_BBKey.ResolveSelectedKey(*BB);
+		OutDotProduct_NpcFVToTarget_BBKey.ResolveSelectedKey(*BB);
+		OutVisualContactDurationBBKey.ResolveSelectedKey(*BB);
+	}
 }

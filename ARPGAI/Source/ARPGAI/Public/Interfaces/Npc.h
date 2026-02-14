@@ -51,8 +51,8 @@ public:
 	virtual bool PerformNpcGesture(const FGameplayTag& GestureTag) = 0;
 	virtual void StopNpcGesture() = 0;
 	
-	virtual bool Parry() = 0;
-	virtual void CancelParry() = 0;
+	virtual bool BlockAttack() = 0;
+	virtual void CancelBlock() = 0;
 
 	virtual void StartAttack() = 0;
 	virtual void RequestNextAttack() = 0;

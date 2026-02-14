@@ -2,6 +2,7 @@
 
 #include "GameplayTagAssetInterface.h"
 #include "Data/AIGameplayTags.h"
+#include "Data/NpcCombatParametersDataAsset.h"
 #include "Data/NpcDTR.h"
 #include "Data/NpcSettings.h"
 #include "Gameframework/GameModeBase.h"
@@ -206,14 +207,15 @@ bool UNpcAttitudesComponent::OnHitReceivedFromActor(const AActor* DamageCauser)
 	if (Attitude.MatchesTag(AIGameplayTags::AI_Attitude_Hostile))
 		return false;
 	
-	int* ForgivableCountOfHits = ForgivableCountOfHitsForAttitude.Find(Attitude);
-	if (ForgivableCountOfHits == nullptr)
-		return false;
-
+	int ForgivableNumberOfHits = 1;
+	int* ForgivableCountOfHitsPtr = ForgivableCountOfHitsForAttitude.Find(Attitude);
+	if (ForgivableCountOfHitsPtr != nullptr)
+		ForgivableNumberOfHits = *ForgivableCountOfHitsPtr;
+	
 	bool bMustSetTimer = ReceivedHitsFromCharacters.IsEmpty();
 	FReceivedHitsCountMemory& ReceivedHitsFromCharacterMemory = ReceivedHitsFromCharacters.FindOrAdd(DamageCauser);
 	ReceivedHitsFromCharacterMemory.Count++;
-	bool bForgive = ReceivedHitsFromCharacterMemory.Count <= *ForgivableCountOfHits;
+	bool bForgive = ReceivedHitsFromCharacterMemory.Count <= ForgivableNumberOfHits;
 	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
 	const auto& CurrentGameTime = NpcGameMode->GetARPGAIGameTime();
 	float RememberHitDurationGameHours = 1.f;

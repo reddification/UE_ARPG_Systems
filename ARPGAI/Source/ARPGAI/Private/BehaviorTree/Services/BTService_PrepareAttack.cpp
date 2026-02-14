@@ -24,7 +24,137 @@ UBTService_PrepareAttack::UBTService_PrepareAttack()
 	TargetBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_PrepareAttack, TargetBBKey), AActor::StaticClass());
 	AttackActiveBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_PrepareAttack, AttackActiveBBKey));
 	OutRequestAttackBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_PrepareAttack, OutRequestAttackBBKey));
+	
+	NpcToTargetDotProductBBKey.AllowNoneAsValue(true);
+	NpcToTargetDotProductBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_PrepareAttack, NpcToTargetDotProductBBKey));
+	TargetToNpcDotProductBBKey.AllowNoneAsValue(true);
+	TargetToNpcDotProductBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_PrepareAttack, TargetToNpcDotProductBBKey));
+	
 	bTickIntervals = true;
+}
+
+void UBTService_PrepareAttack::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+{
+	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
+	auto Target = Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(TargetBBKey.SelectedKeyName));
+	auto Blackboard = OwnerComp.GetBlackboardComponent();
+	auto AIController = OwnerComp.GetAIOwner();
+	bool bCurrentAttackRequestState = Blackboard->GetValueAsBool(OutRequestAttackBBKey.SelectedKeyName);
+	if (Target == nullptr)
+	{
+		if (bCurrentAttackRequestState)
+		{
+			UE_VLOG(AIController, LogARPGAI_PrepareAttack, Verbose, TEXT("Target is nullptr, removing request for attack"));
+			Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
+		}
+		
+		return;
+	}
+	
+	auto Threat = Cast<IThreat>(Target);
+	if (!ensure(Threat))
+	{
+		if (bCurrentAttackRequestState)
+		{
+			UE_VLOG(AIController, LogARPGAI_PrepareAttack, Verbose, TEXT("Target %s has no IThreat interface. Removing request for attack"), *Target->GetName());
+			Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
+		}
+		
+		return;
+	}
+
+	const bool bAttackActive = Blackboard->GetValueAsBool(AttackActiveBBKey.SelectedKeyName);
+	if (!bAttackActive)
+	{
+		auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
+		if (!Npc->CanAttack())
+		{
+			UE_VLOG(AIController, LogARPGAI_PrepareAttack, VeryVerbose, TEXT("NPC can't attack"));
+			if (bCurrentAttackRequestState)
+				Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
+			
+			return;
+		}
+	}
+	
+	FBTMemory_PrepareAttack* ServiceMemory = reinterpret_cast<FBTMemory_PrepareAttack*>(NodeMemory);
+	auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
+	bool bNpcToTargetDotProductPasses = true;
+	if (!NpcToTargetDotProductBBKey.IsNone())
+	{
+		float DP = Blackboard->GetValueAsFloat(NpcToTargetDotProductBBKey.SelectedKeyName);
+		bNpcToTargetDotProductPasses = DP >= AttackRelevantDotProductThreshold;
+	}
+	
+	bool bEnemyIsTurnedAwayDP = false;
+	if (!TargetToNpcDotProductBBKey.IsNone())
+	{
+		float DP = Blackboard->GetValueAsFloat(TargetToNpcDotProductBBKey.SelectedKeyName);
+		bEnemyIsTurnedAwayDP = DP <= 0.5f;
+	}
+	
+	// if not attacking and dot product is good or AI is stupid enough to start its attack when enemy is attacking
+	const bool bCanConsiderAttack = bNpcToTargetDotProductPasses && 
+		(bEnemyIsTurnedAwayDP || !Threat->IsAttacking() || FMath::RandRange(0.f, 1.f) > ServiceMemory->Intelligence);
+	
+#if WITH_EDITOR
+	UE_VLOG(AIController, LogARPGAI_PrepareAttack, VeryVerbose, TEXT("%s"), bCanConsiderAttack ? TEXT("Can consider attack") : TEXT("Cannot consider attack"));
+	UE_VLOG(AIController, LogARPGAI_PrepareAttack, VeryVerbose, TEXT("%s"), bNpcToTargetDotProductPasses ? TEXT("NPC to target dot product passes") : TEXT("NPC is looking wrong way"));
+	UE_VLOG(AIController, LogARPGAI_PrepareAttack, VeryVerbose, TEXT("%s"), bEnemyIsTurnedAwayDP ? TEXT("Target is turned away") : TEXT("Target can see NPC"));
+	UE_VLOG(AIController, LogARPGAI_PrepareAttack, VeryVerbose, TEXT("%s"), Threat->IsAttacking() ? TEXT("Target is attacking") : TEXT("Target is not attacking"));
+#endif
+	
+	if (bCanConsiderAttack)
+	{
+		const float Dist = (OwnerComp.GetAIOwner()->GetPawn()->GetActorLocation() - Target->GetActorLocation()).Size();
+		float DistDeviated = ServiceMemory->NpcCombatComponent->GetIntellectAffectedDistance(Dist);
+		const bool bTargetInAttackRange = DistDeviated < ServiceMemory->AttackRange && DistDeviated > ServiceMemory->TooCloseDistance;
+
+#if WITH_EDITOR
+		auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
+		UE_VLOG(AIController, LogARPGAI_PrepareAttack, VeryVerbose, TEXT("True attack range = %.2f\nPerceived Attack Range = %.2f\nTrue distance to target = %.2f\nPerceived distance to target = %.2f"), 
+			Npc->GetAttackRange(), ServiceMemory->AttackRange, Dist, DistDeviated);
+		UE_VLOG(AIController, LogARPGAI_PrepareAttack, VeryVerbose, TEXT("Too close distance = %.2f\n"), ServiceMemory->TooCloseDistance);
+		UE_VLOG(AIController, LogARPGAI_PrepareAttack, Verbose, TEXT("%s"), bTargetInAttackRange ? TEXT("TARGET IN RANGE") : TEXT("Target not in range"));
+		UE_VLOG(AIController, LogARPGAI_PrepareAttack, Verbose, TEXT("Calculation: %.2f < %.2f && %.2f > %.2f"), DistDeviated, ServiceMemory->AttackRange, DistDeviated, ServiceMemory->TooCloseDistance);
+		UE_VLOG_CAPSULE(OwnerComp.GetAIOwner(), LogARPGAI_PrepareAttack, VeryVerbose, Target->GetActorLocation() - FVector::UpVector * 90, 90, 30, FQuat::Identity, FColor::Red, TEXT("Target"));
+#endif
+	
+		if (bTargetInAttackRange && !bCurrentAttackRequestState)
+		{
+			if (ServiceMemory->NpcCombatComponent->DecideWantToBaitAttack())
+			{
+				UE_VLOG(AIController, LogARPGAI_PrepareAttack, Verbose, TEXT("NPC decided to bait attack to try to parry"));
+				SetNextTickTime(NodeMemory, ServiceMemory->NpcCombatComponent->GetBaitAttackDuration());
+				return;
+			}
+			
+			OwnerComp.GetBlackboardComponent()->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, true);
+			SetNextTickTime(NodeMemory, NextTickDelayAfterRequestToAttack);
+			UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_PrepareAttack, Verbose, TEXT("Must attack now. Setting flag"));
+		}
+		else if (bCurrentAttackRequestState)
+		{
+			bool bTargetTooClose = DistDeviated < ServiceMemory->TooCloseDistance;
+			bool bTargetTooFar = DistDeviated > ServiceMemory->AttackRange + ResetPreparedAttackDistanceThreshold; 
+			if (bTargetTooFar || bTargetTooClose)
+			{
+				Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
+#if WITH_EDITOR
+				if (bTargetTooFar)
+				{
+					UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_PrepareAttack, Verbose, TEXT("Cancelling attack request because target got too far (%.2f > %.2f + %.2f)"),
+						DistDeviated, ServiceMemory->AttackRange, ResetPreparedAttackDistanceThreshold);
+				}
+				else if (bTargetTooClose)
+				{
+					UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_PrepareAttack, Verbose, TEXT("Cancelling attack request because target got too close (%.2f < %.2f)"),
+						DistDeviated, ServiceMemory->TooCloseDistance);
+				}
+#endif
+			}
+		}
+	}
 }
 
 void UBTService_PrepareAttack::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -42,37 +172,42 @@ void UBTService_PrepareAttack::OnBecomeRelevant(UBehaviorTreeComponent& OwnerCom
 	ServiceMemory->TooCloseDistance = ServiceMemory->AttackRange * TooCloseRangeDistanceCoefficient;
 	ServiceMemory->AttackRange += LittleExtraAttackRange;
 
-	FOnBlackboardChangeNotification OnBlackboardAttackRangeChangeNotification = FOnBlackboardChangeNotification::CreateUObject(this,
-		&UBTService_PrepareAttack::OnAttackRangeChanged);
-
-	ServiceMemory->OnAttackRangeChangedDelegateHandle = Blackboard->RegisterObserver(AttackRangeBBKey.GetSelectedKeyID(), this,
-		OnBlackboardAttackRangeChangeNotification);
-
-	if (auto TargetThreat = Cast<IThreat>(Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName)))
-		TargetThreat->ReportPreparingAttack(OwnerComp.GetAIOwner()->GetPawn(), true);
+	FOnBlackboardChangeNotification OnAttackRangeChangeDelegate = FOnBlackboardChangeNotification::CreateUObject(this, &UBTService_PrepareAttack::OnAttackRangeChanged);
+	FOnBlackboardChangeNotification OnTargetChangedDelegate = FOnBlackboardChangeNotification::CreateUObject(this, &UBTService_PrepareAttack::OnTargetChanged);
+	
+	Blackboard->RegisterObserver(AttackRangeBBKey.GetSelectedKeyID(), this, OnAttackRangeChangeDelegate);
+	Blackboard->RegisterObserver(TargetBBKey.GetSelectedKeyID(), this, OnTargetChangedDelegate);
+	
+	ServiceMemory->TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName));
+	if (ServiceMemory->TargetActor.IsValid())
+		if (auto TargetThreat = Cast<IThreat>(ServiceMemory->TargetActor))
+			TargetThreat->ReportPreparingAttack(OwnerComp.GetAIOwner()->GetPawn(), true);
+	
+	UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_PrepareAttack, Verbose, 
+		TEXT("BT memory changed:\nAttack range = %2.f, too close distance = %.2f\nIntelligence = %.2f"),
+		ServiceMemory->AttackRange, ServiceMemory->TooCloseDistance, ServiceMemory->Intelligence);
 }
 
 void UBTService_PrepareAttack::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	if (auto Blackboard = OwnerComp.GetBlackboardComponent())
-	{
-		FBTMemory_PrepareAttack* ServiceMemory = reinterpret_cast<FBTMemory_PrepareAttack*>(NodeMemory);
-		Blackboard->UnregisterObserver(AttackRangeBBKey.GetSelectedKeyID(), ServiceMemory->OnAttackRangeChangedDelegateHandle);
-		if (auto TargetThreat = Cast<IThreat>(Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName)))
-			TargetThreat->ReportPreparingAttack(OwnerComp.GetAIOwner()->GetPawn(), false);
-	}
+		Blackboard->UnregisterObserversFrom(this);
+	
+	if (FBTMemory_PrepareAttack* ServiceMemory = reinterpret_cast<FBTMemory_PrepareAttack*>(NodeMemory))
+		if (ServiceMemory->TargetActor.IsValid())
+			if (auto AIController = OwnerComp.GetAIOwner())
+				if (auto Pawn = AIController->GetPawn())
+					if (auto TargetThreat = Cast<IThreat>(ServiceMemory->TargetActor.Get()))
+						TargetThreat->ReportPreparingAttack(Pawn, false);
 	
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
 }
 
-EBlackboardNotificationResult UBTService_PrepareAttack::OnAttackRangeChanged(
-	const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key)
+EBlackboardNotificationResult UBTService_PrepareAttack::OnAttackRangeChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key)
 {
 	UBehaviorTreeComponent* BehaviorComp = Cast<UBehaviorTreeComponent>(BlackboardComponent.GetBrainComponent());
 	if (BehaviorComp == nullptr)
-	{
 		return EBlackboardNotificationResult::RemoveObserver;
-	}
 	
 	FBTMemory_PrepareAttack* ServiceMemory = reinterpret_cast<FBTMemory_PrepareAttack*>(BehaviorComp->GetNodeMemory(this, BehaviorComp->FindInstanceContainingNode(this)));
 	if (ServiceMemory == nullptr) // can happen when combat BT is aborted (immediately after fight has finished) 
@@ -89,90 +224,56 @@ EBlackboardNotificationResult UBTService_PrepareAttack::OnAttackRangeChanged(
 	ServiceMemory->NpcCombatComponent = NpcCombatComponent;
 	
 	ServiceMemory->AttackRange = NpcCombatComponent->GetIntellectAffectedDistance(BaseAttackRange);
-	ServiceMemory->TooCloseDistance = ServiceMemory->AttackRange * TooCloseRangeDistanceCoefficient; 
+	ServiceMemory->TooCloseDistance = ServiceMemory->AttackRange * TooCloseRangeDistanceCoefficient;
 	ServiceMemory->AttackRange += LittleExtraAttackRange;
+	
+	UE_VLOG(BehaviorComp->GetAIOwner(), LogARPGAI_PrepareAttack, Verbose, 
+		TEXT("BT memory changed:\nAttack range = %2.f, too close distance = %.2f\nIntelligence = %.2f"),
+		ServiceMemory->AttackRange, ServiceMemory->TooCloseDistance, ServiceMemory->Intelligence);
+	
 	return EBlackboardNotificationResult::ContinueObserving;
 }
 
-void UBTService_PrepareAttack::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+EBlackboardNotificationResult UBTService_PrepareAttack::OnTargetChanged(const UBlackboardComponent& BlackboardComponent,
+	FBlackboard::FKey Key)
 {
-	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
-	auto Target = Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(TargetBBKey.SelectedKeyName));
-	auto Blackboard = OwnerComp.GetBlackboardComponent();
-	if (Target == nullptr)
-	{
-		Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
-		return;
-	}
-	
-	auto Threat = Cast<IThreat>(Target);
-	if (!ensure(Threat))
-	{
-		Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
-		return;
-	}
+	UBehaviorTreeComponent* BehaviorComp = Cast<UBehaviorTreeComponent>(BlackboardComponent.GetBrainComponent());
+	if (BehaviorComp == nullptr || BehaviorComp->GetAIOwner() == nullptr || BehaviorComp->GetAIOwner()->GetPawn() == nullptr)
+		return EBlackboardNotificationResult::RemoveObserver;
 
-	const bool bAttackActive = Blackboard->GetValueAsBool(AttackActiveBBKey.SelectedKeyName);
-	if (!bAttackActive)
-	{
-		auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
-		if (!Npc->CanAttack())
-		{
-			Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
-			if (bShowDebugInfo)
-				GEngine->AddOnScreenDebugMessage(1, 1.f, FColor::Purple, TEXT("Can't attack"));
-			
-			return;
-		}
-	}
+	auto Pawn = BehaviorComp->GetAIOwner()->GetPawn();
+	UE_VLOG(Pawn, LogARPGAI_PrepareAttack, Log, TEXT("Target changed"));
 	
+	auto NodeMemory = BehaviorComp->GetNodeMemory(this, BehaviorComp->FindInstanceContainingNode(this));
 	FBTMemory_PrepareAttack* ServiceMemory = reinterpret_cast<FBTMemory_PrepareAttack*>(NodeMemory);
-	// I don't really want to set BB value to false otherwise because conceptually this service must have a very low tick interval
-	// and should be called in a branch where attack is not ready,
-	// hence the branch that is executed when the attack IS ready should reset the OutRequestBBKey upon exit
-
-	// if not attacking or AI is stupid enough to start its attack when enemy is attacking
-	if (!Threat->IsAttacking() || FMath::RandRange(0.f, 1.f) > ServiceMemory->Intelligence)
+	if (ServiceMemory != nullptr)
 	{
-		const float Dist = (OwnerComp.GetAIOwner()->GetPawn()->GetActorLocation() - Target->GetActorLocation()).Size();
-		float DistDeviated = ServiceMemory->NpcCombatComponent->GetIntellectAffectedDistance(Dist);
-		const bool bTargetInAttackRange = DistDeviated < ServiceMemory->AttackRange && DistDeviated > ServiceMemory->TooCloseDistance;
+		AActor* OldTarget = ServiceMemory->TargetActor.Get();
+		UE_VLOG(Pawn, LogARPGAI_CombatLogic, Verbose, TEXT("Old target: %s"), OldTarget != nullptr ? *OldTarget->GetName() : TEXT("nullptr"));
+		if (auto OldTargetThreat = Cast<IThreat>(OldTarget))
+			OldTargetThreat->ReportPreparingAttack(Pawn, false);
 		
-#if WITH_EDITORONLY_DATA
-		if (bShowDebugInfo)
-		{
-			auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
-			FString DebugMessage = FString::Printf(TEXT("True attack range = %.2f\nPerceived Attack Range = %.2f\n\nTrue distance to target = %.2f\nPerceived distance to target = %.2f"), 
-				Npc->GetAttackRange(), ServiceMemory->AttackRange, Dist, DistDeviated);
-			DebugMessage += FString::Printf(TEXT("\n\nToo close distance = %.2f\n"), ServiceMemory->TooCloseDistance);
-			GEngine->AddOnScreenDebugMessage(1, 1.f, FColor::Orange, DebugMessage);
-			if (bTargetInAttackRange)
-				GEngine->AddOnScreenDebugMessage(2, 1.f, FColor::Emerald, TEXT("TARGET IN RANGE"));
-			else 
-				GEngine->AddOnScreenDebugMessage(2, 1.f, FColor::Red, TEXT("TARGET IS NOT IN RANGE"));
-		}
-#endif
-		
-		UE_VLOG_CAPSULE(OwnerComp.GetAIOwner(), LogARPGAI, VeryVerbose, Target->GetActorLocation() - FVector::UpVector * 90, 90, 30, FQuat::Identity, FColor::Red, TEXT("Target"));
-		if (bTargetInAttackRange)
-		{
-			UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, VeryVerbose, TEXT("Must attack now"));
-			OwnerComp.GetBlackboardComponent()->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, true);
-			SetNextTickTime(NodeMemory, NextTickDelayAfterRequestToAttack);
-		}
-		else
-		{
-			bool bCurrentState = Blackboard->GetValueAsBool(OutRequestAttackBBKey.SelectedKeyName);
-			if (bCurrentState)
-			{
-				if (DistDeviated > ServiceMemory->AttackRange + ResetPreparedAttackDistanceThreshold)
-				{
-					UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, Verbose, TEXT("Cancelling attack request"));
-					Blackboard->SetValueAsBool(OutRequestAttackBBKey.SelectedKeyName, false);
-				}
-			}
-		}
+		auto NewTarget = Cast<AActor>(BlackboardComponent.GetValueAsObject(TargetBBKey.SelectedKeyName));
+		UE_VLOG(Pawn, LogARPGAI_CombatLogic, Verbose, TEXT("New target: %s"), NewTarget != nullptr ? *NewTarget->GetName() : TEXT("nullptr"));
+		ServiceMemory->TargetActor = NewTarget;
+		if (auto Threat = Cast<IThreat>(NewTarget))
+			Threat->ReportPreparingAttack(Pawn, true);
 	}
+	else
+	{
+		UE_VLOG(Pawn, LogARPGAI_CombatLogic, Warning, TEXT("WTF no BT memory"));
+		AActor* OldTarget = Cast<AActor>(BlackboardComponent.GetValueAsObject(TargetBBKey.SelectedKeyName));
+		if (OldTarget)
+			if (auto TargetThreat = Cast<IThreat>(OldTarget))
+				TargetThreat->ReportPreparingAttack(Pawn, false);
+		
+		return EBlackboardNotificationResult::RemoveObserver;
+	}
+
+	if (NodeMemory != nullptr)
+		SetNextTickTime(NodeMemory, 0.f);
+	
+	return EBlackboardNotificationResult::ContinueObserving;
 }
 
 void UBTService_PrepareAttack::InitializeFromAsset(UBehaviorTree& Asset)
@@ -182,12 +283,21 @@ void UBTService_PrepareAttack::InitializeFromAsset(UBehaviorTree& Asset)
 	{
 		AttackActiveBBKey.ResolveSelectedKey(*BBAsset);
 		AttackRangeBBKey.ResolveSelectedKey(*BBAsset);
+		NpcToTargetDotProductBBKey.ResolveSelectedKey(*BBAsset);
+		TargetToNpcDotProductBBKey.ResolveSelectedKey(*BBAsset);
+		TargetBBKey.ResolveSelectedKey(*BBAsset);
 	}
 }
 
 FString UBTService_PrepareAttack::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("[out] Request Attack BB: %s\nTarget BB: %s\nIntelligence BB: %s\nAttack Range BB: %s\nReset prepared attack exit distance threshold = %.2f\n%s"),
+	FString Result = FString::Printf(TEXT("[out] Request Attack BB: %s\nTarget BB: %s\nIntelligence BB: %s\nAttack Range BB: %s\nReset prepared attack exit distance threshold = %.2f"),
 		*OutRequestAttackBBKey.SelectedKeyName.ToString(), *TargetBBKey.SelectedKeyName.ToString(), *IntelligenceBBKey.SelectedKeyName.ToString(),
-		*AttackRangeBBKey.SelectedKeyName.ToString(), ResetPreparedAttackDistanceThreshold, *Super::GetStaticDescription());
+		*AttackRangeBBKey.SelectedKeyName.ToString(), ResetPreparedAttackDistanceThreshold);
+	
+	Result += FString::Printf(TEXT("\nStop attacking when dp [%s] < %.2f"), *NpcToTargetDotProductBBKey.SelectedKeyName.ToString(), AttackRelevantDotProductThreshold);
+	Result += FString::Printf(TEXT("\nTarget to NPC DP BB: %s"), *TargetToNpcDotProductBBKey.SelectedKeyName.ToString());
+	Result += FString::Printf(TEXT("\n%s"), *Super::GetStaticDescription());
+	
+	return Result;
 }

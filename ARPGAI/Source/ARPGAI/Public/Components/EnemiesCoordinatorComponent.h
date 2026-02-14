@@ -2,21 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Data/NpcCombatTypes.h"
 #include "EnemiesCoordinatorComponent.generated.h"
 
 class ACharacter;
 class UCoordinatorQueryHelper;
-
-// sorted by priority
-UENUM(BlueprintType)
-enum class ENpcCombatRole : uint8
-{
-	None = 0,
-	Attacker = 1,
-	Surrounder = 2,
-	Idle = 3,
-	Max = Idle UMETA(Hidden)
-};
 
 /*
  * Coordinator assigns and updates combat roles for registered enemies
@@ -49,19 +39,6 @@ private:
 		// but only 1, 2 and 4 can be occupied by actual valid pawns while others will be nullptr
 		TArray<TWeakObjectPtr<APawn>> Enemies;
 	};
-	
-	struct FPendingRoleTransfer
-	{
-		FPendingRoleTransfer(ENpcCombatRole FromRole, int Index, ENpcCombatRole ToRole)
-			: FromRole(FromRole), Index(Index), ToRole(ToRole)
-		{
-		}
-
-		ENpcCombatRole FromRole = ENpcCombatRole::None;
-		int Index = -1;
-		ENpcCombatRole ToRole = ENpcCombatRole::None;
-	};
-	
 	
 public:
 	UEnemiesCoordinatorComponent();

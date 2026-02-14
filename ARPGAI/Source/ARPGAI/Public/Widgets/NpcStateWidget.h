@@ -22,8 +22,6 @@ class ARPGAI_API UNpcStateWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	virtual void NativeConstruct() override;
-
 	UFUNCTION(BlueprintNativeEvent)
 	void SetNPC(APawn* InOwnerCharacter);
 
@@ -35,44 +33,35 @@ public:
 	void SetDetailedNpcView(bool bDetailed);
 	
 protected:
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UProgressBar* HealthBar;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UProgressBar* AggressionBar;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UProgressBar* StaminaBar;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UProgressBar* PoiseBar;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UTextBlock* HealthTextBlock;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UTextBlock* AggressionTextBlock;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UTextBlock* PoiseTextBlock;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UTextBlock* StaminaTextBlock;
 	
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	UTextBlock* NameTextblock;
 
-	UPROPERTY(VisibleAnywhere, meta=(BindWidget))
+	UPROPERTY(meta=(BindWidget))
 	USizeBox* BarsSizeBox;
-	
-	// UPROPERTY(VisibleAnywhere, meta=(BindWidget))
-	// UNpcStateCategoryWidget* ActiveAbilityContainer;
-	//
-	// UPROPERTY(VisibleAnywhere, meta=(BindWidget))
-	// UNpcStateCategoryWidget* ActiveStateContainer;
-	//
-	// UPROPERTY(VisibleAnywhere, meta=(BindWidget))
-	// UNpcStateCategoryWidget* ActiveBehaviorContainer;
 	
 private:
 	void SetStatWidgetData(UTextBlock* TextBlock, UProgressBar* ProgressBar, float Value, float MaxValue);

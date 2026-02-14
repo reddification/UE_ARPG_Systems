@@ -18,24 +18,28 @@ class UNpcFlowComponent;
 /**
  * 
  */
+
+UENUM(BlueprintType)
+enum class EGoalState : uint8
+{
+	Inactive,
+	Running,
+	Suspended,
+};
+
 UCLASS(Abstract)
 class ARPGAI_API UFlowNode_NpcGoal : public UFlowNodeStateful
 {
 	GENERATED_BODY()
-
-protected:
-	enum EGoalState
-	{
-		Inactive,
-		Running,
-		Suspended,
-	};
 	
 public:
 	UFlowNode_NpcGoal(const FObjectInitializer& ObjectInitializer);
 	virtual void ExecuteInput(const FName& PinName) override;
 	virtual void InitializeInstance() override;
 	FEQSParametrizedQueryExecutionRequest* GetEQSRequest(const FGameplayTag& Tag);
+	
+	FORCEINLINE const ENpcGoalType& GetGoalType() const { return NpcGoalType; }
+	FORCEINLINE const EGoalState& GetGoalState() const { return CurrentGoalState; }
 	
 #if WITH_EDITOR
 	virtual EDataValidationResult ValidateNode() override;
@@ -80,6 +84,7 @@ protected:
 	virtual void Finish() override;
 
 	ENpcGoalType NpcGoalType;
+	EGoalState CurrentGoalState = EGoalState::Inactive;
 
 	TWeakObjectPtr<APawn> NpcPawn;
 	TWeakObjectPtr<UNpcFlowComponent> NpcFlowComponent;
@@ -91,8 +96,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = DataPins, DisplayName = "Goal execution result tags", meta = (SourceForOutputFlowPin, FlowPinType = "GameplayTagContainer"))
 	FGameplayTagContainer OutGoalExecutionResultTags;
-	EGoalState CurrentGoalState = EGoalState::Inactive;
-	
+
 private:
 	float RemainingGoalExecutionTime = 0.f;
 	TWeakObjectPtr<UFlowNodeAddon_ActivityEQS> ActivityEQSProviderAddon;

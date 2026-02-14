@@ -7,20 +7,18 @@
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
-#include "GameFramework/Character.h"
 #include "Interfaces/Npc.h"
-#include "Kismet/GameplayStatics.h"
+#include "Data/NpcCombatParametersDataAsset.h"
 
 UBTTask_AttackSequence::UBTTask_AttackSequence()
 {
 	NodeName = "Attack sequence";
 	OutAttackingBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, OutAttackingBBKey));
 	OutTauntRequestBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, OutTauntRequestBBKey));
-	RequestAttackBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, RequestAttackBBKey));
+	IsWantToAttackBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, IsWantToAttackBBKey));
 	OutAttackResultBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, OutAttackResultBBKey), StaticEnum<ENpcAttackResult>());
 	OutDefenseActionBBKey.AddEnumFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, OutDefenseActionBBKey), StaticEnum<ENpcDefensiveAction>());
 	DistanceToEnemyBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, DistanceToEnemyBBKey));
-	AggressionBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTTask_AttackSequence, AggressionBBKey));
 	
 	bNotifyTick = true;
 	bTickIntervals = true;
@@ -106,7 +104,7 @@ void UBTTask_AttackSequence::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8*
 	auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
 	auto Npc = Cast<INpc>(Pawn);
 	auto NpcCombatComponent = Pawn->FindComponentByClass<UNpcCombatLogicComponent>();
-	const bool bAttackStillRequested = Blackboard->GetValueAsBool(RequestAttackBBKey.SelectedKeyName);
+	const bool bAttackStillRequested = Blackboard->GetValueAsBool(IsWantToAttackBBKey.SelectedKeyName);
 	
 	if (Message == AttackStartedMessageTag.GetTagName())
 	{
@@ -129,6 +127,7 @@ void UBTTask_AttackSequence::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8*
 		AttackMemory->bAttacking = true;
 		AttackMemory->MorphCounters = 1;
 		Blackboard->SetValueAsBool(OutAttackingBBKey.SelectedKeyName, true);
+		
 #if WITH_EDITOR
 		// WARNING! THIS PIECE OF CODE IS ONLY FOR DEBUGGING PURPOSES TO TEST A HYPOTHESIS 
 		// if during an unabortable attack a dodge is requested and BT flow switch is denied because task doesn't allow to abort immediately 
@@ -140,13 +139,14 @@ void UBTTask_AttackSequence::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8*
 		// so to test it and make sure this is the root of the problem, I will cause this bug to reproduce. 
 		// REMOVE THIS CODE ASAP
 		
-		if (Debug_Options.Contains(1))
+		if (DebugOptions.Contains(TEXT("AttackInterrupt_RequestDodge")))
 			GetNpcCombatLogicComponent(OwnerComp)->Debug_RequestDodge();
-		if (Debug_Options.Contains(2))
-			Blackboard->ClearValue(AggressionBBKey.SelectedKeyName);
-		if (Debug_Options.Contains(3))
+		// if (DebugOptions.Contains(TEXT("AttackInterrupt_ResetAggression")))
+		// 	Blackboard->ClearValue(AggressionBBKey.SelectedKeyName);
+		if (DebugOptions.Contains(TEXT("AttackInterrupt_RequestStagger")))
 			GetNpcComponent(OwnerComp)->Debug_RequestStagger();
 #endif
+		
 	}
 	else if (Message == AttackHitTargetMessageTag.GetTagName())
 	{
@@ -172,28 +172,22 @@ void UBTTask_AttackSequence::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8*
 
 		AttackMemory->bPreparingNextAttack = true;
 		SetNextTickTime(NodeMemory, FMath::RandRange(NextAttackDelay.GetLowerBound().GetValue(), NextAttackDelay.GetUpperBound().GetValue()));
-		// Npc->RequestNextAttack();
 	}
 	else if (Message == AttackWhiffedMessageTag.GetTagName())
 	{
 		AttackMemory->AttackResult = ENpcAttackResult::Whiffed;
 		if (AttackMemory->bAbortRequested || !bAttackStillRequested)
-		{
-			// FinalizeAttack(OwnerComp, AttackMemory, Blackboard, Npc, true);
 			return;
-		}
 		
-		if (FMath::RandRange(0.f, 1.f) <= NpcCombatComponent->GetBackstepProbabilityOnWhiff())
+		if (FMath::RandRange(0.f, 1.f) <= NpcCombatComponent->GetBackdashProbabilityOnWhiff())
 		{
 			UE_VLOG(AIController, LogARPGAI_Attack, Verbose, TEXT("Decided to backstep after whiffed attack"));
 			Blackboard->SetValueAsEnum(OutAttackResultBBKey.SelectedKeyName, (uint8)ENpcAttackResult::Whiffed);
 			Blackboard->SetValueAsEnum(OutDefenseActionBBKey.SelectedKeyName, (uint8)ENpcDefensiveAction::Backdash);
-			// FinalizeAttack(OwnerComp, AttackMemory, Blackboard, Npc, true);
 		}
 		else
 		{
 			UE_VLOG(AIController, LogARPGAI_Attack, Verbose, TEXT("Requesting next attack"));
-			// Npc->RequestNextAttack();
 			AttackMemory->bPreparingNextAttack = true;
 			SetNextTickTime(NodeMemory, FMath::RandRange(NextAttackDelay.GetLowerBound().GetValue(), NextAttackDelay.GetUpperBound().GetValue()));
 		}
@@ -214,8 +208,7 @@ void UBTTask_AttackSequence::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8*
 	else if (Message == AbilityActivationFailedCantAffordMessageTag.GetTagName())
 	{
 		AttackMemory->AttackResult = ENpcAttackResult::None;
-		UE_VLOG(AIController, LogARPGAI_Attack, Verbose, TEXT("Can't attack, can't afford cost. Resetting aggression because attack ability activation failed"));
-		Blackboard->SetValueAsFloat(AggressionBBKey.SelectedKeyName, 0.f);
+		UE_VLOG(AIController, LogARPGAI_Attack, Verbose, TEXT("Can't attack, can't afford cost"));
 		FinalizeAttack(OwnerComp, AttackMemory, Blackboard, Npc, false);
 	}
 	else if (Message == AbilityActivationFailedConditionsNotMetMessageTag.GetTagName())
@@ -227,6 +220,9 @@ void UBTTask_AttackSequence::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8*
 	}
 	else if (Message == EnemyBlockingAttackMessageTag.GetTagName())
 	{
+		if (AttackMemory->bAbortRequested || !bAttackStillRequested)
+			return;
+		
 		if (FMath::RandRange(0.f, 1.f) <= AttackMemory->Intelligence * AttackMemory->Reaction)
 		{
 			UE_VLOG(AIController, LogARPGAI_Attack, Verbose, TEXT("Morphing one attack into another because target is blocking"));
@@ -241,7 +237,7 @@ EBTNodeResult::Type UBTTask_AttackSequence::AbortTask(UBehaviorTreeComponent& Ow
 	auto AttackMemory = reinterpret_cast<FBTMemory_Attack*>(NodeMemory);
 	if (AttackMemory->bAttacking)
 	{
-		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_Attack, Verbose, TEXT("Requesting abort active attack"));
+		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_Attack, Verbose, TEXT("Abort requested. Attack in progress -> abort is postponed"));
 		AttackMemory->bAbortRequested = true;
 		WaitForMessage(OwnerComp, AttackFinishedMessageTag.GetTagName());
 		WaitForMessage(OwnerComp, AttackCancelledMessageTag.GetTagName());
@@ -249,7 +245,7 @@ EBTNodeResult::Type UBTTask_AttackSequence::AbortTask(UBehaviorTreeComponent& Ow
 	}
 	else
 	{
-		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_Attack, Verbose, TEXT("Requesting abort, no active attack"));
+		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_Attack, Verbose, TEXT("Abort requested. No active attack atm -> aborting immediately"));
 		auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
 		if (Npc)
 			Npc->CancelAttack();
@@ -309,9 +305,11 @@ uint16 UBTTask_AttackSequence::GetInstanceMemorySize() const
 
 FString UBTTask_AttackSequence::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("[out] Attacking BB: %s\n[out] Attack result BB: %s\n[out] Defense action BB: %s\n[out] Request taunt BB: %s\n[out] Aggression BB: %s\nAttack requested BB: %s\nTaunt if enemy in range[%.2f <= %s <= %.2f]"),
+	FString Result = FString::Printf(TEXT("[out] Attacking BB: %s\n[out] Attack result BB: %s\n[out] Defense action BB: %s\n[out] Request taunt BB: %s\nIs want to attack BB: %s\nTaunt if enemy in range[%.2f <= %s <= %.2f]"),
 		*OutAttackingBBKey.SelectedKeyName.ToString(), *OutAttackResultBBKey.SelectedKeyName.ToString(),
-		*OutDefenseActionBBKey.SelectedKeyName.ToString(), *OutTauntRequestBBKey.SelectedKeyName.ToString(),
-		*AggressionBBKey.SelectedKeyName.ToString(), *RequestAttackBBKey.SelectedKeyName.ToString(),
+		*OutDefenseActionBBKey.SelectedKeyName.ToString(), *OutTauntRequestBBKey.SelectedKeyName.ToString(), *IsWantToAttackBBKey.SelectedKeyName.ToString(),
 		TauntIfEnemyInRange.GetLowerBound().GetValue(), *DistanceToEnemyBBKey.SelectedKeyName.ToString(), TauntIfEnemyInRange.GetUpperBound().GetValue());
+	
+	Result += FString::Printf(TEXT("\n%s"), *Super::GetStaticDescription());
+	return Result;
 }

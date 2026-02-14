@@ -68,7 +68,9 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Dodge_Completed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Gesture_Completed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Stagger_Completed);
+	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Block_Completed);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Block_BlockedAttack);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Block_ParriedAttack);
 	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Ability_ActivationFailed_CantAfford);

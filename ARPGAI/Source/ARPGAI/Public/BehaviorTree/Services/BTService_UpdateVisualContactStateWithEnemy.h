@@ -25,7 +25,8 @@ public:
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 	virtual uint16 GetInstanceMemorySize() const override { return sizeof(FBTMemory_UpdateVisualContactState); };
 	virtual FString GetStaticDescription() const override;
-
+	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	
 protected:
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	
@@ -36,7 +37,10 @@ protected:
 	FBlackboardKeySelector OutEnemySeesNpcBBKey;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FBlackboardKeySelector OutDotProduct_NpcFV_EnemyFV_BBKey;
+	FBlackboardKeySelector OutDotProduct_NpcFVToTarget_BBKey;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FBlackboardKeySelector OutDotProduct_TargetFVToNpc_BBKey;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FBlackboardKeySelector TargetBBKey;
@@ -44,10 +48,8 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FBlackboardKeySelector OutVisualContactDurationBBKey;
 	
-	// dot product between enemy forward vector and NPC forward vector to understand if NPC is in enemy`s LoS
-	// -1 is they are staring direct at each other, the bigger the value - the less NPC is in enemy`s LoS
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = -1.f, ClampMin = -1.f, UIMax = 0.f, ClampMax = 0.f))
-	float NpcFVToEnemyFVDotProductThreshold = -0.88f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = -1.f, ClampMin = -1.f, UIMax = 1.f, ClampMax = 1.f))
+	float EnemyCanSeeNpcDotProductThreshold = 0.88f;
 
 	// NPC is only considered to see enemy when dot product between NPC's forward vector and vector from NPC to enemy is bigger (or equal) than this value
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = -1.f, ClampMin = -1.f, UIMax = 1.f, ClampMax = 1.f))

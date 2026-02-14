@@ -8,6 +8,7 @@
 
 #include "NpcDTR.generated.h"
 
+class UNpcCombatParametersDataAsset;
 class UFlowAsset;
 class UNpcPerceptionReactionEvaluatorsDataAsset;
 class UNpcPhrasesDataAsset;

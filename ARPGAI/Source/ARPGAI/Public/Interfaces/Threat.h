@@ -37,9 +37,10 @@ public:
 	virtual FGameplayTagContainer GetAttitudeTags() const = 0;
 	virtual bool CanSeeThreat(APawn* Target) const = 0;
 
-	FThreatCombatCommonEvent OnEnemyPerformingAttackEvent;
-	FThreatCombatCommonEvent OnEnemyFeintedAttackEvent;
-	FThreatCombatCommonEvent OnEnemyAttackWhiffedEvent;
-	FThreatCombatCommonEvent OnEnemyBlockEvent;
-	FThreatCombatCommonEvent OnEnemyWeaponChangedEvent;
+	FThreatCombatCommonEvent OnThreatStartedAttackEvent;
+	FThreatCombatCommonEvent OnThreatAttackCompletedEvent;
+	FThreatCombatCommonEvent OnThreatFeintedAttackEvent;
+	FThreatCombatCommonEvent OnThreatAttackWhiffedEvent;
+	FThreatCombatCommonEvent OnThreatBlockEvent;
+	FThreatCombatCommonEvent OnThreatWeaponChangedEvent;
 };

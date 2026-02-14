@@ -4,22 +4,49 @@
 #include "Components/Controller/EnhancedBehaviorTreeComponent.h"
 
 #include "AIController.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BTCompositeNode.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "BehaviorTree/Tasks/BTTask_RunBehaviorDynamic.h"
+#include "Components/NpcCombatLogicComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/AiDataTypes.h"
 #include "Data/LogChannels.h"
+#include "Data/NpcBlackboardDataAsset.h"
 #include "VisualLogger/VisualLogger.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEnhancedBehaviorTree, Log, Log)
 
+void UEnhancedBehaviorTreeComponent::PauseLogic(const FString& Reason)
+{
+	if (IsPaused())
+		return;
+	
+	ResetFlowControlBlackboardKeys();
+	if (IsAbortPending())
+	{
+		UE_VLOG(GetOwner(), LogARPGAI, Log,
+			TEXT("Pause requested when an abort is pending. For the sake of all holy on this planet, pause is postponed until no aborts are pending. Or shit may get fucked up."));
+		bPausePending = true;		
+	}
+	else
+	{
+		if (auto NCL = GetNpcCombatLogicComponent(*this))
+			NCL->SetBrainPaused(true);
+		
+		Super::PauseLogic(Reason);
+	}
+}
+
 EAILogicResuming::Type UEnhancedBehaviorTreeComponent::ResumeLogic(const FString& Reason)
 {
 	auto Result = Super::ResumeLogic(Reason);
-	
+	ResetFlowControlBlackboardKeys();
+	if (auto NCL = GetNpcCombatLogicComponent(*this))
+		NCL->SetBrainPaused(false);
+		
 	// 01.02.2026 (aki)
 	// this is a fix for situations when a latent task was aborted by a decorator,
 	// but task refused to be aborted so it return InProgress and started waiting for brain message to finish latent abort
@@ -29,7 +56,33 @@ EAILogicResuming::Type UEnhancedBehaviorTreeComponent::ResumeLogic(const FString
 	if (bRequestedFlowUpdate == false && (PendingExecution.IsSet() || ExecutionRequest.ExecuteNode != nullptr)) 
 		ScheduleExecutionUpdate();
 	
+	if (bPausePending)
+		bPausePending = false;
+	
 	return Result;
+}
+
+void UEnhancedBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (bPausePending)
+	{
+		if (IsPaused())
+		{
+			bPausePending = false;
+			return;
+		}
+		
+		if (!IsAbortPending())
+		{
+			bPausePending = false;
+			Super::PauseLogic(TEXT("UEBALI"));
+			if (auto NCL = GetNpcCombatLogicComponent(*this))
+				NCL->SetBrainPaused(true);
+		
+		}
+	}
 }
 
 void UEnhancedBehaviorTreeComponent::HandleMessage(const FAIMessage& Message)
@@ -41,7 +94,7 @@ void UEnhancedBehaviorTreeComponent::HandleMessage(const FAIMessage& Message)
 	}
 	else
 	{
-		UE_VLOG(GetAIOwner(), LogARPGAI, Verbose, TEXT("Handling non-immediate AI message %s"), *Message.MessageName.ToString());
+		UE_VLOG(GetAIOwner(), LogARPGAI, VeryVerbose, TEXT("Handling non-immediate AI message %s"), *Message.MessageName.ToString());
 		Super::HandleMessage(Message);
 	}
 }
@@ -76,4 +129,20 @@ void UEnhancedBehaviorTreeComponent::LoadDynamicTrees(const FGameplayTagContaine
 			SetDynamicSubtree(DynamicBehaviorTag, BT, StartingNode);
 		}
 	}
+}
+
+void UEnhancedBehaviorTreeComponent::InitializeNpc(const FNpcDTR* NpcDTR)
+{
+	if (ensure(NpcDTR) && IsValid(NpcDTR->NpcBlackboardDataAsset))
+		FlowControlBlackboardKeys = NpcDTR->NpcBlackboardDataAsset->FlowControlBlackboardKeys;
+}
+
+void UEnhancedBehaviorTreeComponent::ResetFlowControlBlackboardKeys()
+{
+	if (FlowControlBlackboardKeys.IsEmpty())
+		return;
+	
+	auto Blackboard = GetBlackboardComponent();
+	for (const auto& FlowControlBB : FlowControlBlackboardKeys)
+		Blackboard->ClearValue(FlowControlBB.SelectedKeyName);
 }

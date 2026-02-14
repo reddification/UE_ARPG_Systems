@@ -1,8 +1,7 @@
-﻿
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "DebugDataTypes.h"
 #include "BehaviorTree/BTTaskNode.h"
 #include "Data/NpcCombatTypes.h"
 #include "BTTask_AttackSequence.generated.h"
@@ -52,13 +51,10 @@ protected:
 	FBlackboardKeySelector DistanceToEnemyBBKey;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FBlackboardKeySelector AggressionBBKey;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FFloatRange TauntIfEnemyInRange = FFloatRange(250, 700);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FBlackboardKeySelector RequestAttackBBKey;
+	FBlackboardKeySelector IsWantToAttackBBKey;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float AttackActivationFailedCooldownTime = 0.25f;
@@ -68,9 +64,11 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FFloatRange NextAttackDelay = FFloatRange(0.1f, 0.5f);
-
+	
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TArray<int> Debug_Options;
+	FDebugOptionsContainer DebugOptions;
+#endif
 	
 private:
 	void FinalizeAttack(UBehaviorTreeComponent& OwnerComp, FBTMemory_Attack* AttackMemory, UBlackboardComponent* Blackboard, class INpc* Npc, bool

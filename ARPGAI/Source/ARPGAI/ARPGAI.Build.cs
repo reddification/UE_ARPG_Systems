@@ -50,7 +50,7 @@ public class ARPGAI : ModuleRules
 				"SmartObjectsModule",
 				"GameplayBehaviorsModule",
 				"GameplayBehaviorSmartObjectsModule",
-				"Flow", "FlowGraphUtils" 
+				"Flow", "FlowGraphUtils", "DebugUtils"
 			}
 			);
 			

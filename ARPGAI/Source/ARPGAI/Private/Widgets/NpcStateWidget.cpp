@@ -14,14 +14,6 @@
 #include "Interfaces/Npc.h"
 #include "Widgets/NpcStateCategoryWidget.h"
 
-void UNpcStateWidget::NativeConstruct()
-{
-	Super::NativeConstruct();
-	// ActiveAbilityContainer->SetVisibility(ESlateVisibility::Hidden);
-	// ActiveBehaviorContainer->SetVisibility(ESlateVisibility::Hidden);
-	// ActiveStateContainer->SetVisibility(ESlateVisibility::Hidden);
-}
-
 void UNpcStateWidget::SetNPC_Implementation(APawn* InOwnerCharacter)
 {
 	OwnerCharacter = InOwnerCharacter;

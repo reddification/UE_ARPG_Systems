@@ -13,7 +13,7 @@ EBTNodeResult::Type UBTTask_SetTagCooldownWithDeviation::ExecuteTask(UBehaviorTr
 {
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
 	float ActualCooldownTime = FMath::Max(0.f,  CooldownDuration.GetValue(Blackboard) + FMath::RandRange(-DeviationTime, +DeviationTime));
-	OwnerComp.AddCooldownTagDuration(CooldownTag, ActualCooldownTime, bAddToExistingDuration);
+	OwnerComp.AddCooldownTagDuration(CooldownTag, ActualCooldownTime, bAddToExistingDuration.GetValue(OwnerComp));
 	return EBTNodeResult::Succeeded;
 }
 

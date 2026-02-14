@@ -10,7 +10,6 @@
 UNpcBlackboardDataAsset::UNpcBlackboardDataAsset()
 {
 	NpcTagsBBKey.AllowNoneAsValue(true);
-	StaggeredBBKey.AllowNoneAsValue(true);
 	AttackRangeBBKey.AllowNoneAsValue(true);
 	AggressivenessBBKey.AllowNoneAsValue(true);
 	IntelligenceBBKey.AllowNoneAsValue(true);

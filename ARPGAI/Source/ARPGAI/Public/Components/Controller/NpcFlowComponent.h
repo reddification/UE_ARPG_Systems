@@ -77,6 +77,7 @@ public:
 	
 protected:
 	TArray<FNpcActivity> ActivitiesStack;
+	void LogDumpActivitiesStack(FString Comment);
 
 private:
 	void StartRoutineActivity();

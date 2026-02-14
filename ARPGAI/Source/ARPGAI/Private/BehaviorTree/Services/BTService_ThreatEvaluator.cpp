@@ -5,12 +5,14 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/AIDangerousItemStimuliSourceComponent.h"
+#include "Components/EnemiesCoordinatorComponent.h"
 #include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
+#include "Data/NpcCombatParametersDataAsset.h"
 #include "GameFramework/Character.h"
 #include "Interfaces/NpcAliveCreature.h"
 #include "Interfaces/Threat.h"
@@ -37,7 +39,7 @@ void UBTService_ThreatEvaluator::OnBecomeRelevant(UBehaviorTreeComponent& OwnerC
 	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
 
 	Interval = 0.2f; 
-	FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory = reinterpret_cast<FBTCombatEvaluatorNodeMemory*>(NodeMemory);
+	FBTCombatEvaluatorMemory* CombatEvaluatorNodeMemory = reinterpret_cast<FBTCombatEvaluatorMemory*>(NodeMemory);
 	CombatEvaluatorNodeMemory->UpdateInterval = OwnerComp.GetBlackboardComponent()->GetValueAsFloat(EvaluationIntervalBBKey.SelectedKeyName);
 	auto NpcPawn = OwnerComp.GetAIOwner()->GetPawn();
 	if (UNpcCombatLogicComponent* NpcCombatComponent = NpcPawn->FindComponentByClass<UNpcCombatLogicComponent>())
@@ -63,7 +65,7 @@ void UBTService_ThreatEvaluator::OnBecomeRelevant(UBehaviorTreeComponent& OwnerC
 
 void UBTService_ThreatEvaluator::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	FBTCombatEvaluatorNodeMemory* ProtectZoneMemory = reinterpret_cast<FBTCombatEvaluatorNodeMemory*>(NodeMemory);
+	FBTCombatEvaluatorMemory* ProtectZoneMemory = reinterpret_cast<FBTCombatEvaluatorMemory*>(NodeMemory);
 	ProtectZoneMemory->bHadTarget = false;
 	Super::OnCeaseRelevant(OwnerComp, NodeMemory);
 }
@@ -71,11 +73,11 @@ void UBTService_ThreatEvaluator::OnCeaseRelevant(UBehaviorTreeComponent& OwnerCo
 void UBTService_ThreatEvaluator::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
 	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
-	FBTCombatEvaluatorNodeMemory* ProtectZoneMemory = reinterpret_cast<FBTCombatEvaluatorNodeMemory*>(NodeMemory);
+	FBTCombatEvaluatorMemory* ProtectZoneMemory = reinterpret_cast<FBTCombatEvaluatorMemory*>(NodeMemory);
 	EvaluateThreats(OwnerComp, ProtectZoneMemory);
 }
 
-void UBTService_ThreatEvaluator::EvaluateThreats(UBehaviorTreeComponent& OwnerComp, FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory)
+void UBTService_ThreatEvaluator::EvaluateThreats(UBehaviorTreeComponent& OwnerComp, FBTCombatEvaluatorMemory* CombatEvaluatorNodeMemory)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBTService_ThreatEvaluator::EvaluateThreats)
 	
@@ -179,7 +181,7 @@ void UBTService_ThreatEvaluator::ProcessDangerousItemPerception(FCombatEvaluatio
 	OutResult.DangerousActors.Add(Target, DangerousItemPerceptionData);
 }
 
-void UBTService_ThreatEvaluator::ProcessPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorNodeMemory* NodeMemory,
+void UBTService_ThreatEvaluator::ProcessPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorMemory* NodeMemory,
                                                    FCombatEvaluationResult& OutResult) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBTService_ThreatEvaluator::ProcessPerception)
@@ -305,7 +307,7 @@ void UBTService_ThreatEvaluator::ProcessPerception(const FCombatEvaluationParame
 	}
 }
 
-void UBTService_ThreatEvaluator::ProcessCharacterPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorNodeMemory* NodeMemory,
+void UBTService_ThreatEvaluator::ProcessCharacterPerception(const FCombatEvaluationParameters& Parameters, const FBTCombatEvaluatorMemory* NodeMemory,
     FCombatEvaluationResult& OutResult, float MobMaxHealth, const FAIStimulus& AIStimulus, ACharacter* PerceivedCharacter) const
 {
 	if (AIStimulus.Type == UAISense::GetSenseID(UAISense_Damage::StaticClass()))
@@ -369,7 +371,7 @@ void UBTService_ThreatEvaluator::ProcessCharacterVisualPerception(const FCombatE
 		*PerceivedCharacter->GetName(), CharacterPerceptionData.ThreatScore, CharacterPerceptionData.PerceptionScore);
 }
 
-void UBTService_ThreatEvaluator::EvaluateBehaviorUtilities(const FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory, const APawn* ThisNpc,
+void UBTService_ThreatEvaluator::EvaluateBehaviorUtilities(const FBTCombatEvaluatorMemory* CombatEvaluatorNodeMemory, const APawn* ThisNpc,
                                                            FCombatEvaluationResult& CombatEvaluationResult, TMap<FGameplayTag, float>& BehaviorUtilitiesScores,
                                                            const UNpcCombatParametersDataAsset* NpcCombatParameters)
 {
@@ -413,7 +415,7 @@ void UBTService_ThreatEvaluator::GetBestBehaviorUtility(const TMap<FGameplayTag,
 
 // TODO refactor because combat and retreat evaluation begin to diverge immensely 
 float UBTService_ThreatEvaluator::EvaluateBehaviorUtility(FCombatEvaluationResult& CombatEvaluationResult,
-	const FBehaviorUtilityParameters& BehaviorUtilityParameters, const APawn* ThisNpc, const FBTCombatEvaluatorNodeMemory* NodeMemory,
+	const FBehaviorUtilityParameters& BehaviorUtilityParameters, const APawn* ThisNpc, const FBTCombatEvaluatorMemory* NodeMemory,
 	const FGameplayTag& BehaviorUtilityTag) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBTService_ThreatEvaluator::EvaluateBehaviorUtility)
@@ -528,7 +530,7 @@ void UBTService_ThreatEvaluator::SetActiveThreats(UNpcCombatLogicComponent* NpcC
 
 void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResult& CombatEvaluationResult,
                                                           const FCombatEvaluationParameters& CombatEvaluationParameters,
-                                                          const FBTCombatEvaluatorNodeMemory* CombatEvalulatorNodeMemory) const
+                                                          const FBTCombatEvaluatorMemory* CombatEvaluatorMemory) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBTService_ThreatEvaluator::ReceiveTeammateAwareness)
 	
@@ -569,14 +571,14 @@ void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResul
 			if (FNpcCombatPerceptionData* MyCommonTargetPerception = CombatEvaluationResult.DangerousActors.Find(SharedTarget))
 			{
 				MyCommonTargetPerception->PerceptionScore = FMath::Max(MyCommonTargetPerception->PerceptionScore,
-					AllyBestTargetPerception.NpcCombatPerceptionData.PerceptionScore * CombatEvalulatorNodeMemory->TeammateTargetScoreFactor);
+					AllyBestTargetPerception.NpcCombatPerceptionData.PerceptionScore * CombatEvaluatorMemory->TeammateTargetScoreFactor);
 				UE_VLOG(CombatEvaluationParameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose,
 					TEXT("I also have this target, so taking max of perception scores: %.2f (source = %.2f)"),
 					MyCommonTargetPerception->PerceptionScore, AllyBestTargetPerception.NpcCombatPerceptionData.PerceptionScore);
 				for (auto& SharedBehaviorUtilityScore : AllyBestTargetPerception.NpcCombatPerceptionData.BehaviorUtilityScores)
 				{
 					float& MyScore = MyCommonTargetPerception->BehaviorUtilityScores.FindOrAdd(SharedBehaviorUtilityScore.Key);
-					MyScore = FMath::Max(MyScore,SharedBehaviorUtilityScore.Value * CombatEvalulatorNodeMemory->TeammateTargetScoreFactor);
+					MyScore = FMath::Max(MyScore,SharedBehaviorUtilityScore.Value * CombatEvaluatorMemory->TeammateTargetScoreFactor);
 					UE_VLOG(CombatEvaluationParameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose,
 						TEXT("I also have this target, so taking max of behavior utility scores: %.2f [%s] (source = %.2f)"),
 						MyScore, *SharedBehaviorUtilityScore.Key.ToString(), SharedBehaviorUtilityScore.Value);
@@ -588,7 +590,7 @@ void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResul
 			{
 				FNpcCombatPerceptionData SharedPerception = AllyBestTargetPerception.NpcCombatPerceptionData;
 				SharedPerception.AddDetectionSource(Ally);
-				SharedPerception.PerceptionScore *= CombatEvalulatorNodeMemory->TeammateTargetScoreFactor;
+				SharedPerception.PerceptionScore *= CombatEvaluatorMemory->TeammateTargetScoreFactor;
 
 				UE_VLOG(CombatEvaluationParameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose,
 					TEXT("I don't have this target, but taking it with perception score: %.2f (against %.2f from source)"),
@@ -596,11 +598,11 @@ void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResul
 
 				for (auto& SharedBehaviorUtilityScore : SharedPerception.BehaviorUtilityScores)
 				{
-					SharedBehaviorUtilityScore.Value *= CombatEvalulatorNodeMemory->TeammateTargetScoreFactor;
+					SharedBehaviorUtilityScore.Value *= CombatEvaluatorMemory->TeammateTargetScoreFactor;
 
 					UE_VLOG(CombatEvaluationParameters.AIController, LogARPGAI_ThreatEvaluator, VeryVerbose,
 					TEXT("I don't have this target, but taking it with behavior utility score: %.2f (against %.2f from source)"),
-						SharedBehaviorUtilityScore.Value, SharedBehaviorUtilityScore.Value / CombatEvalulatorNodeMemory->TeammateTargetScoreFactor);
+						SharedBehaviorUtilityScore.Value, SharedBehaviorUtilityScore.Value / CombatEvaluatorMemory->TeammateTargetScoreFactor);
 				}
 				
 				CombatEvaluationResult.DangerousActors.Add(SharedTarget, SharedPerception);
@@ -610,7 +612,7 @@ void UBTService_ThreatEvaluator::ReceiveTeammateAwareness(FCombatEvaluationResul
 }
 
 bool UBTService_ThreatEvaluator::AssignBestTarget(UNpcCombatLogicComponent* NpcCombatComponent, UBlackboardComponent* BlackboardComponent,
-                                                  FBTCombatEvaluatorNodeMemory* NodeMemory, FCombatEvaluationResult& CombatEvaluationResult, const FGameplayTag& BestBehaviorUtilityTag) const
+                                                  FBTCombatEvaluatorMemory* NodeMemory, FCombatEvaluationResult& CombatEvaluationResult, const FGameplayTag& BestBehaviorUtilityTag) const
 {
 	UE_VLOG(BlackboardComponent->GetOwner(), LogARPGAI_ThreatEvaluator, VeryVerbose, TEXT("Assigning best target"));
 	
@@ -714,13 +716,13 @@ void UBTService_ThreatEvaluator::InitializeMemory(UBehaviorTreeComponent& OwnerC
 	EBTMemoryInit::Type InitType) const
 {
 	Super::InitializeMemory(OwnerComp, NodeMemory, InitType);
-	FBTCombatEvaluatorNodeMemory* CombatEvaluatorNodeMemory = reinterpret_cast<FBTCombatEvaluatorNodeMemory*>(NodeMemory);
+	FBTCombatEvaluatorMemory* CombatEvaluatorNodeMemory = reinterpret_cast<FBTCombatEvaluatorMemory*>(NodeMemory);
 	
 }
 
 uint16 UBTService_ThreatEvaluator::GetInstanceMemorySize() const
 {
-	return sizeof(FBTCombatEvaluatorNodeMemory);
+	return sizeof(FBTCombatEvaluatorMemory);
 }
 
 void UBTService_ThreatEvaluator::InitializeFromAsset(UBehaviorTree& Asset)

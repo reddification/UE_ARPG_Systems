@@ -31,9 +31,6 @@ public:
 	FBlackboardKeySelector NpcTagsBBKey;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
-	FBlackboardKeySelector StaggeredBBKey;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
 	FBlackboardKeySelector AttackRangeBBKey;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
@@ -207,5 +204,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TMap<FGameplayTag, FBlackboardKeySelector> BlackboardKeysAliases;
 
-	
+	// These keys will be reset when NPC brain component is paused (e.g. on stagger) 
+	// so that when brain is unpaused NPCs don't start acting driven by stale BB keys
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TArray<FBlackboardKeySelector> FlowControlBlackboardKeys;
 };

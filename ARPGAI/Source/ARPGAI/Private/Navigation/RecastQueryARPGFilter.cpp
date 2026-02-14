@@ -164,7 +164,10 @@ float FRecastQueryARPGFilter::GetNavLinkCost(const dtPolyRef curRef, const dtMes
 float FRecastQueryARPGFilter::GetAvoidThreatsCost(const FVector& StartLocation, const FVector& EndLocation, float BaseWeight) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRecastQueryARPGFilter::GetAvoidThreatsCost)
-
+		
+	if (!QuerrierController.IsValid())
+		return 0.f;
+		
 	if (!NpcController->IsWantToAvoidThreats())
 	    return 0.f;
 
@@ -226,8 +229,9 @@ float FRecastQueryARPGFilter::GetAvoidThreatsCost(const FVector& StartLocation, 
 	            FHitResult HitResult;
 	            FCollisionQueryParams CollisionQueryParams;
 	            CollisionQueryParams.AddIgnoredActor(EnemyPawn);
+	        	CollisionQueryParams.AddIgnoredActor(AIController->GetPawn());
 
-	            bCanBeSeen = !QuerrierController->GetWorld()->LineTraceSingleByChannel(HitResult, EnemyViewLocation,
+	            bCanBeSeen = !AIController->GetWorld()->LineTraceSingleByChannel(HitResult, EnemyViewLocation,
 	                EndLocation + FVector::UpVector * 120.f, ECC_Visibility, CollisionQueryParams);
 	            UE_VLOG_ARROW(QuerrierController.Get(), LogAvoidThreatsPathfollowing_Trace, VeryVerbose, EnemyViewLocation,
                     EndLocation + FVector::UpVector * 120.f, bCanBeSeen ? FColor::Green : FColor::Red,
@@ -256,7 +260,10 @@ float FRecastQueryARPGFilter::GetAvoidThreatsCost(const FVector& StartLocation, 
 float FRecastQueryARPGFilter::GetSurroundTargetCost(const FVector& EndLocation) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRecastQueryARPGFilter::GetAvoidAggroThreatLoSCost)
-
+		
+	if (!QuerrierController.IsValid())
+		return 0.f;
+		
 	if (!NpcController->IsSurroundingTarget())
 	    return 0.f;
 

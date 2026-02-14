@@ -2,7 +2,6 @@
 
 #include "Activities/NpcComponentsHelpers.h"
 #include "BlackboardKeyType_GameplayTag.h"
-#include "Interfaces/NpcControllerInterface.h"
 #include "Interfaces/NpcGoalManager.h"
 
 UBTTask_AssessActivityState::UBTTask_AssessActivityState()

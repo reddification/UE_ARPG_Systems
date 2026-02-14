@@ -21,7 +21,7 @@ UBTService_RunEQS_Enhanced::UBTService_RunEQS_Enhanced(const FObjectInitializer&
 {
 	NodeName = "Run EQS query (enhanced)";
 	QueryFinishedDelegate.Unbind();
-	QueryFinishedDelegate = FQueryFinishedSignature::CreateUObject(this, &UBTService_RunEQS_Enhanced::OnQueryFinished2);
+	QueryFinishedDelegate = FQueryFinishedSignature::CreateUObject(this, &UBTService_RunEQS_Enhanced::OnQueryFinished);
 	bNotifyBecomeRelevant = true;
 	GateBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_RunEQS_Enhanced, GateBBKey));
 	GateBBKey.AllowNoneAsValue(true);
