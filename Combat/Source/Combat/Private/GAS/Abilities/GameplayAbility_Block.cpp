@@ -10,6 +10,7 @@
 #include "Components/MeleeBlockComponent.h"
 #include "Components/MeleeCombatComponent.h"
 #include "Data/CombatGameplayTags.h"
+#include "Data/CombatLogChannels.h"
 #include "GAS/Data/GameplayAbilityTargetData_ReceivedHit.h"
 #include "Interfaces/ICombatant.h"
 #include "Interfaces/PlayerCombat.h"
@@ -32,9 +33,11 @@ void UGameplayAbility_Block::ActivateAbility(const FGameplayAbilitySpecHandle Ha
                                              const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat_Block, Log, TEXT("UGameplayAbility_Block::ActivateAbility"));
 	bool bBlockingStarted = StartBlocking(ActorInfo, TriggerEventData);
 	if (!ensure(bBlockingStarted))
 	{
+		UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat_Block, Warning, TEXT("UGameplayAbility_Block didn't start because StartBlocking failed"));
 		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
 		return;
 	}
@@ -61,9 +64,12 @@ void UGameplayAbility_Block::EndAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	if (ActorInfo == nullptr || !ActorInfo->AvatarActor.IsValid())
 	{
+		UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat_Block, Warning, TEXT("UGameplayAbility_Block::EndAbility WTF no avatar actor leaving immediately"));
 		Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 		return;
 	}
+	
+	UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat_Block, Log, TEXT("UGameplayAbility_Block::EndAbility"));
 	
 	if (ActiveEffectSpecHandle.IsValid())
 	{
@@ -177,48 +183,27 @@ void UGameplayAbility_Block::OnAttackBlocked(float ConsumptionScale, AActor* Att
 	auto AbilityOwner = GetCurrentActorInfo()->AvatarActor.Get();
 	auto CombatantOwner = Cast<ICombatant>(AbilityOwner);
 	const float CurrentPoise = CombatantOwner->GetPoise();
+	FGameplayEventData OwnerPayload;
+	FGameplayAbilityTargetData_ReceivedHit* OwnerData = new FGameplayAbilityTargetData_ReceivedHit();
+	OwnerData->HitDirectionTag = CombatGameplayTags::Combat_HitDirection_Front;
+	OwnerPayload.TargetData.Add(OwnerData);
+	auto ASC = GetAbilitySystemComponentFromActorInfo();
+	FGameplayTag HitReactAbilityTag;
 	if (CurrentPoise <= 0.f)
 	{
 		// guard break
-
-		FGameplayEventData OwnerPayload;
-		FGameplayAbilityTargetData_ReceivedHit* OwnerData = new FGameplayAbilityTargetData_ReceivedHit();
-		OwnerData->HitDirectionTag = CombatGameplayTags::Combat_HitDirection_Front;
-		OwnerPayload.TargetData.Add(OwnerData);
-
-		FGameplayTag HitReactAbilityTag = CombatGameplayTags::Combat_Ability_ReceiveGuardBreak_Event_Activate;
-		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AbilityOwner, HitReactAbilityTag, OwnerPayload);
+		HitReactAbilityTag = CombatGameplayTags::Combat_Ability_ReceiveGuardBreak_Event_Activate;
 	}
 	else
 	{
-		auto ActorInfo = GetCurrentActorInfo();
-		FGameplayTagContainer OwnerTags;
-		auto OwnerTagInterface = Cast<IGameplayTagAssetInterface>(ActorInfo->AvatarActor.Get());
-		OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
-		UAnimMontage* HitReactMontage = nullptr; 
-		for (const auto& HitReactMontageOption : HitReacts)
-		{
-			if (HitReactMontageOption.ContextTags.IsEmpty() || HitReactMontageOption.ContextTags.Matches(OwnerTags))
-			{
-				if (!HitReactMontageOption.MontagesOptions.IsEmpty())
-					HitReactMontage = HitReactMontageOption.MontagesOptions[FMath::RandRange(0, HitReactMontageOption.MontagesOptions.Num() - 1)].AnimMontage.LoadSynchronous();
-				else
-					HitReactMontage = HitReactMontageOption.Montages_Deprecated[FMath::RandRange(0, HitReactMontageOption.Montages_Deprecated.Num() - 1)];
-				
-				break;				
-			}
-		}
-	
-		if (ensure(HitReactMontage))
-		{
-			auto AnimInstance = ActorInfo->AnimInstance.IsValid() ? ActorInfo->AnimInstance.Get() : ActorInfo->GetAnimInstance();
-			AnimInstance->Montage_Play(HitReactMontage);
-		}
-		
+		HitReactAbilityTag = CombatGameplayTags::Combat_Ability_PhysicalImpact_Event_Activate;
 		// TODO refactor: either separate GameplayAbility_Block_Player or call GA_HitReact with "is from blocking" parameter
 		if (auto PlayerCombatant = Cast<IPlayerCombatant>(AbilityOwner))
 			PlayerCombatant->PlayCameraShake_Combat(CombatGameplayTags::Combat_Ability_Block);
 	}
+	
+	ASC->HandleGameplayEvent(HitReactAbilityTag, &OwnerPayload);
+	
 }
 
 void UGameplayAbility_Block::OnAbort(FGameplayEventData Payload)

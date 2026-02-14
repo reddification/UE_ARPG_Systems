@@ -38,6 +38,8 @@ void UManualBlockOverlayWidget::OnBlockActiveChanged(bool bActive)
 {
 	SetVisibility(bActive ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	HintChipsWidget->DisableAllChips();
+	if (!bActive)
+		BP_OnParryWindowActiveChanged(false);
 }
 
 void UManualBlockOverlayWidget::OnBlockAccumulatedChanged(FVector2D AccumulationVector, float BlockStrength)

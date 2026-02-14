@@ -193,6 +193,7 @@ void UGameplayAbility_MeleeWeaponCombat::OnAttackActivePhaseChanged(EMeleeAttack
 	
 	if (OldAttackPhase == EMeleeAttackPhase::None && NewAttackPhase != EMeleeAttackPhase::None)
 	{
+		ensure(!ActiveAttackEffectHandle.IsValid());
 		auto ASC = GetAbilitySystemComponentFromActorInfo();
 		auto GEContext = ASC->MakeEffectContext();
 		auto GESpec = ASC->MakeOutgoingSpec(CharacterStateDuringAttackEffectClass, GetMeleeCombatComponent()->GetCurrentComboTotalAttackCount(), GEContext);
@@ -240,11 +241,11 @@ void UGameplayAbility_MeleeWeaponCombat::OnWeaponHit(UPrimitiveComponent* OtherA
 			HandleWeaponsCollide(CombatSettings, OwnerActor, EnemyActor, CombatantOwner, CombatantEnemy, SweepDirection);
 		break;
 		case EWeaponHitSituation::AttackBlocked:
-			HandleAttackBlocked(EnemyActor, SweepDirection, HitResult);
+			HandleMyAttackBlocked(EnemyActor, SweepDirection, HitResult);
 			CombatComponentCached->OnAttackBlocked();
 			break;
 		case EWeaponHitSituation::AttackParried:
-			HandleAttackParried(OwnerActor);
+			HandleMyAttackParried(OwnerActor);
 			break;
 		case EWeaponHitSituation::Body:
 			HandleEnemyHit(CombatSettings, OwnerActor, EnemyActor, CombatantOwner, CombatantEnemy, HitResult, SweepDirection);
@@ -287,7 +288,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleWeaponsCollide(const UMeleeCombat
 	}
 }
 
-void UGameplayAbility_MeleeWeaponCombat::HandleAttackBlocked(AActor* EnemyActor, const FVector& SweepDirection, const FHitResult& HitResult)
+void UGameplayAbility_MeleeWeaponCombat::HandleMyAttackBlocked(AActor* EnemyActor, const FVector& SweepDirection, const FHitResult& HitResult)
 {
 	ApplyEffect(EffectForOwnerWhenItsAttackBlockedClass, 1.f);
 	auto EnemyCombatant = Cast<ICombatant>(EnemyActor);
@@ -305,7 +306,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleAttackBlocked(AActor* EnemyActor,
 	// UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(EnemyActor, CombatGameplayTags::Combat_Ability_HitReact_Event_Activate, OwnerPayload);
 }
 
-void UGameplayAbility_MeleeWeaponCombat::HandleAttackParried(AActor* OwnerActor)
+void UGameplayAbility_MeleeWeaponCombat::HandleMyAttackParried(AActor* OwnerActor)
 {
 	FGameplayEventData OwnerPayload;
 	FGameplayAbilityTargetData_ReceivedHit* OwnerData = new FGameplayAbilityTargetData_ReceivedHit();

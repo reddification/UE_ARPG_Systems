@@ -1,12 +1,8 @@
-﻿// 
-
-
-#include "Components/MeleeBlockComponent.h"
+﻿#include "Components/MeleeBlockComponent.h"
 #include "Data/CombatLogChannels.h"
 #include "Data/MeleeCombatSettings.h"
 #include "Helpers/CombatCommonHelpers.h"
 #include "Interfaces/ICombatant.h"
-#include "Interfaces/PlayerCombat.h"
 
 UMeleeBlockComponent::UMeleeBlockComponent()
 {
@@ -34,6 +30,7 @@ void UMeleeBlockComponent::BeginPlay()
 
 void UMeleeBlockComponent::StartBlocking()
 {
+	UE_VLOG(GetOwner(), LogCombat_Block, Verbose, TEXT("UMeleeBlockComponent::StartBlocking"));
 	bRegisteringBlock = true;
 	bBlockPeakNotified = false;
 	AccumulatedBlock = FVector2d::ZeroVector;
@@ -47,14 +44,18 @@ void UMeleeBlockComponent::StartBlocking()
 	else
 		BlockInputAccumulationScale = 0.15f;
 
-	BlockStrength = BlockStrengthToParry + 0.1f;
+	bool bUsingShield = OwnerCombatant->IsUsingShield();
+	BlockStrength = bUsingShield ? BlockStrengthToParry + 0.1f : BlockStrengthToParry * 0.25f;
 	OnBlockAccumulationChangedEvent.Broadcast(AccumulatedBlock, BlockStrength);
-	OnParryWindowActiveChangedEvent.Broadcast(true);
+	if (bUsingShield)
+		OnParryWindowActiveChangedEvent.Broadcast(true);
+	
 	CurrentDecayDelay = DecayDelay;
 }
 
 void UMeleeBlockComponent::StopBlocking()
 {
+	UE_VLOG(GetOwner(), LogCombat_Block, Log, TEXT("UMeleeBlockComponent::StopBlocking"));
 	bRegisteringBlock = false;
 	BlockStrength = 0.f;
 	SetComponentTickEnabled(false);
@@ -152,6 +153,7 @@ void UMeleeBlockComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	}
 	
 	UE_VLOG(GetOwner(), LogCombat_Block, VeryVerbose, TEXT("Current block position = %s"), *AccumulatedBlock.ToString());
+	UE_VLOG(GetOwner(), LogCombat_Block, VeryVerbose, TEXT("Current block strength = %.2f"), BlockStrength);
 }
 
 void UMeleeBlockComponent::AddBlockInput(const FVector2D& BlockInput, float DeltaTime)
@@ -163,21 +165,22 @@ void UMeleeBlockComponent::AddBlockInput(const FVector2D& BlockInput, float Delt
 	float BlockStrengthScore = NewInputDotProduct - CollinearBlockInputsDotProductThreshold;
 	FVector2D AccumulatedBlockPreChange = AccumulatedBlock;
 
-	UE_LOG(LogCombat_Block, Log, TEXT("Block ==========="))
-	UE_LOG(LogCombat_Block, Log, TEXT("Block input = %s"), *BlockInput.ToString());
-	UE_LOG(LogCombat_Block, Log, TEXT("Current block direction = %s"), *CurrentBlockDirection.ToString());
-	UE_LOG(LogCombat_Block, Log, TEXT("New input dot product = %.2f"), NewInputDotProduct);
-	UE_LOG(LogCombat_Block, Log, TEXT("Direction collinear = %s"), bDirectionCollinear ? TEXT("true") : TEXT("false"));
-	UE_LOG(LogCombat_Block, Log, TEXT("Block strength score = %.2f"), BlockStrengthScore);
-	UE_LOG(LogCombat_Block, Log, TEXT("Accumulated block pre change = %s"), *AccumulatedBlock.ToString());
+	auto OwnerLocal = GetOwner();
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("=========== Block ==========="));
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Block input = %s"), *BlockInput.ToString());
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Current block direction = %s"), *CurrentBlockDirection.ToString());
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("New input dot product = %.2f"), NewInputDotProduct);
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Direction collinear = %s"), bDirectionCollinear ? TEXT("true") : TEXT("false"));
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Block strength score = %.2f"), BlockStrengthScore);
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Accumulated block pre change = %s"), *AccumulatedBlock.ToString());
 	
 	AccumulatedBlock = AccumulatedBlock + BlockInput;
 	AccumulatedBlock = AccumulatedBlock.ClampAxes(-1.f, 1.f);
 
-	UE_LOG(LogCombat_Block, Log, TEXT("Accumulated block post change = %s"), *AccumulatedBlock.ToString());
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Accumulated block post change = %s"), *AccumulatedBlock.ToString());
 
 	const float DeltaBlockStrength = (AccumulatedBlock - AccumulatedBlockPreChange).Size();
-	UE_LOG(LogCombat_Block, Log, TEXT("Delta block strength = %.2f"), DeltaBlockStrength);
+	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Delta block strength = %.2f"), DeltaBlockStrength);
 
 	if (DeltaBlockStrength > KINDA_SMALL_NUMBER && bDirectionCollinear)
 	{
@@ -186,31 +189,28 @@ void UMeleeBlockComponent::AddBlockInput(const FVector2D& BlockInput, float Delt
 	}
 	else if (NewInputDotProduct < -0.1)
 	{
-		UE_VLOG(GetOwner(), LogCombat_Block, VeryVerbose, TEXT("Resetting block strength"));
+		UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("Resetting block strength"));
 		BlockStrength = 0.f;
 	}
 	else
 	{
-		if (CurrentDecayDelay > 0.f)
-			CurrentDecayDelay -= BlockStrengthDecayRate * DeltaTime;
-		else 
-			BlockStrength = FMath::Max(MinHeldBlockStrength, BlockStrength - BlockStrengthDecayRate * DeltaTime);
-		
-		UE_LOG(LogCombat_Block, Log, TEXT("Block strength decaying"));
+		DecayBlock(DeltaTime);
 	}
 
-#if WITH_EDITOR
-	// if (BlockStrength > 0.5f)
-	// {
-		// DrawDebugSphere(GetWorld(), GetOwner()->GetActorLocation() + GetOwner()->GetActorForwardVector() * 50.f, 25, 16, FColor::Cyan, false);
-	// }
-#endif
-	
-	UE_LOG(LogCombat_Block, Log, TEXT("New block strength = %.2f"), BlockStrength);
-	
-	// UE_LOG(LogCombat_Block, Log, TEXT("Accumulated block = %s; Strength = %.2f"), *AccumulatedBlock.ToString(), BlockStrength);
+	UE_VLOG(OwnerLocal, LogCombat_Block, Verbose, TEXT("New block strength = %.2f"), BlockStrength);
 }
 
+void UMeleeBlockComponent::DecayBlock(float DeltaTime)
+{
+	if (CurrentDecayDelay > 0.f)
+		CurrentDecayDelay -= BlockStrengthDecayRate * DeltaTime;
+	else 
+		BlockStrength = FMath::Max(MinHeldBlockStrength, BlockStrength - BlockStrengthDecayRate * DeltaTime);
+		
+	UE_VLOG(GetOwner(), LogCombat_Block, Verbose, TEXT("Block strength decaying"));
+}
+
+// experimental. doesn't really work good. (aki): currently unused as of 12 Feb 2026
 FVector UMeleeBlockComponent::GetIncomingAttackDirection(const AActor* AttackingActor, EMeleeAttackType IncomingAttackType)
 {
 	// all these 35.f, 15.f, 50.f corrections are just from the top of my head, don't consider them something well calculated
@@ -220,48 +220,49 @@ FVector UMeleeBlockComponent::GetIncomingAttackDirection(const AActor* Attacking
 	const FVector AttackerRightVector = AttackingActor->GetActorRightVector();
 	auto AttackerCombatant = Cast<ICombatant>(AttackingActor);
 	const float AttackRange = AttackerCombatant->GetAttackRange();
-	const FVector AttackLocation = AttackerLocation + FVector::UpVector * 15.f + AttackerForwardVector * AttackRange;
-	FVector AttackOrigin = FVector::ZeroVector;
+	const float AdjustedAttackRange = AttackRange * 0.8f;
+	const FVector ExpectedHitLocation = AttackerLocation + FVector::UpVector * 15.f + AttackerForwardVector * AttackRange;
+	FVector AttackingPointOrigin = FVector::ZeroVector;
 	switch (IncomingAttackType)
 	{
 		case EMeleeAttackType::None:
 			ensure(false);
 			break;
 		case EMeleeAttackType::LeftUnterhauw:
-			AttackOrigin = AttackerLocation - AttackerUpVector * 50.f - AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation - AttackerUpVector * AdjustedAttackRange - AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::LeftMittelhauw:
-			AttackOrigin = AttackerLocation - AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation - AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::LeftOberhauw:
-			AttackOrigin = AttackerLocation + AttackerUpVector * 50.f - AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation + AttackerUpVector * AdjustedAttackRange - AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::Thrust:
-			AttackOrigin = AttackerLocation + AttackerForwardVector * AttackRange;
+			AttackingPointOrigin = AttackerLocation + AttackerForwardVector * AttackRange;
 			break;
 		case EMeleeAttackType::RightUnterhauw:
-			AttackOrigin = AttackerLocation - AttackerUpVector * 50.f + AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation - AttackerUpVector * AdjustedAttackRange + AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::RightMittelhauw:
-			AttackOrigin = AttackerLocation + AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation + AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::RightOberhauw:
-			AttackOrigin = AttackerLocation + AttackerUpVector * 50.f + AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation + AttackerUpVector * AdjustedAttackRange + AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::VerticalSlash:
-			AttackOrigin = AttackerLocation + AttackerUpVector * 50.f;
+			AttackingPointOrigin = AttackerLocation + AttackerUpVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::SpinLeftMittelhauw:
-			AttackOrigin = AttackerLocation - AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation - AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::SpinLeftOberhauw:
-			AttackOrigin = AttackerLocation + AttackerUpVector * 50.f - AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation + AttackerUpVector * AdjustedAttackRange - AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::SpinRightMittelhauw:
-			AttackOrigin = AttackerLocation + AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation + AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::SpinRightOberhauw:
-			AttackOrigin = AttackerLocation + AttackerUpVector * 50.f + AttackerRightVector * 50.f;
+			AttackingPointOrigin = AttackerLocation + AttackerUpVector * AdjustedAttackRange + AttackerRightVector * AdjustedAttackRange;
 			break;
 		case EMeleeAttackType::Max:
 			ensure(false);
@@ -272,15 +273,16 @@ FVector UMeleeBlockComponent::GetIncomingAttackDirection(const AActor* Attacking
 			break;
 	}
 
-	return (AttackLocation - AttackOrigin).GetSafeNormal();
+	return (ExpectedHitLocation - AttackingPointOrigin).GetSafeNormal();
 }
 
 FVector2D UMeleeBlockComponent::GetDesiredBlockVector(EMeleeAttackType IncomingAttackType) const
 {
+	bool bWithShield = OwnerCombatant->IsUsingShield();
 	switch (IncomingAttackType)
 	{
 		case EMeleeAttackType::None:
-			ensure(false);
+			UE_VLOG(GetOwner(), LogCombat_Block, Error, TEXT("Something is wrong. incoming attack type is none"));
 			break;
 		case EMeleeAttackType::LeftUnterhauw:
 			return FVector2D(1.f, -1.f);
@@ -289,7 +291,7 @@ FVector2D UMeleeBlockComponent::GetDesiredBlockVector(EMeleeAttackType IncomingA
 			return FVector2D(1.f, 0.f);
 		case EMeleeAttackType::LeftOberhauw:
 		case EMeleeAttackType::SpinLeftOberhauw:
-			return FVector2D(1.f, 1.f);
+			return bWithShield ? FVector2D(1.f, 1.f) : FVector2D(-1.f, 1.f);
 		case EMeleeAttackType::Thrust:
 			return FVector2D(0.f, 0.f);
 		case EMeleeAttackType::RightUnterhauw:
@@ -299,9 +301,13 @@ FVector2D UMeleeBlockComponent::GetDesiredBlockVector(EMeleeAttackType IncomingA
 			return FVector2D(-1.f, 0.f);
 		case EMeleeAttackType::RightOberhauw:
 		case EMeleeAttackType::SpinRightOberhauw:
-			return FVector2D(-1.f, 1.f);
+			return bWithShield ? FVector2D(-1.f, 1.f) : FVector2D(1.f, 1.f);
 		case EMeleeAttackType::VerticalSlash:
-			return FVector2D(0.f, 1.f);
+			// 12 Feb 2026 (aki): deliberately returning [+-1.f, 1.f] and not [0.f, 1.f] when NOT with shield,
+			// because with my current aim offset based animations (poses), [+-1.f, 1.f] covers both [+-1.f. 1.f] and [0.f, 1.f],
+			// while aim offset at [0.f, 1.f] either requires a separate pose (which would look almost like [+-1.f, 1.f] 
+			// or would look and behave bad if it is just interpolated between [-1.f, 1.f] and [1.f, 1.f]
+			return bWithShield ? FVector2D(0.f, 1.f) :  FVector2D(FMath::RandBool() ? 1.f : -1.f, 1.f);
 		default:
 			ensure(false); // for light attacks. this is not a solution at all. I just don't know how to handle it yet
 			break;

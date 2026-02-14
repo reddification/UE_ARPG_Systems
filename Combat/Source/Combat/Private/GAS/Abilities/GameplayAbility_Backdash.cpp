@@ -32,6 +32,7 @@ void UGameplayAbility_Backdash::ActivateAbility(const FGameplayAbilitySpecHandle
 	FGameplayTagContainer OwnerTags;
 	auto OwnerTagInterface = Cast<IGameplayTagAssetInterface>(ActorInfo->AvatarActor.Get());
 	OwnerTagInterface->GetOwnedGameplayTags(OwnerTags);
+	float RootMotionScale = 1.f;
 	for (const auto& BackstepMontageOption : MontageOptions)
 	{
 		if (BackstepMontageOption.ContextTags.Matches(OwnerTags))
@@ -40,6 +41,7 @@ void UGameplayAbility_Backdash::ActivateAbility(const FGameplayAbilitySpecHandle
 			{
 				const int Index = FMath::RandRange(0, BackstepMontageOption.MontagesOptions.Num() - 1);
 				BackstepMontage = BackstepMontageOption.MontagesOptions[Index].AnimMontage.LoadSynchronous();
+				RootMotionScale = BackstepMontageOption.MontagesOptions[Index].RootMotionScale;
 			}
 			else if (!BackstepMontageOption.Montages_Deprecated.IsEmpty())
 			{
@@ -53,8 +55,8 @@ void UGameplayAbility_Backdash::ActivateAbility(const FGameplayAbilitySpecHandle
 
 	if (BackstepMontage)
 	{
-		UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat, Verbose, TEXT("UGameplayAbility_Backdash Decided to backdash"));
-		MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("Backdash"), BackstepMontage);
+		MontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("Backdash"),
+			BackstepMontage, 1.f, NAME_None, true, RootMotionScale);
 		MontageTask->OnCompleted.AddDynamic(this, &UGameplayAbility_Backdash::OnBackdashMontageEnded);
 		MontageTask->OnInterrupted.AddDynamic(this, &UGameplayAbility_Backdash::OnBackdashMontageInterrupted);
 		MontageTask->OnCancelled.AddDynamic(this, &UGameplayAbility_Backdash::OnBackdashMontageCancelled);

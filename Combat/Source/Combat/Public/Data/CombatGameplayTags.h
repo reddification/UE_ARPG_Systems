@@ -43,7 +43,8 @@ namespace CombatGameplayTags
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Knockdown_Event_Activate);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Knockdown_Event_Abort);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_HitReact_Event_Activate);
-
+	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_PhysicalImpact_Event_Activate);
+	
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Backdash);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Backdash_Event_Activate);
 	COMBAT_API	UE_DECLARE_GAMEPLAY_TAG_EXTERN(Combat_Ability_Backdash_Event_Abort);

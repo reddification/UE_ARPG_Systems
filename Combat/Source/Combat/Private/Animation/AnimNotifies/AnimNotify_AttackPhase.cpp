@@ -24,7 +24,7 @@ void UAnimNotify_AttackPhase::NotifyBegin(USkeletalMeshComponent* MeshComp, UAni
 			MeleeCombatComponent->BeginWindUp(TotalDuration, Animation->GetUniqueID(), WindupAttackTrajectory);
 			break;
 		case EMeleeAttackPhase::Release:
-			MeleeCombatComponent->BeginRelease(TotalDuration, Animation->GetUniqueID());
+			MeleeCombatComponent->BeginRelease(TotalDuration, Animation->GetUniqueID(), WindupAttackTrajectory);
 			break;
 		case EMeleeAttackPhase::Recover:
 			MeleeCombatComponent->BeginRecover(TotalDuration, Animation->GetUniqueID());

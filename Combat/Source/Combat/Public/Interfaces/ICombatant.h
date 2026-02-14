@@ -62,7 +62,6 @@ public:
 	virtual void OnAttackWhiffed() = 0;
 	virtual void OnAttackEnded() = 0;
 	virtual void OnAttackCanceled() = 0;
-	virtual void OnBlockSet() = 0;
 	
 	virtual const FReceivedHitData& GetLastHitData() = 0;
 	

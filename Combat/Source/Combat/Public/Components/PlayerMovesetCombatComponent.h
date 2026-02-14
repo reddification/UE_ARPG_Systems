@@ -29,7 +29,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void BeginWindUp(float TotalDuration, const uint32 AnimationId, EMeleeAttackType WindupAttackType) override;
-	virtual void BeginRelease(float TotalDuration, const uint32 AnimationId) override;
+	virtual void BeginRelease(float TotalDuration, const uint32 AnimationId, EMeleeAttackType MeleeAttackType) override;
 	virtual void BeginRecover(float TotalDuration, const uint32 AnimationId) override;
 	virtual void EndRecover(const uint32 AnimationId) override;
 	

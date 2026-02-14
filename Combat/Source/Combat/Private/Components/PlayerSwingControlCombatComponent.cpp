@@ -230,17 +230,17 @@ void UPlayerSwingControlCombatComponent::BeginWindUp(float TotalDuration, const 
 	// Since some animations can have the WindupAttackType not set (just because somebody forgot to do it) SwingControl component already has it when it requests attack
 	// so just route it through
 	Super::BeginWindUp(TotalDuration, AttackAnimationId, ActiveAttack);
-	OwnerPlayerCombat->SetLookEnabled(true);
+	OwnerPlayerCombat->RequestLookInputLockedForAttack(false);
 	// OwnerPlayerCombat->SetOrientationFollowsAttack(true);
 	OwnerPlayerCombat->EnableAttackCameraDampering(MeleeCombatParameters.MaxCameraRotationAngleDuringAttack, MeleeCombatParameters.InitialLookRatioDuringAttack);
 }
 
-void UPlayerSwingControlCombatComponent::BeginRelease(float TotalDuration, const uint32 AttackAnimationId)
+void UPlayerSwingControlCombatComponent::BeginRelease(float TotalDuration, const uint32 AttackAnimationId, EMeleeAttackType MeleeAttackType)
 {
 	// if (AttackPhase != EMeleeAttackPhase::WindUp)
 	// 	OwnerPlayerCombat->SetOrientationFollowsAttack(true);
 	
-	Super::BeginRelease(TotalDuration, AttackAnimationId);
+	Super::BeginRelease(TotalDuration, AttackAnimationId, MeleeAttackType);
 	// OwnerPlayerCombat->SetLookEnabled(true);
 	// OwnerPlayerCombat->SetLookDampering(MaxCameraRotationAngleDuringAttack, LookDamperingRatio);
 }
@@ -253,7 +253,7 @@ void UPlayerSwingControlCombatComponent::BeginRecover(float TotalDuration, const
 
 	if (ActiveAttack != EMeleeAttackType::None)
 	{
-		OwnerPlayerCombat->SetLookEnabled(false);
+		OwnerPlayerCombat->RequestLookInputLockedForAttack(true);
 		OwnerPlayerCombat->DisableAttackCameraDampering();
 	}
 }
@@ -270,7 +270,7 @@ void UPlayerSwingControlCombatComponent::ResetAttackState()
 {
 	Super::ResetAttackState();
 	SetRegisteringAttack(false);
-	OwnerPlayerCombat->SetLookEnabled(true);
+	OwnerPlayerCombat->RequestLookInputLockedForAttack(false);
 	// OwnerPlayerCombat->SetOrientationFollowsAttack(false);
 	OwnerPlayerCombat->DisableAttackCameraDampering();
 	bPlayerRequestsAttack = false;
@@ -515,7 +515,7 @@ void UPlayerSwingControlCombatComponent::SetRegisteringAttack(bool bEnabled)
 	UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("Set registering attack: %s"), bEnabled ? TEXT("true") : TEXT("false"));
 	bRegisteringAttack = bEnabled;
 	// SetComponentTickEnabled(bEnabled);
-	OwnerPlayerCombat->SetLookEnabled(false);
+	OwnerPlayerCombat->RequestLookInputLockedForAttack(true);
 	if (!bEnabled)
 		ResetAttackAccumulationData();
 	

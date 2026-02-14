@@ -66,7 +66,7 @@ void UGameplayAbility_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		}
 	}
 	
-	if (ensure(DodgeMontage))
+	if (DodgeMontage)
 	{
 		UE_VLOG(OwnerActor, LogCombat, Verbose, TEXT("Preparing dodge montage task"));
 		const float Dexterity = Cast<ICombatant>(OwnerActor)->GetDexterity();
@@ -91,7 +91,7 @@ void UGameplayAbility_Dodge::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	}
 	else
 	{
-		UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat, Warning, TEXT("Dodge montage not found, Immediately ending ability"));
+		UE_VLOG(ActorInfo->AvatarActor.Get(), LogCombat, Error, TEXT("Dodge montage not found, Immediately ending ability"));
 		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
 		return;
 	}

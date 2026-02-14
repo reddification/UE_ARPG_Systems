@@ -172,12 +172,12 @@ void UPlayerMovesetCombatComponent::BeginWindUp(float TotalDuration, const uint3
 	OwnerPlayerCombat->SetOrientationFollowsAttack(true);
 }
 
-void UPlayerMovesetCombatComponent::BeginRelease(float TotalDuration, const uint32 AnimationId)
+void UPlayerMovesetCombatComponent::BeginRelease(float TotalDuration, const uint32 AnimationId, EMeleeAttackType MeleeAttackType)
 {
 	if (AttackPhase != EMeleeAttackPhase::WindUp)
 		OwnerPlayerCombat->SetOrientationFollowsAttack(true);
 		
-	Super::BeginRelease(TotalDuration, AnimationId);
+	Super::BeginRelease(TotalDuration, AnimationId, MeleeAttackType);
 	LastValidPlayerInputMovementRequestRotator = FRotator::ZeroRotator;
 	SetComponentTickEnabled(false);
 }

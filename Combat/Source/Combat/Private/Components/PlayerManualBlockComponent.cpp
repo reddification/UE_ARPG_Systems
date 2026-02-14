@@ -33,13 +33,13 @@ void UPlayerManualBlockComponent::TickComponent(float DeltaTime, ELevelTick Tick
 void UPlayerManualBlockComponent::StartBlocking()
 {
 	Super::StartBlocking();
-	OwnerPlayerCombat->SetLookEnabled(false);
+	OwnerPlayerCombat->RequestLookInputLockedForBlock(true);
 }
 
 void UPlayerManualBlockComponent::StopBlocking()
 {
 	Super::StopBlocking();
-	OwnerPlayerCombat->SetLookEnabled(true);
+	OwnerPlayerCombat->RequestLookInputLockedForBlock(false);
 	OwnerPlayerCombat->ResetCombatFocus();
 	FocusTarget.Reset();
 }

@@ -86,9 +86,6 @@ struct FReceivedHitData
 	FGameplayTag HitTypeTag;	
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	bool bHardHit = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	AActor* Causer;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -148,7 +145,10 @@ struct FMontageData
 	bool bRestoreInitialSkeletalMesh = true;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TSoftObjectPtr<UAnimMontage> AnimMontage;	
+	TSoftObjectPtr<UAnimMontage> AnimMontage;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	float RootMotionScale = 1.f;
 };
 
 USTRUCT(BlueprintType)

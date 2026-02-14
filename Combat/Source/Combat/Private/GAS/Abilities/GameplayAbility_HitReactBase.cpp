@@ -59,7 +59,7 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 		HitReactMontageTask->OnInterrupted.AddDynamic(this, &UGameplayAbility_HitReactBase::OnHitReactMontageInterrupted);
 		HitReactMontageTask->OnCancelled.AddDynamic(this, &UGameplayAbility_HitReactBase::OnHitReactMontageCancelled);
 		HitReactMontageTask->ReadyForActivation();
-		UE_VLOG(ActorInfo->OwnerActor.Get(), LogCombat, Verbose, TEXT("%s montage ready for activation"), *GetName());
+		UE_VLOG(ActorInfo->OwnerActor.Get(), LogCombat_HitReact, Verbose, TEXT("%s montage ready for activation"), *GetName());
 	}
 	else
 	{
@@ -82,24 +82,24 @@ void UGameplayAbility_HitReactBase::EndAbility(const FGameplayAbilitySpecHandle 
 	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
 	bool bReplicateEndAbility, bool bWasCancelled)
 {
-	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat, Verbose, TEXT("UGameplayAbility_HitReactBase::EndAbility %s completed"), *GetName());
+	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat_HitReact, Verbose, TEXT("UGameplayAbility_HitReactBase::EndAbility %s completed"), *GetName());
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }
 
 void UGameplayAbility_HitReactBase::OnHitReactMontageCompleted()
 {
-	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat, Verbose, TEXT("%s montage completed"), *GetName());
+	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat_HitReact, Verbose, TEXT("%s montage completed"), *GetName());
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGameplayAbility_HitReactBase::OnHitReactMontageInterrupted()
 {
-	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat, Verbose, TEXT("%s montage interrupted"), *GetName());
+	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat_HitReact, Verbose, TEXT("%s montage interrupted"), *GetName());
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }
 
 void UGameplayAbility_HitReactBase::OnHitReactMontageCancelled()
 {
-	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat, Verbose, TEXT("%s montage canceled"), *GetName());
+	UE_VLOG(GetCurrentActorInfo()->OwnerActor.Get(), LogCombat_HitReact, Verbose, TEXT("%s montage canceled"), *GetName());
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
 }

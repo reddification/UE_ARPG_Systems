@@ -186,7 +186,9 @@ bool UNpcMeleeCombatComponent::RequestNextAttack(EMeleeAttackType NewAttack)
 	OnAttackStartedEvent.Broadcast(NewAttack);
 	if (NewAttack <= EMeleeAttackType::SpinRightOberhauw)
 		ActiveAttackTrajectory = NewAttack;
-	
+	else 
+		ActiveAttackTrajectory = EMeleeAttackType::None;
+			
 	ActiveAttack = NewAttack;
 	PreviousAttack = NewAttack;
 	return true;

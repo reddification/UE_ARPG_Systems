@@ -36,8 +36,8 @@ public:
 	// NOTE!
 	// these attach phases callback are called from AnimNotifyState class. These notifies are hand-places in all attacks animation assets
 	// however, call order is not guaranteed! So BeginRelease can happen before EndWindUp. Keep it in mind and don't build logic where phases are dependent on each other
-	virtual void BeginWindUp(float TotalDuration, const uint32 AnimationId, EMeleeAttackType WindupAttackTrajectoryType);
-	virtual void BeginRelease(float TotalDuration, const uint32 AnimationId);
+	virtual void BeginWindUp(float TotalDuration, const uint32 AnimationId, EMeleeAttackType AttackTrajectory);
+	virtual void BeginRelease(float TotalDuration, const uint32 AnimationId, EMeleeAttackType AttackTrajectory);
 	virtual void BeginRecover(float TotalDuration, const uint32 AnimationId);
 	virtual void EndWindUp(const uint32 AnimationId);
 	virtual void EndRelease(const uint32 AnimationId);
@@ -70,6 +70,7 @@ public:
 	bool CanChangeAttackToBlock();
 
 	mutable FOnAttackStartedEvent OnAttackStartedEvent;
+	mutable FOnAttackStartedEvent OnAttackTrajectoryChangedEvent;
 	mutable FOnAttackEndedEvent OnAttackEndedEvent;
 	mutable FOnAttackCommitedEvent OnAttackCommitedEvent;
 	mutable FOnWeaponHitEvent OnWeaponHitEvent;

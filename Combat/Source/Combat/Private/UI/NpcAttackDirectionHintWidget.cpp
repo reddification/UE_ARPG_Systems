@@ -22,6 +22,7 @@ void UNpcAttackDirectionHintWidget::NativeConstruct()
 void UNpcAttackDirectionHintWidget::InitializeNpcCombatComponent()
 {
 	NpcCombatComponent->OnAttackStartedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::SetPreparedAttack);
+	NpcCombatComponent->OnAttackTrajectoryChangedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::SetPreparedAttack);
 	NpcCombatComponent->OnAttackActivePhaseChanged.AddUObject(this, &UNpcAttackDirectionHintWidget::OnAttackPhaseChanged);
 	NpcCombatComponent->OnAttackEndedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::OnAttackCompleted);
 	NpcCombatComponent->OnAttackFeintedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::OnAttackCompleted);

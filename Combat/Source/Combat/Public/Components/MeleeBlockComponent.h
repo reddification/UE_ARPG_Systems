@@ -26,7 +26,7 @@ public:
 	UMeleeBlockComponent();
 	virtual void StartBlocking();
 	virtual void StopBlocking();
-	EBlockResult BlockAttack(const FVector& AttackDirection, float AttackerStrength, const FHitResult& HitResult,
+	virtual EBlockResult BlockAttack(const FVector& AttackDirection, float AttackerStrength, const FHitResult& HitResult,
 		AActor* Attacker, const FMeleeAttackDebugInfo& AttackDebugInfo) const;
 	bool IsBlocking() const { return bRegisteringBlock; };
 
@@ -41,17 +41,19 @@ public:
 	mutable FOnBlockAccumulationChangedEvent OnBlockAccumulationChangedEvent;
 	mutable FOnBlockActiveChangedEvent OnBlockActiveChangedEvent;
 	mutable FOnParryWindowActiveChangedEvent OnParryWindowActiveChangedEvent;
-	
+
 protected:
 	virtual FVector2D GetBlockInput(float DeltaTime) const { unimplemented(); return FVector2D::ZeroVector; };
 	virtual void AddBlockInput(const FVector2D& BlockInput, float DeltaTime);
 	FVector GetIncomingAttackDirection(const AActor* AttackingActor, EMeleeAttackType IncomingAttackType);
 	FVector2D GetDesiredBlockVector(EMeleeAttackType IncomingAttackType) const;
+	void DecayBlock(float DeltaTime);
 
 	UPROPERTY()
 	TScriptInterface<ICombatant> OwnerCombatant = nullptr;
 	
 	float BlockInputAccumulationScale = 0.1f;
+	float BlockStrengthAccumulationScale = 2.f;
 	FVector2D AccumulatedBlock = FVector2D::ZeroVector;
 
 private:
@@ -63,10 +65,10 @@ private:
 	float BlockStrengthDecayRate = 3.f;
 	float CurrentDecayDelay = 0.f;
 	float DecayDelay = 0.5f;
-	float BlockStrengthAccumulationScale = 2.f;
 	float MinHeldBlockStrength = 0.25f;
 	float BlockStrengthToParry = 0.5f;
 	float AttackerStrengthScaleWhenHitBlock = 0.25f;
+	// float BlockDirectionDeductionArmReachBase = 30.f + 90.f; // half torso width + average arm reach
 	
 	UPROPERTY()
 	TScriptInterface<ICombatAnimInstance> CombatAnimInstance = nullptr;

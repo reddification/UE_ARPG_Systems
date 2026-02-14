@@ -23,8 +23,7 @@ class COMBAT_API INpcCombatant
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	virtual float GetIntelligence() = 0;
-	virtual void OnAttackRecoveryAfterHitTarget() = 0;
-	virtual void BlockCompleted() const = 0;
 	virtual float GetReaction() const = 0;
-	virtual void ReportSuccessfulParry() = 0;
+	virtual void OnAttackRecoveryAfterHitTarget() = 0;
+	virtual void BlockCompleted(bool bSuccess) const = 0;
 };

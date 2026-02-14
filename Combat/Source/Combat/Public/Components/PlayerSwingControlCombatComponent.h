@@ -48,7 +48,7 @@ public:
 	virtual void EndComboWindow(const uint32 AttackAnimationId) override;
 
 	virtual void BeginWindUp(float TotalDuration, const uint32 AttackAnimationId, EMeleeAttackType WindupAttackType) override;
-	virtual void BeginRelease(float TotalDuration, const uint32 AttackAnimationId) override;
+	virtual void BeginRelease(float TotalDuration, const uint32 AttackAnimationId, EMeleeAttackType MeleeAttackType) override;
 	virtual void BeginRecover(float TotalDuration, const uint32 AttackAnimationId) override;
 	virtual void ResetAttackState() override;
 	virtual void EndRecover(const uint32 AnimationId) override;

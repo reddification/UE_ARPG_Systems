@@ -37,6 +37,10 @@
 		{
 			"Name": "ModularGameplay",
 			"Enabled": true
+		},
+		{
+			"Name": "DebugUtils",
+			"Enabled": true
 		}
 	]
 }

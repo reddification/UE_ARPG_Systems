@@ -25,7 +25,9 @@ public:
 	virtual FVector2D ConsumeCurrentAttackInput() const = 0;
 	virtual FVector2D ConsumeCurrentBlockInput() const = 0;
 	
-	virtual void SetLookEnabled(bool bEnabled) = 0;
+	virtual void RequestLookInputLockedForAttack(bool bEnabled) = 0;
+	virtual void RequestLookInputLockedForBlock(bool bEnabled) = 0;
+	
 	virtual ECollisionChannel GetTargetCollisionChannel() const = 0;
 	virtual FVector GetCombatMovementDirection() const = 0;
 	virtual FVector ConsumeCombatMovementRawInput() const = 0;

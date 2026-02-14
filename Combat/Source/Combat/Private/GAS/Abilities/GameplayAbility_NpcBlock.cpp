@@ -1,44 +1,13 @@
-﻿// 
-
-
-#include "GAS/Abilities/GameplayAbility_NpcBlock.h"
+﻿#include "GAS/Abilities/GameplayAbility_NpcBlock.h"
 
 #include "AbilitySystemComponent.h"
 #include "Components/NpcBlockComponent.h"
 #include "GAS/Data/GameplayAbilityTargetData_Block.h"
 #include "GAS/Data/GameplayAbilityTargetData_BlockIncomingAttack.h"
 #include "Helpers/GASHelpers.h"
-#include "Interfaces/ICombatant.h"
 #include "Interfaces/NpcCombatant.h"
 
-void UGameplayAbility_NpcBlock::ActivateAbility(const FGameplayAbilitySpecHandle Handle,
-	const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo,
-	const FGameplayEventData* TriggerEventData)
-{
-	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	if (!IsActive() || bIsAbilityEnding)
-		return;
-	
-	float BackdashChance = 0.5f;
-	auto AvatarActor = ActorInfo->AvatarActor.Get();
-	auto NpcCombatant = Cast<INpcCombatant>(AvatarActor);
-	auto Combatant = Cast<ICombatant>(AvatarActor);
-	if (NpcCombatant)
-	{
-		float Reaction = NpcCombatant->GetReaction();
-		float Intelligence = NpcCombatant->GetIntelligence();
-		BackdashChance = (Reaction + Intelligence) * Combatant->GetStaminaRatio(); // why such formula - because i just felt that way
-	}
-	
-	if (FMath::RandRange(0.f, 1.f) <= BackdashChance)
-	{
-		FGameplayEventData Payload;
-		ActorInfo->AbilitySystemComponent->HandleGameplayEvent(CombatGameplayTags::Combat_Ability_Backdash_Event_Activate, &Payload);
-	}
-}
-
-bool UGameplayAbility_NpcBlock::StartBlocking(const FGameplayAbilityActorInfo* ActorInfo,
-                                              const FGameplayEventData* TriggerEventData)
+bool UGameplayAbility_NpcBlock::StartBlocking(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayEventData* TriggerEventData)
 {
 	auto BlockComponent = ActorInfo->AvatarActor->FindComponentByClass<UNpcBlockComponent>();
 	if (!ensure(BlockComponent))
@@ -74,24 +43,13 @@ void UGameplayAbility_NpcBlock::EndAbility(const FGameplayAbilitySpecHandle Hand
 	{
 		auto NpcCombatant = Cast<INpcCombatant>(ActorInfo->AvatarActor.Get());
 		if (ensure(NpcCombatant))
-			NpcCombatant->BlockCompleted();
-	}
-}
-
-void UGameplayAbility_NpcBlock::OnAttackParried(AActor* Attacker)
-{
-	Super::OnAttackParried(Attacker);
-	auto NpcCombatant = Cast<INpcCombatant>(GetCurrentActorInfo()->AvatarActor.Get());
-	if (ensure(NpcCombatant))
-	{
-		NpcCombatant->ReportSuccessfulParry();
-		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
+			NpcCombatant->BlockCompleted(!bWasCancelled);
 	}
 }
 
 void UGameplayAbility_NpcBlock::OnNpcFinishedBlocking()
 {
-	if (!IsActive())
+	if (!IsActive() || bIsAbilityEnding)
 		return;
 	
 	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);

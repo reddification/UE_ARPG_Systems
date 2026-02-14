@@ -29,7 +29,7 @@ public class Combat : ModuleRules
 				"CoreUObject", "StructUtils",
 				"Engine",
 				"Slate", "Niagara",
-				"SlateCore", "AIModule", "Projects", "UMG"
+				"SlateCore", "AIModule", "Projects", "UMG", "DebugUtils"
 			}
 			);
 			

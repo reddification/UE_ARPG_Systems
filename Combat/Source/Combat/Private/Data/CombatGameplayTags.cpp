@@ -36,6 +36,7 @@ namespace CombatGameplayTags
 
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Death_Event_Activate, "Combat.Ability.Death.Event.Activate", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_HitReact_Event_Activate, "Combat.Ability.HitReact.Event.Activate", "");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_PhysicalImpact_Event_Activate, "Combat.Ability.PhysicalImpact.Event.Activate", "");
 	
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Backdash, "Combat.Ability.Backdash", "");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Combat_Ability_Backdash_Event_Activate, "Combat.Ability.Backdash.Event.Activate", "");

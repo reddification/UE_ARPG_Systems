@@ -365,22 +365,35 @@ void UMeleeCombatComponent::TryRequestBlockWindow(float TotalDuration)
 	}
 }
 
-void UMeleeCombatComponent::BeginWindUp(float TotalDuration, const uint32 AnimationId, EMeleeAttackType WindupAttackTrajectoryType)
+void UMeleeCombatComponent::BeginWindUp(float TotalDuration, const uint32 AnimationId, EMeleeAttackType AttackTrajectory)
 {
-	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin wind up. Animation id = %d"), AnimationId);
+	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin wind up. Animation id = %d, фAttack trajectory = %s"),
+		AnimationId, *StaticEnum<EMeleeAttackType>()->GetDisplayValueAsText(AttackTrajectory).ToString());
 	bNeedsReset = true;
 	SetAttackPhase(EMeleeAttackPhase::WindUp, TotalDuration);
 	ActiveAnimationId = AnimationId;
 	OwnerCombatant->SetCombatantMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,false);
 	CombatAnimInstance->OnAttackWindUpBegin();
-	ActiveAttackTrajectory = WindupAttackTrajectoryType;
+	if (AttackTrajectory > EMeleeAttackType::Trajectory && AttackTrajectory < EMeleeAttackType::Type)
+	{
+		if (ActiveAttackTrajectory != AttackTrajectory)
+			OnAttackTrajectoryChangedEvent.Broadcast(AttackTrajectory);
+		
+		ActiveAttackTrajectory = AttackTrajectory;
+	}
+	else
+	{
+		ActiveAttackTrajectory = EMeleeAttackType::None;
+		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("Windup attack trajectory type is invalid"));	
+	}
 	
 	TryRequestBlockWindow(TotalDuration);
 }
 
-void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 AnimationId)
+void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 AnimationId, EMeleeAttackType AttackTrajectory)
 {
-	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin release. Animation id = %d"), AnimationId);
+	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Begin release. Animation id = %d, Attack trajectory = %s"),
+		AnimationId, *StaticEnum<EMeleeAttackType>()->GetDisplayValueAsText(AttackTrajectory).ToString());
 	bNeedsReset = true;
 	// Ok if we check this on BeginRelease - it's important that each consequitive attack starts within Windup phase in animation!!!!
 	// TODO enforce this in CombatAnimInstance->SetAttack
@@ -388,6 +401,19 @@ void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 Anima
 	{
 		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("Begin release: Active animation id != updated animation id: %d != %d OR active attack is not set"), ActiveAnimationId, AnimationId);
 		return;
+	}
+
+	if (AttackTrajectory > EMeleeAttackType::Trajectory && AttackTrajectory < EMeleeAttackType::Type)
+	{
+		if (ActiveAttackTrajectory != AttackTrajectory)
+			OnAttackTrajectoryChangedEvent.Broadcast(AttackTrajectory);
+		
+		ActiveAttackTrajectory = AttackTrajectory;
+	}
+	
+	if (!(ActiveAttackTrajectory > EMeleeAttackType::Trajectory && ActiveAttackTrajectory < EMeleeAttackType::Type))
+	{
+		UE_VLOG(GetOwner(), LogCombat, Error, TEXT("No attack trajectory detected on begin release"));
 	}
 	
 	// ActiveAnimationId = AnimationId; // I moved it to BeginWindUp but i don't remember why I placed it in BeginRelease in the first place...
@@ -402,9 +428,7 @@ void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 Anima
 
 	int i = 0;
 	for (const auto* WeaponCollision : WeaponCollisionsComponents)
-	{
 		PreviousWeaponCollisionTransform[i++] = WeaponCollision->GetComponentTransform();
-	}
 	
 	auto& TimerManager = GetWorld()->GetTimerManager();
 	TimerManager.SetTimer(WeaponCollisionSweepsTimer, this, &UMeleeCombatComponent::SweepWeaponCollisions,
@@ -412,10 +436,8 @@ void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 Anima
 
 	const FWeaponFX* WeaponFX = OwnerCombatant->GetWeaponFX(CombatGameplayTags::Combat_FX_Sound_Whoosh);
 	if (WeaponFX && !WeaponFX->SFX.IsNull())
-	{
 		if (auto SFX = WeaponFX->SFX.LoadSynchronous())
 			UGameplayStatics::PlaySoundAtLocation(this, SFX, GetOwner()->GetActorLocation());
-	}
 	
 	if (bBlockWindowActive)
 	{
@@ -470,8 +492,8 @@ void UMeleeCombatComponent::EndRelease(const uint32 AnimationId)
 		return;
 	}
 	
-	// SetDamageCollisionsEnabled(false);
 	GetWorld()->GetTimerManager().ClearTimer(WeaponCollisionSweepsTimer);
+	// SetDamageCollisionsEnabled(false);
 	if (CurrentAttackActorsHit.IsEmpty())
 		ReportAttackWhiffed();
 }
@@ -641,37 +663,41 @@ void UMeleeCombatComponent::OnWeaponOverlap(AActor* OtherActor, UPrimitiveCompon
 
 void UMeleeCombatComponent::SweepWeaponCollisions()
 {
+	if (ActiveAttack == EMeleeAttackType::None || AttackPhase != EMeleeAttackPhase::Release)
+	{
+		if (GetWorld()->GetTimeSeconds() > PhaseEndsAt + 1.f)
+		{
+			UE_VLOG(GetOwner(), LogCombat, Error,
+			TEXT("Something is wrong: UMeleeCombatComponent::SweepWeaponCollisions is called when character is doesn't have an attack in a release phase. Disabling timer"));
+		
+			if (auto WorldLocal = GetWorld())
+				WorldLocal->GetTimerManager().ClearTimer(WeaponCollisionSweepsTimer);
+		
+			return;
+		}
+	}
+	
 	FCollisionQueryParams CollisionQueryParams;
 	CollisionQueryParams.AddIgnoredActor(GetOwner());
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMeleeCombatComponent::SweepWeaponCollisions)
 	for (int i = 0; i < WeaponCollisionsComponents.Num(); i++)
 	{
 		const FTransform& PreviousTransform = PreviousWeaponCollisionTransform[i];
-		const FTransform& CurrentTransform = WeaponCollisionsComponents[i]->GetSocketTransform(CombatCollisionCenterSocketName);// GetComponentTransform();
+		const FTransform& CurrentTransform = WeaponCollisionsComponents[i]->GetSocketTransform(CombatCollisionCenterSocketName);
 		FVector SweepDirection = (CurrentTransform.GetLocation() - PreviousTransform.GetLocation()).GetSafeNormal();
 		FHitResult HitResult;
 		FQuat Rotation = FQuat::Slerp(PreviousTransform.GetRotation(), CurrentTransform.GetRotation(), 0.5f);
-		// FQuat Rotation = CurrentTransform.GetRotation();
 		// radius = 5 is out of my head value. should be enough and that'd be enough
 		auto CollisionShape = FCollisionShape::MakeCapsule(5.f, WeaponCollisionShapes[i].HalfHeight);
 
-		// box sweep causes too much hitting the floor
-		// auto CollisionShape = FCollisionShape::MakeBox(WeaponCollisionShapes[i].Extent);
-		// FVector TrueStart = PreviousTransform.TransformPosition(WeaponCollisionShapes[i].Center);
-		// FVector TrueEnd = CurrentTransform.TransformPosition(WeaponCollisionShapes[i].Center);
-
 		const float HandAdjustment = 15.f;
-		// FVector TrueStart = PreviousTransform.GetLocation() + PreviousTransform.GetUnitAxis(EAxis::Type::Z) * (WeaponCollisionShapes[i].HalfHeight + HandAdjustment);
-		// FVector TrueEnd = CurrentTransform.GetLocation() + CurrentTransform.GetUnitAxis(EAxis::Type::Z) * (WeaponCollisionShapes[i].HalfHeight + HandAdjustment);
 		FVector TrueStart = PreviousTransform.GetLocation() + PreviousTransform.GetUnitAxis(EAxis::Type::Z) * (HandAdjustment);
 		FVector TrueEnd = CurrentTransform.GetLocation() + CurrentTransform.GetUnitAxis(EAxis::Type::Z) * (HandAdjustment);
 		
 		bool bHit = GetWorld()->SweepSingleByProfile(HitResult, TrueStart, TrueEnd, Rotation,
 			WeaponCollisionProfileName, CollisionShape, CollisionQueryParams);
 		if (bHit)
-		{
 			OnWeaponOverlap(HitResult.GetActor(), HitResult.GetComponent(), HitResult, SweepDirection);
-		}
 
 #if WITH_EDITOR
 		if (GetDefault<UMeleeCombatSettings>()->bDrawDebugSweeps)

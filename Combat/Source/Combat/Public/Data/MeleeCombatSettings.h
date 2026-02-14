@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AttributeSet.h"
 #include "CombatDataTypes.h"
 #include "GameplayTagContainer.h"
-#include "Components/MeleeBlockComponent.h"
+#include "Components/NpcBlockComponent.h"
 #include "MeleeCombatSettings.generated.h"
 
 struct FGameplayTag;
@@ -316,20 +317,22 @@ public:
 	FRuntimeFloatCurve AIBlockStaminaDelayDependency;
 	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="AI")
+	FRuntimeFloatCurve AIWeaponMasteryBlockParryChanceDependency;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="AI")
 	float AIRangeDiffForLongAttack = 25.f;
 
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="AI")
+	float AIHoldBlockDurationMin = 0.2f;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="AI")
+	float AIHoldBlockDurationMax = 0.5f;
+	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly)
 	TArray<FCombatStyleMapping> CombatStyles;
 
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Protection")
 	TMap<FGameplayTag, FGameplayAttribute> DamageTypeToProtectionAttribute;
-
-	// This is an empiric balancing parameter that defines how effective protection is
-	// The final damage calculation equation is final damage = raw damage * e^(-protection / ProtectionEffectivenessScale)
-	//Smaller scale = higher resistance impact.
-	//Larger scale = softer curve, resistance is less effective.
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Protection", meta=(ClampMin = 0.1, UIMin = 0.1f))
-	double ProtectionEffectivenessScale = 50.f;
 	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Block")
 	FRuntimeFloatCurve BlockStaminaAccumulationScaleDependency;
@@ -431,6 +434,13 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f, UIMax = 1.f, ClampMax = 1.f, Category="Block"))
 	float BlockStrengthToParry = 0.5f;
 
+	// key - weapon mastery
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Block")
+	TMap<int, float> MaxBlockAngleErrors;
+
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Block")
+	FRuntimeFloatCurve IntellectToBlockErrorFactorDependency;
+	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(Category="TargetLock"))
 	TArray<TEnumAsByte<ECollisionChannel>> TargetLockObjectChannels;
 
@@ -442,4 +452,14 @@ public:
 	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Global")
 	float GlobalPoiseDamageScale = 1.f;
+
+	// This is an empiric balancing parameter that defines how effective protection is
+	// The final damage calculation equation is final damage = raw damage * e^(-protection / ProtectionEffectivenessScale)
+	//Smaller scale = higher resistance impact.
+	//Larger scale = softer curve, resistance is less effective.
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Global", meta=(ClampMin = 0.1, UIMin = 0.1f))
+	double ProtectionEffectivenessScale = 50.f;
+	
+	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Global")
+	float MaxWeaponMastery = 3.f;
 };

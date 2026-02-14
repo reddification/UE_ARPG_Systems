@@ -47,7 +47,7 @@ void UPlayerBlockAssistingComponent::StartBlocking()
 		// FVector Projection = FVector::VectorPlaneProject(BlockDirection3D, BlockTargetActor->GetActorForwardVector());
 		// BlockDirection.X = Projection.Y;
 		// BlockDirection.Y = Projection.Z;
-		BlockDirection = GetDesiredBlockVector(ThreatAttack);
+		BlockDirection = GetDesiredBlockVector(ThreatAttack).GetSafeNormal();
 	}
 }
 
