@@ -34,15 +34,6 @@ protected:
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
-	float ScoreUpdateThreshold = 1.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, UIMax = 1.f, ClampMin = 0.f, ClampMax = 1.f))
-	float ScoreUpdateThresholdCountRatio = 0.2f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float ThresholdDistance = 100.f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FBlackboardKeySelector GateBBKey;
 

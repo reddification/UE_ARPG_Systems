@@ -33,7 +33,7 @@ class ARPGAI_API UFlowNode_NpcGoal : public UFlowNodeStateful
 	GENERATED_BODY()
 	
 public:
-	UFlowNode_NpcGoal(const FObjectInitializer& ObjectInitializer);
+	UFlowNode_NpcGoal();
 	virtual void ExecuteInput(const FName& PinName) override;
 	virtual void InitializeInstance() override;
 	FEQSParametrizedQueryExecutionRequest* GetEQSRequest(const FGameplayTag& Tag);
@@ -66,8 +66,6 @@ protected:
 	virtual ENpcGoalAdvanceResult Advance(const FGameplayTagContainer& GoalExecutionResultTags);
 	virtual void Suspend();
 
-	virtual FFlowDataPinResult_GameplayTagContainer TrySupplyDataPinAsGameplayTagContainer_Implementation(const FName& PinName) const override;
-	
 	UPROPERTY(EditAnywhere)
 	bool bRunIndefinitely = false;
 	

@@ -28,6 +28,7 @@ public:
 	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 	
 protected:
+	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -48,6 +49,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FBlackboardKeySelector OutVisualContactDurationBBKey;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FBlackboardKeySelector OutLastSeenTargetLocationBBKey;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = -1.f, ClampMin = -1.f, UIMax = 1.f, ClampMax = 1.f))
 	float EnemyCanSeeNpcDotProductThreshold = 0.88f;
 
@@ -59,16 +63,9 @@ protected:
 	float VisualContactTimerDecayRate = 3.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.0f, ClampMin = 0.0f, UIMax = 1.f, ClampMax = 1.f))
-	float ChanceToReportVisualContactAcquired = 0.7f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.0f, ClampMin = 0.0f, UIMax = 1.f, ClampMax = 1.f))
 	float ChanceToReportVisualContactLost = 0.25f;
 
 	// When NPC loses direct sight contact, keep state of Npc sees enemy for this duration
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.0f, ClampMin = 0.0f))
 	float SightLostDelay = 2.f;
-
-private:
-	void ReportVisualContactStateChanged(UBehaviorTreeComponent& OwnerComp, APawn* NpcPawn,
-	                                     float ChanceToReport, const FGameplayTag& ReportTag);
 };

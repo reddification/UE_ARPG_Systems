@@ -29,4 +29,8 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bAwaitCompletion = true;
+
+	// useful for cases when character doesnt have a weapon (e.g. civillian)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bForceSuccess = true;
 };

@@ -19,7 +19,6 @@ UNpcBlackboardDataAsset::UNpcBlackboardDataAsset()
 	NormalizedHealthBBKey.AllowNoneAsValue(true);
 	NormalizedStaminaBBKey.AllowNoneAsValue(true);
 	AnxietyBBKey.AllowNoneAsValue(true);
-	CombatEvaluationIntervalBBKey.AllowNoneAsValue(true);
 	DefenseActionBBKey.AllowNoneAsValue(true);
 	RequestResetGoalBBKey.AllowNoneAsValue(true);
 	NpcActivityStateBBKey.AllowNoneAsValue(true);
@@ -49,9 +48,6 @@ UNpcBlackboardDataAsset::UNpcBlackboardDataAsset()
 	ExternalCompleteGoalBBKey.AllowNoneAsValue(true);
 	IsConversationPrioritizedBBKey.AllowNoneAsValue(true);
 	
-	bAcceptedConversationBBKey.AllowNoneAsValue(true);
-	bAcceptedConversationBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, bAcceptedConversationBBKey));
-
 	ConversationMoveToLocationBBKey.AllowNoneAsValue(true);
 	ConversationMoveToLocationBBKey.AddVectorFilter(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ConversationMoveToLocationBBKey));
 
@@ -70,9 +66,6 @@ UNpcBlackboardDataAsset::UNpcBlackboardDataAsset()
 	ActivityPhrasesBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ActivityPhrasesBBKey)));
 	NpcTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, NpcTagsBBKey)));
 	GoalTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, GoalTagsBBKey)));
-
-	IsAllEnemiesKilledBBKey.AllowNoneAsValue(true);
-	IsAllEnemiesKilledBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, IsAllEnemiesKilledBBKey));
 
 	ActiveBehaviorEvaluatorsTagsBBKey.AllowNoneAsValue(true);
 	ActiveBehaviorEvaluatorsTagsBBKey.AllowedTypes.Add(NewObject<UBlackboardKeyType_GameplayTag>(this, GET_MEMBER_NAME_CHECKED(UNpcBlackboardDataAsset, ActiveBehaviorEvaluatorsTagsBBKey)));

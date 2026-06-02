@@ -1,6 +1,7 @@
 ﻿#include "BehaviorTree/Decorators/BTDecorator_StoreTaggedBlackboardData.h"
 
 #include "AIController.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
@@ -51,8 +52,7 @@ void UBTDecorator_StoreTaggedBlackboardData::OnNodeActivation(FBehaviorTreeSearc
 		return;
 
 	auto Blackboard = SearchData.OwnerComp.GetBlackboardComponent();
-	
-	auto NpcComponent = SearchData.OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcComponent>();
+	auto NpcComponent = GetNpcComponent(SearchData.OwnerComp);
 	if (!ensure(NpcComponent != nullptr))
 		return;
 	
@@ -73,7 +73,7 @@ void UBTDecorator_StoreTaggedBlackboardData::OnNodeDeactivation(FBehaviorTreeSea
 	{
 		if (auto Pawn = AIController->GetPawn())
 		{
-			if (auto NpcComponent = Pawn->FindComponentByClass<UNpcComponent>())
+			if (auto NpcComponent = GetNpcComponent(Pawn))
 			{
 				auto BTMemory = GetNodeMemory<FBTMemory_StoreTaggedBlackboardData>(SearchData);
 				if (BTMemory->PreviousActor.IsValid())
@@ -104,7 +104,7 @@ EBlackboardNotificationResult UBTDecorator_StoreTaggedBlackboardData::OnDataChan
 
 	if (auto AIController = Cast<AAIController>(BlackboardComponent.GetOwner()))
 		if (auto Pawn = AIController->GetPawn())
-			if (auto NpcComponent = Pawn->FindComponentByClass<UNpcComponent>())
+			if (auto NpcComponent = GetNpcComponent(Pawn))
 				StoreData(&BlackboardComponent, NpcComponent);
 	
 	return EBlackboardNotificationResult::ContinueObserving;

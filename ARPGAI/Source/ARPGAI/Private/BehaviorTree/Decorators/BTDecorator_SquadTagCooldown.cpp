@@ -5,6 +5,7 @@
 
 #include "AIController.h"
 #include "Components/NpcComponent.h"
+#include "Data/LogChannels.h"
 #include "Subsystems/NpcSquadSubsystem.h"
 
 UBTDecorator_SquadTagCooldown::UBTDecorator_SquadTagCooldown(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -17,7 +18,13 @@ UBTDecorator_SquadTagCooldown::UBTDecorator_SquadTagCooldown(const FObjectInitia
 bool UBTDecorator_SquadTagCooldown::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp,
 	uint8* NodeMemory) const
 {
-	return OwnerComp.GetTagCooldownEndTime(CooldownTag) <= OwnerComp.GetAIOwner()->GetWorld()->GetTimeSeconds();
+	bool bHasCooldown = OwnerComp.GetTagCooldownEndTime(CooldownTag) > OwnerComp.GetAIOwner()->GetWorld()->GetTimeSeconds();
+	if (bHasCooldown)
+	{
+		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, Verbose, TEXT("Not doing %s because have squad action cooldown"), *CooldownTag.ToString());
+	}
+	
+	return !bHasCooldown;
 }
 
 void UBTDecorator_SquadTagCooldown::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
@@ -57,16 +64,13 @@ void UBTDecorator_SquadTagCooldown::SetCooldownForSquadMembers(const UBehaviorTr
 	if (Pawn == nullptr)
 		return;
 	
-	auto NpcComponent = Pawn->FindComponentByClass<UNpcComponent>();
-	if (NpcComponent == nullptr)
-		return;
-
 	auto NpcSquadSubsystem = UNpcSquadSubsystem::Get(Pawn);
 	const FVector PawnLocation = Pawn->GetActorLocation();
-	const auto& SquadMembers = NpcSquadSubsystem->GetAllies(Pawn, false, true);
+	const auto& SquadMembers = NpcSquadSubsystem->GetAllies(Pawn, true);
 	const float DistanceLimitSq = DistanceToAllyThreshold * DistanceToAllyThreshold;
 	if (SquadMembers.Num() > 0)
 	{
+		const float CooldownDurationValue = CooldownDuration.GetValue(BehaviorComp);
 		for (const auto SquadMember : SquadMembers)
 		{
 			if (Pawn == SquadMember)
@@ -81,7 +85,10 @@ void UBTDecorator_SquadTagCooldown::SetCooldownForSquadMembers(const UBehaviorTr
 			
 			auto AllyBrainComponent = SquadMember->GetController()->FindComponentByClass<UBehaviorTreeComponent>();
 			if (AllyBrainComponent)
-				AllyBrainComponent->AddCooldownTagDuration(CooldownTag, CooldownDuration.GetValue(BehaviorComp), false);
+			{
+				UE_VLOG(AIController, LogARPGAI, Verbose, TEXT("Adding squad action cooldown for action %s to %s for %.2f s"), *CooldownTag.ToString(), *SquadMember->GetName(), CooldownDurationValue);
+				AllyBrainComponent->AddCooldownTagDuration(CooldownTag, CooldownDurationValue, false);
+			}
 		}
 	}
 }

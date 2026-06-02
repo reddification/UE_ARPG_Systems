@@ -25,7 +25,8 @@ public:
 	bool RemoveExclusiveNpcAreaType(const FGameplayTag& RemovedExclusiveAreaType);
 	const TMap<FGameplayTag, FNpcAreasContainer>& GetNpcAreas() const;
 	bool IsLocationWithinNpcArea(const FVector& TestLocation, float AreaExtent) const;
-	
+	bool HasAreas() const;
+
 protected:
 	virtual void BeginPlay() override;
 

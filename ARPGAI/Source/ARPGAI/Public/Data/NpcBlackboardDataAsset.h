@@ -58,14 +58,8 @@ public:
 	FBlackboardKeySelector AnxietyBBKey;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
-	FBlackboardKeySelector CombatEvaluationIntervalBBKey;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
 	FBlackboardKeySelector DefenseActionBBKey;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Combat")
-	FBlackboardKeySelector IsAllEnemiesKilledBBKey;
-	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals")
 	FBlackboardKeySelector RequestResetGoalBBKey;
 
@@ -138,9 +132,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Conversation")
 	FBlackboardKeySelector ConversationPartnerBBKey;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Conversation")
-	FBlackboardKeySelector bAcceptedConversationBBKey;
-	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Goals|Conversation")
 	FBlackboardKeySelector IsConversationPrioritizedBBKey;
 

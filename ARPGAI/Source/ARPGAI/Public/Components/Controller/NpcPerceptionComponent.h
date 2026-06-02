@@ -2,82 +2,82 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Data/CombatEvaluationData.h"
+#include "Components/NpcCombatLogicComponent.h"
+#include "Data/NpcMemoryDataTypes.h"
+#include "Interfaces/NpcAliveCreature.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "NpcPerceptionComponent.generated.h"
 
-struct ARPGAI_API FCharacterPerceptionData
-{
-	float Distance = 0.f;
-	float Strength = 0.f;
-	float TimeSeen = 0.f;
-	float Health = 0.f;
-	float AccumulatedDamage = 0.f;
-	float ForwardVectorsDotProduct = 1.f;
-	float DirectionToForwardVectorDotProduct = 1.f;
-	FGameplayTag NpcId;
-	FGameplayTag Attitude;
-	FGameplayTagContainer NpcTags;
-	FGameplayTagContainer ProducedSounds;
-	NpcCombatEvaluation::EDetectionSource DetectionSource;
-	bool bCharacterSeesNpc = false;
-	bool bAlly = false;
+class UNpcMemoryComponent;
+class UNpcAttitudesComponent;
+class INpcPerceptionInterface;
+class UNpcAreasComponent;
+class UNpcCombatSettings;
 
-	bool IsAlive() const { return Health > 0.f; }
-	bool IsHostile() const;
-};
-
-struct FHeardSounds
-{
-	FVector Location;
-	float Distance = 0.f;
-	FGameplayTag SoundTag;
-	float Age = 0.f;
-	bool bByAlly = false;
-};
-
-struct FHazardPerceptionData
-{
-	FVector Location;
-	float Radius = 0.f;
-};
-
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+// 28 Apr 2026 (aki): TODO decouple this component from perception component and rename it to UNpcMemoryComponent
+UCLASS(Blueprintable)
 class ARPGAI_API UNpcPerceptionComponent : public UAIPerceptionComponent
 {
 	GENERATED_BODY()
 
 private:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FTargetPerceptionUpdatedNativeDelegate, AActor* TriggerActor, const FAIStimulus& Stimulus);
-	
+
 public:
 	UNpcPerceptionComponent();
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	float GetAccumulatedTimeSeen(AActor* Actor) const;
 
 	UFUNCTION(BlueprintCallable)
-	float GetAccumulatedDamage() const;
+	float GetAccumulatedDamage(bool bRecalculate) const;
 	
-	const TMap<TWeakObjectPtr<AActor>, FCharacterPerceptionData>& GetAnimatePerceptionData() { return CharacterPerceptionCache; };
-	const TMap<TWeakObjectPtr<AActor>, FHeardSounds>& GetHeardSounds() const { return HeardSoundsCache; };
+	const TMap<TWeakObjectPtr<AActor>, FCharacterPerceptionData>& GetShortTermCharactersMemory() const { return ShortTermCharacterMemory; }
+	const TMap<TWeakObjectPtr<AActor>, TArray<FHeardSoundMemory>>& GetHeardSounds() const { return ShortTermSoundsMemory; }
+	const FCharacterPerceptionData* GetCharacterPerceptionData(AActor* Actor) const { return ShortTermCharacterMemory.Find(Actor); }
+	const TMap<TWeakObjectPtr<AActor>, FNpcValueableItemPerceptionData>& GetPerceivedValueableItems() const { return ShortTermValueablesMemory; }
+	
+	void SetCombatLogicComponent(const UNpcCombatLogicComponent* InCombatLogicComponent);
+	void SetMemoryComponent(UNpcMemoryComponent* InMemoryComponent);
 
-	FTargetPerceptionUpdatedNativeDelegate TargetPerceptionUpdatedNativeEvent;
-
+	mutable FTargetPerceptionUpdatedNativeDelegate TargetPerceptionUpdatedNativeEvent;
 	void SetPawn(APawn* InPawn);
 	
+	void AddExternalVisualPerception(AActor* TriggerActor, float ObservationTime);
+	void AddExternalAudioPerception(AActor* TriggerActor, const FGameplayTag& SoundTag, float Loudness, float MaxRange);
+	void AddExternalDamagePerception(AActor* TriggerActor, float PerceivedDamage);
+
 protected:
 	virtual void BeginPlay() override;
+	
 	virtual bool ConditionallyStoreSuccessfulStimulus(FAIStimulus& StimulusStore, const FAIStimulus& NewStimulus) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float AllyPerceptionMergeDistanceThreshold = 2000.f;
-
+	float AllyPerceptionMergeDistanceThreshold_VisualContact = 2000.f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float AllyPerceptionMergeDistanceThreshold_Assumption = 600.f;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float PerceptionCacheInterval = 0.2f;
 	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<FNpcLongTermMemoryReason> LongTermMemoryReasons;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Territory")
+	float SoundEventTerritoryBoundsCheckExtent = 500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Territory")
+	float VisibleActorTerritoryBoundsCheckExtent = 250.f;
+	
 private:
-	void CachePerception();
-	void CachePerception(const FVector& NpcLocation, const TArray<APawn*>& Allies);
+	void ProcessShortTermMemory();
+	void PostProcessSoundEvents(const FVector &NpcLocation, const TArray<APawn*>& Allies);
+	// bActive means is it a memory of sight perception or does NPC see actor right now like right now-right now
+	void CacheVisualPerception(const FVector& NpcLocation, AActor* PerceivedActor, float ObservationTime, bool bAlly, bool bActive);
+	void CacheDamagePerception(AActor* PerceivedActor, float ReceivedDamage);
+	void RememberHeardSound(const FVector& NpcLocation, AActor* PerceivedActor, const FGameplayTag& SoundTag,
+		const FVector& SoundLocation, bool bByAlly, float SoundPerceptionAge, float Loudness);
+	void ProcessShortTermMemory(const FVector& NpcLocation, const TArray<APawn*>& Allies);
 	void MergeAllyPerceptions(const FVector& NpcLocation, const TArray<APawn*>& Allies);
 	bool CanMergePerception(APawn* Ally);
 
@@ -91,15 +91,40 @@ private:
 
 	UFUNCTION()
 	void OnTargetPerceptionUpdatedHandler(AActor* Actor, FAIStimulus Stimulus);
-
+	
 	void OnNpcOwnerDied(AActor* Actor);
+	void OnNpcTagsChanged(AActor* Pawn, const FGameplayTagContainer& NewTags);
 	
 	TWeakObjectPtr<APawn> OwnerPawn;
-	TWeakObjectPtr<UNpcAttitudesComponent> NpcAttitudesComponent;
+	
+	UPROPERTY()
+	TScriptInterface<INpcPerceptionInterface> NpcPerceptionInterface;
+	
+	UPROPERTY()
+	UNpcAttitudesComponent* NpcAttitudesComponent;
+	
+	UPROPERTY()
+	const UNpcAreasComponent* NpcAreasComponent;
+	
+	UPROPERTY()
+	const UNpcCombatLogicComponent* CombatLogicComponent;
+	
+	UPROPERTY()
+	UNpcMemoryComponent* MemoryComponent;
 	
 	TMap<TWeakObjectPtr<AActor>, float> ActorsObservationTime;
 	
-	TMap<TWeakObjectPtr<AActor>, FCharacterPerceptionData> CharacterPerceptionCache;
-	TMap<TWeakObjectPtr<AActor>, FHeardSounds> HeardSoundsCache;
-	TArray<FHazardPerceptionData> HazardsPerceptionCache;
+	TMap<TWeakObjectPtr<AActor>, FCharacterPerceptionData> ShortTermCharacterMemory;
+	TMap<TWeakObjectPtr<AActor>, TArray<FHeardSoundMemory>> ShortTermSoundsMemory;
+	TMap<TWeakObjectPtr<AActor>, FNpcValueableItemPerceptionData> ShortTermValueablesMemory;
+	TArray<FHazardPerceptionData> ShortTermHazardsMemory;
+	
+	FGameplayTagContainer OwnerNpcTags;
+	
+	TWeakObjectPtr<const UNpcCombatSettings> NpcCombatSettings;
+	
+	float MyDamageOutput = 0.f;
+	float MyProtectionValue = 0.f;
+	float MyHearingLoudnessThreshold = 1.f;
+	float AccumulatedDamage = 0.f;
 };

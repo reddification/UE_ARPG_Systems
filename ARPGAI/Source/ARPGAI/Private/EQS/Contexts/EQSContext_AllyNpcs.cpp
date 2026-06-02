@@ -2,6 +2,7 @@
 #include "Data/LogChannels.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
+#include "Interfaces/NpcAliveCreature.h"
 #include "Subsystems/NpcSquadSubsystem.h"
 
 void UEQSContext_AllyNpcs::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const
@@ -12,18 +13,29 @@ void UEQSContext_AllyNpcs::ProvideContext(FEnvQueryInstance& QueryInstance, FEnv
 		return;
 	}
 	
-	TArray<AActor*> ResultingActors;
 	auto NpcSquadSubsystem = UNpcSquadSubsystem::Get(QuerierPawn);
-	const TArray<APawn*> NPCs = NpcSquadSubsystem->GetAllies(QuerierPawn, true, true);
-	
-#if WITH_EDITOR
+	const TArray<APawn*> NPCs = NpcSquadSubsystem->GetAllies(QuerierPawn, CharacterQueryMode == ECharacterQueryMode::AliveOnly);
+	TArray<AActor*> ResultingActors;
+	ResultingActors.Reserve(NPCs.Num());	
+
 	for (const auto AllyPawn : NPCs)
 	{
+#if WITH_EDITOR
 		FBox Box = FBox::BuildAABB(AllyPawn->GetActorLocation(), FVector(30, 30, 90));
 		UE_VLOG_BOX(QuerierPawn, LogARPGAI, VeryVerbose, Box, FColor::Emerald, TEXT("Ally %s"), *AllyPawn->GetName());
-	}
 #endif
-	Algo::Transform(NPCs, ResultingActors, [](APawn* NPC){ return NPC; });
+		
+		bool bAdd = true;
+		if (CharacterQueryMode == ECharacterQueryMode::DeadOnly)
+		{
+			bAdd = false;
+			if (auto AliveInterface = Cast<INpcAliveCreature>(AllyPawn))
+				bAdd = !AliveInterface->IsAlive_NpcAliveCreature();
+		}
+		
+		if (bAdd)
+			ResultingActors.Add(AllyPawn);
+	}
 	
 	UEnvQueryItemType_Actor::SetContextHelper(ContextData, ResultingActors);
 }

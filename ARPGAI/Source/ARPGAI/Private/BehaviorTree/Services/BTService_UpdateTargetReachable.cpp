@@ -7,6 +7,7 @@
 #include "NavigationSystem.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Data/LogChannels.h"
 #include "NavFilters/NavigationQueryFilter.h"
 
 UBTService_UpdateTargetReachable::UBTService_UpdateTargetReachable()
@@ -27,17 +28,19 @@ void UBTService_UpdateTargetReachable::TickNode(UBehaviorTreeComponent& OwnerCom
 	auto TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName));
 	if (TargetActor == nullptr)
 	{
-		ensure(false);
+		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, Warning, TEXT("UBTService_UpdateTargetReachable: Target is nullptr"));
+		Blackboard->SetValueAsBool(OutIsTargetUnreachableBBKey.SelectedKeyName, false);
 		return;
 	}
 	
-	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(OwnerComp.GetWorld());
+	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(OwnerComp.GetWorld());
 	if (!ensure(NavSys))
 		return;
 
-	
 	bool bHasPath = false;
 
+	auto BTMemory = reinterpret_cast<FBTMemory_UpdateTargetReachable*>(NodeMemory);
+	
 	const AAIController* AIOwner = OwnerComp.GetAIOwner();
 	auto PawnLocation = AIOwner->GetPawn()->GetActorLocation();
 	const ANavigationData* NavData = AIOwner ? NavSys->GetNavDataForProps(AIOwner->GetNavAgentPropertiesRef(), AIOwner->GetNavAgentLocation()) : NULL;
@@ -48,7 +51,8 @@ void UBTService_UpdateTargetReachable::TickNode(UBehaviorTreeComponent& OwnerCom
 		bHasPath = NavSys->TestPathSync(FPathFindingQuery(AIOwner, *NavData, PawnLocation, TargetActor->GetActorLocation(), QueryFilter), TestMode);
 	}
 
-	Blackboard->SetValueAsBool(OutIsTargetUnreachableBBKey.SelectedKeyName, !bHasPath);
+	BTMemory->ConsequitiveUnreachableChecks = bHasPath ? 0 : BTMemory->ConsequitiveUnreachableChecks + 1;
+	Blackboard->SetValueAsBool(OutIsTargetUnreachableBBKey.SelectedKeyName, BTMemory->ConsequitiveUnreachableChecks >= MinUnreachableChecksCount);
 }
 
 void UBTService_UpdateTargetReachable::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -59,6 +63,15 @@ void UBTService_UpdateTargetReachable::OnBecomeRelevant(UBehaviorTreeComponent& 
 	Blackboard->RegisterObserver(TargetBBKey.GetSelectedKeyID(), this, ObserverDelegate);
 	if (Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName) == nullptr)
 		SetNextTickTime(NodeMemory, FLT_MAX);
+	
+	// 26 Apr 2026 (aki): just checking hypothesis. What's happening is that after NPC looses target (e.g. target runs behind an obstacle) 
+	// this service doesn't tick when target reappears. My assumption: SetNextTickTime in blackboard observer callback is effective even after OnCeaseRelevant
+	// if (GetNextTickRemainingTime(NodeMemory) > 1000.f) 
+	// upd: yes. if SetNextTickTime(NodeMemory, FLT_MAX) was called - then you have to call SetNextTickTime(NodeMemory, 0) again, otherwise the service won't tick
+	SetNextTickTime(NodeMemory, 0.f);
+	
+	auto BTMemory = reinterpret_cast<FBTMemory_UpdateTargetReachable*>(NodeMemory);
+	BTMemory->ConsequitiveUnreachableChecks = 0;
 }
 
 void UBTService_UpdateTargetReachable::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -75,6 +88,8 @@ EBlackboardNotificationResult UBTService_UpdateTargetReachable::OnTargetChanged(
 {
 	auto BTComponent = Cast<UBehaviorTreeComponent>(BlackboardComponent.GetBrainComponent());
 	auto NodeMemory = BTComponent->GetNodeMemory(this, BTComponent->FindInstanceContainingNode(this));
+	auto BTMemory = reinterpret_cast<FBTMemory_UpdateTargetReachable*>(NodeMemory);
+	BTMemory->ConsequitiveUnreachableChecks = 0;
 	if (BlackboardComponent.GetValueAsObject(TargetBBKey.SelectedKeyName) == nullptr)
 		SetNextTickTime(NodeMemory, FLT_MAX);
 	else
@@ -95,7 +110,7 @@ void UBTService_UpdateTargetReachable::InitializeFromAsset(UBehaviorTree& Asset)
 
 FString UBTService_UpdateTargetReachable::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("Target BB:%s\n[out]Target unreachable BB:%s\n%s"),
-		*TargetBBKey.SelectedKeyName.ToString(), *OutIsTargetUnreachableBBKey.SelectedKeyName.ToString(),
+	return FString::Printf(TEXT("Target BB:%s\n[out]Target unreachable BB:%s\nUnreachable after %d PF checks failed in a row\n%s"),
+		*TargetBBKey.SelectedKeyName.ToString(), *OutIsTargetUnreachableBBKey.SelectedKeyName.ToString(), MinUnreachableChecksCount,
 		*Super::GetStaticDescription());
 }

@@ -1,42 +1,45 @@
-﻿// 
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Components/SphereComponent.h"
 #include "NpcProximityAwarenessComponent.generated.h"
 
 
+struct FProximityAwarenessData
+{
+	FProximityAwarenessData() { Duration = 0.f; }
+	float Duration = 0.f;
+};
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class ARPGAI_API UNpcProximityAwarenessComponent : public USphereComponent
+class ARPGAI_API UNpcProximityAwarenessComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	UNpcProximityAwarenessComponent();
-	virtual void Activate(bool bReset = false) override;
-	virtual void Deactivate() override;
-	const TArray<TWeakObjectPtr<AActor>>& GetDetectedActorsInProximity() const { return ActorsInProximity; }
+	const TMap<TWeakObjectPtr<AActor>, FProximityAwarenessData>& GetDetectedActorsInProximity() const { return ActorsInProximity; }
+	
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	
+	void ActivateProximityAwareness(float Radius, float UpdateInterval, const TArray<TEnumAsByte<ECollisionChannel>>& ObjectTypes,
+	                                bool bIgnoreAllies = true, const FGameplayTagQuery* OptionalDetectionBlockedFIlter = nullptr);
+	void DisableProximityAwareness();
 	
 protected:
 	virtual void BeginPlay() override;
 
-	// owner won't detect actor with these tags
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FGameplayTagQuery DetectionBlockedTagQuery;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName AwarenessCollisionProfileName = FName("NpcAwareness");
-	
-	TArray<TWeakObjectPtr<AActor>> ActorsInProximity;
-
 private:
 	bool CanDetect(AActor* Actor) const;
+	void OnActorEnterProximity(AActor* OtherActor);
+	void OnActorExitProximity(AActor* OtherActor);
+	void OnAsyncOverlapCompleted(const FTraceHandle& TraceHandle, FOverlapDatum& OverlapDatum);
 	
-	UFUNCTION()
-	void OnActorEnterProximity(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
-							   const FHitResult& SweepResult);
-	UFUNCTION()
-	void OnActorExitProximity(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	FCollisionObjectQueryParams CollisionObjectQueryParams;
+	FCollisionQueryParams CollisionQueryParams;
+	TMap<TWeakObjectPtr<AActor>, FProximityAwarenessData> ActorsInProximity;
+	FGameplayTagQuery DetectionBlockedTagQuery;
+	FOverlapDelegate OverlapDelegate;
+	float OverlapRadius = 300.f;
+	bool bIgnoreAllies = true;
 };

@@ -29,13 +29,13 @@ void UNpcInfoWidgetComponent::InitializeNpc()
 {
 	if (auto AliveCreature = Cast<INpcAliveCreature>(GetOwner()))
 	{
-		if (!AliveCreature->IsNpcActorAlive()) // can happen after save-load
+		if (!AliveCreature->IsAlive_NpcAliveCreature()) // can happen after save-load
 		{
 			SetVisibility(false);
 			return;
 		}
 		
-		AliveCreature->OnDeathStarted.AddUObject(this, &UNpcInfoWidgetComponent::OnDeathStarted);
+		AliveCreature->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcInfoWidgetComponent::OnDeathStarted);
 	}
 	
 	auto NpcCombatSettings = GetDefault<UNpcCombatSettings>();
@@ -73,7 +73,11 @@ void UNpcInfoWidgetComponent::UpdateVisibility()
 		return;
 
 	if (!PlayerPawn.IsValid())
-		return;
+	{
+		PlayerPawn = UGameplayStatics::GetPlayerCharacter(this, 0);
+		if (!PlayerPawn.IsValid())
+			return;
+	}
 	
 	bool bHostile = OwnerNpcAttitudesComponent->IsHostile(PlayerPawn.Get());
 	float ConsiderableDistance = bHostile ? ConsiderableDistanceToPlayerForHostile : ConsiderableDistanceToPlayerForNonHostile;

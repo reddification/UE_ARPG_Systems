@@ -1,10 +1,12 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "BehaviorEvaluators/BehaviorEvaluator_Base.h"
 #include "Data/NpcDTR.h"
 #include "GAS/Attributes/NpcCombatAttributeSet.h"
 #include "NpcComponent.generated.h"
 
+class INpcActorTagsInterface;
 class INpcZone;
 class UBoxComponent;
 class INpcAliveCreature;
@@ -38,7 +40,6 @@ public:
 	void SetStateActive(const FGameplayTag& StateTag, const TMap<FGameplayTag, float>& SetByCallerParams, bool bInActive);
 	
 	FGameplayTagContainer GetNpcTags() const;
-	const struct FNpcRealtimeDialogueLine* GetDialogueLine(const FGameplayTag& LineTagId) const;
 
 	FORCEINLINE void SetMovementPaceType(const FGameplayTag& NewMovementPaceType) { CurrentMovementPaceTypeTag = NewMovementPaceType; }
 	FORCEINLINE const FGameplayTag& GetMovementPaceType() const { return CurrentMovementPaceTypeTag; }
@@ -49,9 +50,6 @@ public:
 	bool ExecuteDialogueFollowRequest(AActor* Actor);
 	bool ExecuteDialogueStopFollowingRequest();
 
-	void OnNpcEnteredDialogueWithPlayer(ACharacter* Character);
-	void OnNpcExitedDialogueWithPlayer();
-	
 	FORCEINLINE AActor* GetFollowTarget() const { return FollowTarget.Get(); }
 	FORCEINLINE void SetFollowTarget(AActor* NewFollowTarget) { FollowTarget = NewFollowTarget; }
 	FORCEINLINE void ClearFollowTarget() { FollowTarget = nullptr; }
@@ -73,8 +71,12 @@ public:
 	FVector GetStoredLocation(const FGameplayTag& DataTag, bool bConsumeAfterReading = false);
 	
 	// used for debugging 31.01.2026. TODO remove ASAP
-	virtual void Debug_RequestStagger() {};
-
+	virtual void Debug_RequestStagger() {}
+	
+	void AddBehaviorStack(const FGameplayTag& BehaviorId);
+	void RemoveBehaviorStack(const FGameplayTag& BehaviorId);
+	const FGameplayTag& GetActiveBehaviorId() const { return BehaviorStack.IsEmpty() ? FGameplayTag::EmptyTag : BehaviorStack.Last(); }
+	
 	const UNpcBlackboardDataAsset* GetNpcBlackboardKeys() const { return NpcBlackboardKeys; }
 	
 	mutable FNpcCombatStateChanged OnStateChanged;
@@ -111,6 +113,9 @@ protected:
 private:
 	UPROPERTY()
 	TScriptInterface<INpc> OwnerNPC;
+	
+	UPROPERTY()
+	TScriptInterface<INpcActorTagsInterface> OwnerActorTagsNPC;
 	
 	UPROPERTY()
 	TScriptInterface<INpcControllerInterface> NpcController;
@@ -150,6 +155,5 @@ private:
 	UPROPERTY()
 	UNpcStatesDataAsset* NpcStates = nullptr;
 	
-	UPROPERTY()
-	TArray<UNpcPhrasesDataAsset*> NpcPhrases;
+	TArray<FGameplayTag, TInlineAllocator<8>> BehaviorStack;
 };

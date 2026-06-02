@@ -28,6 +28,9 @@ public:
 	TArray<UNpcComponent*> GetNpcsInRange(const FGameplayTag& NpcId, const FVector& Origin, float Range, int CountLimit, const FGameplayTagQuery* NpcsFilter = nullptr);
 	UNpcComponent* GetClosestNpc(const FGameplayTag& NpcId, const FVector& QuerierLocation, const FGameplayTagQuery* NpcsFilters = nullptr);
 	
+	const TArray<TWeakObjectPtr<APawn>> GetAllNpcPawns() const { return NpcPawns; }
+	
 private:
 	TMultiMap<FGameplayTag, TWeakObjectPtr<UNpcComponent>> Npcs;
+	TArray<TWeakObjectPtr<APawn>> NpcPawns;
 };

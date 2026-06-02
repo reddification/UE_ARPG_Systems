@@ -24,11 +24,16 @@ protected:
 	virtual EBlackboardNotificationResult OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID) override;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bUseTagQuery = false;
+
+	// expected query to be match blackboard tags
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="bUseTagQuery"))
+	FGameplayTagQuery GameplayTagQuery;
+	
+	// expected tags to be matched to blackboard tags
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="bUseTagQuery == false"))
 	FGameplayTagContainer GameplayTagContainer;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FGameplayTagQuery GameplayTagQuery;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	bool bUseTagQuery = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="bUseTagQuery == false"))
+	bool bContainerMatchAll = true;
 };

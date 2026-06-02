@@ -27,23 +27,25 @@ private:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FNpcDeathEvent, AActor* OwningActor);
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	virtual float GetHealth() const = 0;
-	virtual float GetMaxHealth() const = 0;
+	virtual float GetHealth_NpcAliveCreature() const = 0;
+	virtual float GetMaxHealth_NpcAliveCreature() const = 0;
 
-	virtual float GetStamina() const = 0;
-	virtual float GetMaxStamina() const = 0;
+	virtual float GetNpcAliveCreatureStamina() const = 0;
+	virtual float GetNpcAliveCreatureMaxStamina() const = 0;
 	
-	virtual bool IsNpcActorAlive() const = 0;
+	virtual bool IsAlive_NpcAliveCreature() const = 0;
 	
-	virtual FGameplayAttribute GetHealthAttribute() const = 0;
-	virtual FGameplayAttribute GetMaxHealthAttribute() const = 0;
-	virtual FGameplayAttribute GetPoiseAttribute() const = 0;
-	virtual FGameplayAttribute GetMaxPoiseAttribute() const = 0;
-	virtual FGameplayAttribute GetStaminaAttribute() const = 0;
-	virtual FGameplayAttribute GetMaxStaminaAttribute() const = 0;
+	// 31 Mar 2026 (aki): TODO decouple all GAS related stuff into a separate ARPG_AIxGAS module
+	virtual FGameplayAttribute GetHealthAttribute_NpcAliveCreature() const = 0;
+	virtual FGameplayAttribute GetMaxHealthAttribute_NpcAliveCreature() const = 0;
+	virtual FGameplayAttribute GetPoiseAttribute_NpcAliveCreature() const = 0;
+	virtual FGameplayAttribute GetMaxPoiseAttribute_NpcAliveCreature() const = 0;
+	virtual FGameplayAttribute GetStaminaAttribute_NpcAliveCreature() const = 0;
+	virtual FGameplayAttribute GetMaxStaminaAttribute_NpcAliveCreature() const = 0;
 
-	virtual FGameplayTag GetNpcAliveCreatureId() const = 0;
+	virtual FGameplayTag GetTagId_NpcAliveCreature() const = 0;
+	virtual FGuid GetId_NpcAliveCreature() const = 0;
 	
-	mutable FNpcDeathEvent OnDeathStarted;
-	mutable FNpcDeathEvent OnDeathFinished;
+	mutable FNpcDeathEvent OnNpcAliveCreatureDeathStarted;
+	mutable FNpcDeathEvent OnNpcAliveCreatureDeathFinished;
 };

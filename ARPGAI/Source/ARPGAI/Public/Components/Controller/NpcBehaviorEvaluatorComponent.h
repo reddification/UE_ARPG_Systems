@@ -16,37 +16,57 @@ class ARPGAI_API UNpcBehaviorEvaluatorComponent : public UActorComponent
 
 public:
 	UNpcBehaviorEvaluatorComponent();
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	
-	void RegisterBehaviorEvaluator(const TScriptInterface<IBehaviorEvaluator>& BehaviorEvaluator, const FGameplayTag& EvaluatorId);
-	void UnregisterBehaviorEvaluator(const FGameplayTag& EvaluatorId);
-	void InitiateBehaviorState(const FGameplayTag& EvaluatorId);
-	void FinalizeBehaviorState(const FGameplayTag& BehaviorId);
+	/**
+	 * Requests evaluators to be relevant. Depending on state  model, immediate relevancy is not guaranteed.
+	 * @param EvaluatorTags Tags of evaluator to effect
+	 * @param bActive If applying or removing request
+	 * @param SourceId Identifier of request. Requests are stored it a stack-like array. Source id is optional, but can be useful if states change order is not sequential.
+	 * Requests are removed in reverse order when first request id matches provided SourceId 
+	 */
+	virtual void RequestEvaluatorsRelevant(const FGameplayTagContainer& EvaluatorTags, bool bActive, const FName& SourceId = FName("Anonymous")) {};
 	
-	void RequestEvaluatorsActive(const FGameplayTagContainer& EvaluatorTags, bool bActive);
-	void RequestEvaluatorsBlocked(const FGameplayTagContainer& EvaluatorTags, bool bActive);
+	/**
+	 * Requests evaluators to be blocked. With current state models, evaluator is guaranteed to be blocked after
+	 * @param EvaluatorTags Tags of evaluator to effect
+	 * @param bActive If applying or removing request
+	 * @param SourceId Identifier of request. Requests are stored it a stack-like array. Source id is optional, but can be useful if states change order is not sequential
+	 * Requests are removed in reverse order when first request id matches provided SourceId 
+	 */
+	virtual void RequestEvaluatorsBlocked(const FGameplayTagContainer& EvaluatorTags, bool bActive, const FName& SourceId = FName("Anonymous")) {};
 
-	void RequestEvaluatorActive(const FGameplayTag& EvaluatorTag, float Duration);
-	void RequestEvaluatorBlocked(const FGameplayTag& EvaluatorTag, float Duration);
+	/**
+	 * Requests an evaluator to be temporarily relevant. Depending on state model, immediate relevancy is not guaranteed.
+	 * @param EvaluatorTag Tag of evaluator to effect
+	 * @param Duration Duration of relevancy
+	 * @param SourceId Identifier of request. Requests are stored it a stack-like array. Source id is optional, but can be useful if states change order is not sequential.
+	 * Requests are removed in reverse order when first request id matches provided SourceId 
+	 */
+	virtual void RequestEvaluatorRelevant(const FGameplayTag& EvaluatorTag, float Duration,
+	                                      const FName& SourceId = FName("Anonymous")) {};
 	
-	void Initialize(UBehaviorTreeComponent* InBTComponent, const struct FNpcDTR* NpcDTR);
-	bool SetBehaviorEvaluatorCooldown(const FGameplayTag& EvaluatorTag, float Cooldown);
+	/**
+	 * Requests an evaluator to be temporarily blocked. With current evaluation models, evaluator is guaranteed to be blocked after
+	 * @param EvaluatorTag Tag of evaluator to effect
+	 * @param Duration Duration of relevancy
+	 * @param SourceId Identifier of request. Requests are stored it a stack-like array. Source id is optional, but can be useful if states change order is not sequential.
+	 * Requests are removed in reverse order when first request id matches provided SourceId 
+	 */
+	virtual void RequestEvaluatorBlocked(const FGameplayTag& EvaluatorTag, float Duration,
+	                                     const FName& SourceId = FName("Anonymous")) { }
 	
-protected:
-	virtual void BeginPlay() override;
+	virtual void RequestEvaluatorRelevant(const FGameplayTag& EvaluatorTag, bool bActive,
+	                                      const FName& SourceId = FName("Anonymous")) { }
 	
-private:
-	void UpdateActiveEvaluators();
+	virtual void RequestEvaluatorBlocked(const FGameplayTag& EvaluatorTag, bool bActive,
+	                                     const FName& SourceId = FName("Anonymous")) { }
 	
-	UPROPERTY()
-	TMap<FGameplayTag, const TScriptInterface<IBehaviorEvaluator>> BehaviorEvaluators;
-
-	UPROPERTY()
-	class UNpcBlackboardDataAsset* BlackboardKeys;
-	
-	TWeakObjectPtr<UBehaviorTreeComponent> BTComponent;
-	TMap<FGameplayTag, int> RequestedActiveEvaluators;
-	TMap<FGameplayTag, int> RequestedBlockedEvaluators;
-	TMap<FGameplayTag, float> PendingUnblockEvaluators;
-	TMap<FGameplayTag, float> PendingRemoveEvaluatorsActivations;
+	/**
+	 * Requests an evaluator to be temporarily blocked. With current evaluation models, evaluator is guaranteed to be blocked after
+	 * @param EvaluatorTag Tag of evaluator to effect
+	 * @param Cooldown Duration of relevancy
+	 * @param SourceId Identifier of request. Requests are stored it a stack-like array. Source id is optional, but can be useful if states change order is not sequential.
+	 * Requests are removed in reverse order when first request id matches provided SourceId 
+	 */
+	virtual bool SetBehaviorEvaluatorCooldown(const FGameplayTag& EvaluatorTag, float Cooldown, const FName& SourceId = FName("Anonymous")) { return false; };
 };

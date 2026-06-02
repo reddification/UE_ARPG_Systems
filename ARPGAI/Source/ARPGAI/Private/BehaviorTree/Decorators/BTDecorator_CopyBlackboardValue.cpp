@@ -13,6 +13,7 @@ UBTDecorator_CopyBlackboardValue::UBTDecorator_CopyBlackboardValue()
 {
 	NodeName = "Copy blackboard value";
 	bNotifyActivation = true;
+	bNotifyDeactivation = true;
 }
 
 void UBTDecorator_CopyBlackboardValue::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
@@ -27,7 +28,17 @@ void UBTDecorator_CopyBlackboardValue::OnNodeActivation(FBehaviorTreeSearchData&
 	auto Blackboard = SearchData.OwnerComp.GetBlackboardComponent();
 	auto OnSourceKeyChangedObserverCallback = FOnBlackboardChangeNotification::CreateUObject(this, &UBTDecorator_CopyBlackboardValue::OnSourceChanged);
 	Blackboard->RegisterObserver(SourceBBKey.GetSelectedKeyID(), this, OnSourceKeyChangedObserverCallback);
-	Blackboard->CopyKeyValue(SourceBBKey.GetSelectedKeyID(), DestinationBBKey.GetSelectedKeyID());
+	const bool bCopied = Blackboard->CopyKeyValue(SourceBBKey.GetSelectedKeyID(), DestinationBBKey.GetSelectedKeyID());
+	ensure(bCopied);
+}
+
+void UBTDecorator_CopyBlackboardValue::OnNodeDeactivation(FBehaviorTreeSearchData& SearchData,
+	EBTNodeResult::Type NodeResult)
+{
+	if (auto Blackboard = SearchData.OwnerComp.GetBlackboardComponent())
+		Blackboard->UnregisterObserversFrom(this);
+	
+	Super::OnNodeDeactivation(SearchData, NodeResult);
 }
 
 EBlackboardNotificationResult UBTDecorator_CopyBlackboardValue::OnSourceChanged(
@@ -37,8 +48,8 @@ EBlackboardNotificationResult UBTDecorator_CopyBlackboardValue::OnSourceChanged(
 		return EBlackboardNotificationResult::RemoveObserver;
 
 	UBlackboardComponent& MutableBlackboard = const_cast<UBlackboardComponent&>(BlackboardComponent);
-	MutableBlackboard.CopyKeyValue(SourceBBKey.GetSelectedKeyID(), DestinationBBKey.GetSelectedKeyID());
-	
+	const bool bCopied = MutableBlackboard.CopyKeyValue(SourceBBKey.GetSelectedKeyID(), DestinationBBKey.GetSelectedKeyID());
+	ensure(bCopied);
 	return EBlackboardNotificationResult::ContinueObserving;
 }
 

@@ -3,16 +3,16 @@
 #include "AiDataTypes.h"
 #include "GameplayTagContainer.h"
 #include "NpcActivitiesDataTypes.h"
-#include "NpcCombatTypes.h"
 #include "Engine/DataTable.h"
 
 #include "NpcDTR.generated.h"
 
+class UNpcBehaviorsConfiguration;
 class UNpcCombatParametersDataAsset;
 class UFlowAsset;
 class UNpcPerceptionReactionEvaluatorsDataAsset;
-class UNpcPhrasesDataAsset;
-struct FNpcAttitude;
+class UPhrasesDataAsset;
+struct FAttitude;
 class UNpcActivityDataAsset;
 class UBehaviorTree;
 class UAnimMontage;
@@ -36,18 +36,27 @@ struct ARPGAI_API FNpcDTR : public FTableRowBase
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Personality")
 	bool IsUniqueNpc = false;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|Behavior")
 	TSoftObjectPtr<UFlowAsset> NpcActivitiesGraph;
 	
 	// These parameters are used by NPC goals and reaction behavior evaluators (and whatever else is added)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct), Category="Behavior")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct), Category="AI|Behavior")
 	TMap<FGameplayTag, TInstancedStruct<FNpcGoalParametersBase>> NpcGoalAndReactionParameters;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|Navigation")
 	TSubclassOf<UNavigationQueryFilter> DefaultNavigationQueryFilterClass;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|Behavior")
 	TArray<UNpcPerceptionReactionEvaluatorsDataAsset*> NpcPerceptionReactionEvaluators;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="AI|Behavior")
+	TSoftObjectPtr<UNpcBehaviorsConfiguration> BehaviorsConfiguration;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attitudes")
+	FAttitudeSet BaseAttitudes;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Attitudes")
+	TMap<FGameplayTag, FAttitudeSet> CustomAttitudes;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
 	TArray<UAbilitySet*> AbilitySets;
@@ -55,21 +64,6 @@ struct ARPGAI_API FNpcDTR : public FTableRowBase
 	// Faction tags, titles, etc. Can be used for attitudes
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
 	FGameplayTagContainer DefaultTags;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
-	FNpcAttitudes BaseAttitudes;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
-	TMap<FGameplayTag, FNpcAttitudes> CustomAttitudes;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Behavior")
-	UBehaviorTree* BaseBehavior;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="AI.Behavior"), Category="Behavior")
-	TMap<FGameplayTag, UBehaviorTree*> DynamicBehaviors;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(Categories="AI.Behavior"), Category="Behavior")
-	FGameplayTagContainer InitiallyActiveBehaviorEvaluators;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
 	UNpcCombatParametersDataAsset* NpcCombatParametersDataAsset;
@@ -79,11 +73,11 @@ struct ARPGAI_API FNpcDTR : public FTableRowBase
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
 	class UNpcBlackboardDataAsset* NpcBlackboardDataAsset;
-
-	// Order matters. Option which complies with requirements or empty requirements will be chosen first
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Dialogue")
-	TArray<UNpcPhrasesDataAsset*> NpcPhrasesDataAssets;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
 	TSoftClassPtr<ACharacter> SpawnClass;
+	
+	// Item tags or categories that are valueable to this NPC
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Configuration")
+	FGameplayTagContainer ValueableItems;
 };

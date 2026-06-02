@@ -16,10 +16,11 @@
 #include "GameFramework/GameModeBase.h"
 #include "Interfaces/NpcSystemGameMode.h"
 
-UFlowNode_NpcGoal::UFlowNode_NpcGoal(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UFlowNode_NpcGoal::UFlowNode_NpcGoal()
 {
-	InputPins = { TEXT("Start"), TEXT("Suspend") };
-	OutputPins = { TEXT("Started"), TEXT("Resumed"), TEXT("Suspended"), TEXT("Completed"), TEXT("Aborted"), TEXT("Failed") };
+	InputPins = { FFlowPin(FName("Start")), FFlowPin(FName("Suspend")) };
+	OutputPins = { FFlowPin(FName("Started")), FFlowPin(FName("Resumed")), FFlowPin(FName("Suspended")),
+		FFlowPin(FName("Completed")), FFlowPin(FName("Aborted")), FFlowPin(FName("Failed")) };
 	
 #if WITH_EDITOR
 	Category = TEXT("NPC");
@@ -33,7 +34,7 @@ void UFlowNode_NpcGoal::ExecuteInput(const FName& PinName)
 	UE_VLOG(NpcPawn.Get(), LogARPGAI_Activity, Verbose, TEXT("%s: execute input %s"), *GetName(), *PinName.ToString());
 	ENpcGoalStartResult Result = ENpcGoalStartResult::None;
 	
-	if (PinName == "Start")
+	if (PinName == FName("Start"))
 	{
 		bool bResuming = CurrentGoalState == EGoalState::Suspended;
 		Result = Start();
@@ -67,7 +68,7 @@ void UFlowNode_NpcGoal::ExecuteInput(const FName& PinName)
 				break;
 		}
 	}
-	else if (PinName == "Suspend" && CurrentGoalState == EGoalState::Running)
+	else if (PinName == FName("Suspend") && CurrentGoalState == EGoalState::Running)
 	{
 		UE_VLOG(NpcPawn.Get(), LogARPGAI_Activity, Verbose, TEXT("%s: execute input -> suspend"), *GetName());
 		Suspend();
@@ -207,26 +208,6 @@ void UFlowNode_NpcGoal::Suspend()
 	}
 
 	CurrentGoalState = EGoalState::Suspended;
-}
-
-FFlowDataPinResult_GameplayTagContainer UFlowNode_NpcGoal::TrySupplyDataPinAsGameplayTagContainer_Implementation(
-	const FName& PinName) const
-{
-	static const FName OUTPIN_GameplayTagContainerOutput = GET_MEMBER_NAME_CHECKED(UFlowNode_NpcGoal, OutGoalExecutionResultTags);
-
-	FFlowDataPinResult_GameplayTagContainer Result;
-	if (PinName == OUTPIN_GameplayTagContainerOutput)
-	{
-		Result = FFlowDataPinResult_GameplayTagContainer(OutGoalExecutionResultTags);
-	}
-	else
-	{
-		Result = Super::TrySupplyDataPinAsGameplayTagContainer_Implementation(PinName);
-	}
-
-	LogNote(FString::Printf(TEXT("%s supplied %s for pin %s"), *GetName(), *Result.Value.ToStringSimple(), *PinName.ToString()));
-
-	return Result;
 }
 
 ENpcGoalAdvanceResult UFlowNode_NpcGoal::RequestAdvanceGoal(const FGameplayTagContainer& GoalExecutionResultTags)

@@ -1,11 +1,8 @@
-﻿// 
-
-
-#include "FlowGraph/Addons/FlowNodeAddon_GrantTags.h"
+﻿#include "FlowGraph/Addons/FlowNodeAddon_GrantTags.h"
 
 #include "AIController.h"
 #include "FlowGraph/Nodes/FlowNode_NpcGoal.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcActorTagsInterface.h"
 
 void UFlowNodeAddon_GrantTags::ExecuteInput(const FName& PinName)
 {
@@ -14,8 +11,8 @@ void UFlowNodeAddon_GrantTags::ExecuteInput(const FName& PinName)
 		return;
 	
 	auto Owner = Cast<AAIController>(TryGetRootFlowActorOwner());
-	auto Npc = Cast<INpc>(Owner->GetPawn());
-	Npc->GiveNpcTags(Tags);
+	if (auto Npc = Cast<INpcActorTagsInterface>(Owner->GetPawn()))
+		Npc->GiveTags_NPC(Tags);
 }
 
 void UFlowNodeAddon_GrantTags::FinishState()
@@ -24,8 +21,8 @@ void UFlowNodeAddon_GrantTags::FinishState()
 		return;
 	
 	auto Owner = Cast<AAIController>(TryGetRootFlowActorOwner());
-	auto Npc = Cast<INpc>(Owner->GetPawn());
-	Npc->RemoveNpcTags(Tags);
+	if (auto Npc = Cast<INpcActorTagsInterface>(Owner->GetPawn()))
+		Npc->RemoveTags_NPC(Tags);
 	
 	Super::FinishState();
 }

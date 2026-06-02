@@ -17,7 +17,7 @@ class ARPGAI_API UFlowNode_NpcGoal_Conversate : public UFlowNode_NpcGoal, public
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_Conversate(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::Conversate; }
+	UFlowNode_NpcGoal_Conversate() { NpcGoalType = ENpcGoalType::Conversate; }
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

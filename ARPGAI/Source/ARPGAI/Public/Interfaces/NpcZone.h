@@ -25,7 +25,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	TArray<UShapeComponent*> GetNpcZoneVolumes() const;
 
-	virtual bool IsLocationWithinNpcArea(const FVector& TestLocation, float AreaExtent) = 0;
+	virtual UBoxComponent* GetVolumeContainingLocation(const FVector& TestLocation, float AreaExtent) const = 0;
+	virtual bool IsLocationWithinNpcArea(const FVector& TestLocation, float AreaExtent) const = 0;
 	virtual TArray<FNavLocation> ProvideEqsPoints(const float Density, const float ExtentScale) = 0;
 	virtual FVector GetNpcNavigationLocation(const FVector& QuerierLocation) const = 0;
 };

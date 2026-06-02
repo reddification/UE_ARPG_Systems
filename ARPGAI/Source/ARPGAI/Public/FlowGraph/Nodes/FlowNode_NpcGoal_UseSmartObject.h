@@ -17,7 +17,7 @@ class ARPGAI_API UFlowNode_NpcGoal_UseSmartObject : public UFlowNode_NpcGoal, pu
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_UseSmartObject(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::UseSmartObject; }
+	UFlowNode_NpcGoal_UseSmartObject() { NpcGoalType = ENpcGoalType::UseSmartObject; }
 	
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

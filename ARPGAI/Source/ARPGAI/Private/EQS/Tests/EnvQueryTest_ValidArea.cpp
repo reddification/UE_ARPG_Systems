@@ -17,16 +17,20 @@ UEnvQueryTest_ValidArea::UEnvQueryTest_ValidArea()
 
 void UEnvQueryTest_ValidArea::RunTest(FEnvQueryInstance& QueryInstance) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEnvQueryTest_ValidArea)
+	
 	auto OwnerPawn = Cast<APawn>(QueryInstance.Owner.Get());
 	if (OwnerPawn == nullptr)
 		return;
 
+	BoolValue.BindData(OwnerPawn, QueryInstance.QueryID);
+	bool bExpectedValue = BoolValue.GetValue();
 	auto NpcComponent = OwnerPawn->FindComponentByClass<UNpcAreasComponent>();
 	const auto& NpcAreas = NpcComponent->GetNpcAreas();
 	if (NpcAreas.Num() == 0)
 	{
 		for (FEnvQueryInstance::ItemIterator It(this, QueryInstance); It; ++It)
-			It.SetScore(TestPurpose, FilterType, true, true);
+			It.SetScore(TestPurpose, FilterType, bExpectedValue, bExpectedValue);
 	}
 	else
 	{
@@ -53,7 +57,7 @@ void UEnvQueryTest_ValidArea::RunTest(FEnvQueryInstance& QueryInstance) const
 					break;
 			}
 			
-			It.SetScore(TestPurpose, FilterType, bLocationWithinNpcAreas, true);
+			It.SetScore(TestPurpose, FilterType, bLocationWithinNpcAreas, bExpectedValue);
 		}
 	}
 }

@@ -67,8 +67,20 @@ void UBTService_UpdateCombatRole::TickNode(UBehaviorTreeComponent& OwnerComp, ui
 	}
 }
 
+void UBTService_UpdateCombatRole::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryInit::Type InitType) const
+{
+	Super::InitializeMemory(OwnerComp, NodeMemory, InitType);
+	InitializeNodeMemory<FBTMemory_UpdateCombatRole>(NodeMemory, InitType);
+}
+
+void UBTService_UpdateCombatRole::CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryClear::Type CleanupType) const
+{
+	Super::CleanupMemory(OwnerComp, NodeMemory, CleanupType);
+	CleanupNodeMemory<FBTMemory_UpdateCombatRole>(NodeMemory, CleanupType);
+}
+
 EBlackboardNotificationResult UBTService_UpdateCombatRole::OnTargetChanged(const UBlackboardComponent& BlackboardComponent, 
-	FBlackboard::FKey Key)
+                                                                           FBlackboard::FKey Key)
 {
 	if (!ensure(Key == TargetActorBBKey.GetSelectedKeyID()))
 		return EBlackboardNotificationResult::RemoveObserver;

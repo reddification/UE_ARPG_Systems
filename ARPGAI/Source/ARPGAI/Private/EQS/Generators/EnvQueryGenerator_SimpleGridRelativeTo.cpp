@@ -12,13 +12,8 @@ void UEnvQueryGenerator_SimpleGridRelativeTo::GenerateItems(FEnvQueryInstance& Q
 	UObject* BindOwner = QueryInstance.Owner.Get();
 	GridSize.BindData(BindOwner, QueryInstance.QueryID);
 	SpaceBetween.BindData(BindOwner, QueryInstance.QueryID);
-
-	float RadiusValue = GridSize.GetValue();
-	float DensityValue = SpaceBetween.GetValue();
-
-	const int32 ItemCount = FPlatformMath::TruncToInt((RadiusValue * 2.0f / DensityValue) + 1);
-	const int32 ItemCountHalf = ItemCount / 2;
-
+	Offset.BindData(BindOwner, QueryInstance.QueryID);
+	
 	TArray<FVector> ContextLocations;
 	TArray<FVector> RelativeToLocations;
 	QueryInstance.PrepareContext(GenerateAround, ContextLocations);
@@ -30,6 +25,13 @@ void UEnvQueryGenerator_SimpleGridRelativeTo::GenerateItems(FEnvQueryInstance& Q
 		return;
 	}
 	
+	const float RadiusValue = GridSize.GetValue();
+	const float DensityValue = SpaceBetween.GetValue();
+	const float OffsetValue = Offset.GetValue();
+	
+	const int32 ItemCount = FPlatformMath::TruncToInt((RadiusValue * 2.0f / DensityValue) + 1);
+	const int32 ItemCountHalf = ItemCount / 2;
+
 	const FVector& RelativeToLocation = RelativeToLocations[0];
 	TArray<FNavLocation> GridPoints;
 	GridPoints.Reserve(ItemCount * ItemCount * ContextLocations.Num());
@@ -43,11 +45,14 @@ void UEnvQueryGenerator_SimpleGridRelativeTo::GenerateItems(FEnvQueryInstance& Q
 	
 	for (int32 ContextIndex = 0; ContextIndex < ContextLocations.Num(); ContextIndex++)
 	{
-		const FVector& ContextLocation = ContextLocations[ContextIndex];
+		FVector ContextLocation = ContextLocations[ContextIndex];
 		// Compute the forward (or “look”) direction from the context to the relative point.
 		const FVector Forward = bInverseDirection
 			? (ContextLocation - RelativeToLocation).GetSafeNormal()
 			: (RelativeToLocation - ContextLocation).GetSafeNormal();
+		if (OffsetValue != 0.f)
+			ContextLocation += Forward * OffsetValue;
+		
 		// Compute a right vector perpendicular to Forward using the world up vector.
 		const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward).GetSafeNormal();
 

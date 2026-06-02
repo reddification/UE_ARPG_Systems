@@ -9,6 +9,7 @@
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "NpcPerceptionReactionComponent.generated.h"
 
+class INpcActorTagsInterface;
 class UNpcReactionEvaluatorBase;
 class UBlackboardComponent;
 enum class EReactionBehaviorType : uint8;
@@ -82,6 +83,9 @@ private:
 	TScriptInterface<INpc> OwnerNPC;
 
 	UPROPERTY()
+	TScriptInterface<INpcActorTagsInterface> OwnerActorTagsNPC;
+	
+	UPROPERTY()
 	TObjectPtr<const UNpcBlackboardDataAsset> NpcBlackboardKeys;
 	
 	TWeakObjectPtr<UBlackboardComponent> BlackboardComponent;
@@ -94,6 +98,6 @@ private:
 	bool bNpcComponentInitialized = false;
 	bool bAIControllerInitialized = false;
 	
-	void OnNpcStateChanged(const FGameplayTagContainer& NewNpcState);
+	void OnNpcStateChanged(AActor* Npc, const FGameplayTagContainer& NewNpcState);
 	void OnWorldStateChanged(const FGameplayTagContainer& NewWorldState);
 };

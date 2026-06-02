@@ -7,6 +7,7 @@
 #include "Components/Controller/NpcSquadMemberComponent.h"
 #include "Data/LogChannels.h"
 #include "Interfaces/Npc.h"
+#include "Interfaces/NpcActorTagsInterface.h"
 #include "Interfaces/NpcAliveCreature.h"
 
 UNpcSquadSubsystem* UNpcSquadSubsystem::Get(const UObject* WorldContextObject)
@@ -88,8 +89,8 @@ bool UNpcSquadSubsystem::CreateSquad(APawn* SquadLeader, const FGameplayTagConta
 
 			if (!MembersFilter.IsEmpty())
 			{
-				auto Npc = Cast<INpc>(PotentialSquadMember.Get());
-				bValidSquadMember = MembersFilter.Matches(Npc->GetNpcOwnerTags());
+				auto Npc = Cast<INpcActorTagsInterface>(PotentialSquadMember.Get());
+				bValidSquadMember = MembersFilter.Matches(Npc->GetTags_NPC());
 			}
 			
 			if (bValidSquadMember)
@@ -125,8 +126,10 @@ bool UNpcSquadSubsystem::CreateSquad(APawn* SquadLeader, const FGameplayTagConta
 	return true;
 }
 
-void UNpcSquadSubsystem::JoinSquad(APawn* SquadMember, const FGuid& SquadId)
+void UNpcSquadSubsystem::JoinOrCreateSquad(APawn* SquadMember, const FGuid& SquadId)
 {
+	LeaveSquad(SquadMember);
+	
 	if (!Squads.Contains(SquadId))
 		Squads.Add(SquadId, FSquadData());
 
@@ -165,26 +168,26 @@ void UNpcSquadSubsystem::DisbandSquad(const FGuid& SquadId)
 	Squads.Remove(SquadId);
 }
 
-TArray<APawn*> UNpcSquadSubsystem::GetAllies(const APawn* RequestorNpc, bool bIgnoreSquadLeader, bool bIgnoreDead) const
+TArray<APawn*> UNpcSquadSubsystem::GetAllies(const APawn* RequestorNpc, bool bIgnoreDead) const
 {
 	TArray<APawn*> Result;
 	if (!SquadsReverseLookup.Contains(RequestorNpc))
 		return Result;
 
 	const FGuid& SquadId = SquadsReverseLookup[RequestorNpc];
-	bool bSquadLeader = Squads[SquadId][0] == RequestorNpc;
-	for (const auto& SquadMember : Squads[SquadId].SquadMembers)
+	Result.Reserve(Squads[SquadId].SquadMembers.Num());
+	for (int i = 0; i < Squads[SquadId].SquadMembers.Num(); i++)
 	{
-		if (bSquadLeader && bIgnoreSquadLeader)
+		const auto& SquadMember = Squads[SquadId][i];
+		if (SquadMember == RequestorNpc || !SquadMember.IsValid())
 			continue;
 
 		if (bIgnoreDead)
 			if (auto AliveInterface = Cast<INpcAliveCreature>(SquadMember.Get()))
-				if (!AliveInterface->IsNpcActorAlive())
+				if (!AliveInterface->IsAlive_NpcAliveCreature())
 					continue;
 		
-		if (ensure(SquadMember.IsValid()) && SquadMember != RequestorNpc)
-			Result.Add(SquadMember.Get());
+		Result.Add(SquadMember.Get());
 	}
 
 	return Result;

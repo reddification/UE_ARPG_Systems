@@ -1,5 +1,6 @@
 ﻿#include "Components/NpcCombatLogicComponent.h"
 
+#include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
 #include "AIController.h"
 #include "GameplayEffectExtension.h"
@@ -10,9 +11,13 @@
 #include "Data/LogChannels.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "Data/NpcCombatParametersDataAsset.h"
+#include "Data/NpcMemoryDataTypes.h"
+#include "GAS/Attributes/NpcCombatAttributeSet.h"
 #include "Interfaces/Npc.h"
+#include "Interfaces/NpcActorTagsInterface.h"
 #include "Interfaces/NpcAliveCreature.h"
-#include "Interfaces/Threat.h"
+#include "Interfaces/NpcCombatInterface.h"
+#include "Interfaces/NpcThreat.h"
 #include "Perception/AISense_Damage.h"
 #include "Settings/NpcCombatSettings.h"
 #include "Subsystems/NpcSquadSubsystem.h"
@@ -52,10 +57,22 @@ void UNpcCombatLogicComponent::InitializeComponent()
 	OwnerNPC.SetObject(PawnLocal);
 	OwnerNPC.SetInterface(Cast<INpc>(PawnLocal));
 	
+	if (auto TagsInterface = Cast<INpcActorTagsInterface>(PawnLocal))
+	{
+		OwnerTagsActorNPC.SetObject(PawnLocal);
+		OwnerTagsActorNPC.SetInterface(TagsInterface);
+	}
+	
 	OwnerAliveCreature.SetObject(PawnLocal);
 	OwnerAliveCreature.SetInterface(Cast<INpcAliveCreature>(PawnLocal));
-	OwnerAliveCreature->OnDeathStarted.AddUObject(this, &UNpcCombatLogicComponent::OnNpcDeathStarted);
+	OwnerAliveCreature->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcCombatLogicComponent::OnNpcDeathStarted);
 
+	if (auto NpcCombatInterfaceLocal = Cast<INpcCombatInterface>(PawnLocal))
+	{
+		OwnerNpcCombatInterface.SetObject(PawnLocal);
+		OwnerNpcCombatInterface.SetInterface(NpcCombatInterfaceLocal);
+	}
+	
 	auto NpcCombatSettings = GetDefault<UNpcCombatSettings>();
 	AttackRangeScale = NpcCombatSettings->AIAttackRangeScale;
 	AttackRangeStepExtension = NpcCombatSettings->AttackRangeStepExtension;
@@ -87,18 +104,18 @@ void UNpcCombatLogicComponent::InitializeCombatData()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcCombatLogicComponent::InitializeCombatData)
 	
-	if (OwnerASC.IsValid())
+	if (IsValid(OwnerASC))
 	{
 		if (auto NpcCombatAttributeSet = OwnerASC->GetSet<UNpcCombatAttributeSet>())
 		{
 			InitializeNpcCombatAttributeSet(NpcCombatAttributeSet);
 		}
 
-		auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute();
+		auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute_NpcAliveCreature();
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(HealthAttribute).AddUObject(this, &UNpcCombatLogicComponent::OnHealthChanged);
 			SetHealth(OwnerASC->GetNumericAttribute(HealthAttribute));
 
-		auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute();
+		auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute_NpcAliveCreature();
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(StaminaAttribute).AddUObject(this, &UNpcCombatLogicComponent::OnStaminaChanged);
 			SetStamina(OwnerASC->GetNumericAttribute(StaminaAttribute));
 	}
@@ -112,7 +129,8 @@ void UNpcCombatLogicComponent::InitializeCombatData()
 
 void UNpcCombatLogicComponent::InitializeNpcCombatAttributeSet(const UNpcCombatAttributeSet* NpcCombatAttributeSet)
 {
-	OwnerASC->GetGameplayAttributeValueChangeDelegate(OwnerNPC->GetAttackRangeAttribute())
+	auto CombatInterface = Cast<INpcCombatInterface>(OwnerPawn);
+	OwnerASC->GetGameplayAttributeValueChangeDelegate(CombatInterface->GetAttackRangeAttribute())
 	   .AddUObject(this, &UNpcCombatLogicComponent::OnAttackRangeChanged);
 	OwnerASC->GetGameplayAttributeValueChangeDelegate(UNpcCombatAttributeSet::GetAggressionAttribute())
 	   .AddUObject(this, &UNpcCombatLogicComponent::OnAggressivenessChanged);
@@ -121,7 +139,7 @@ void UNpcCombatLogicComponent::InitializeNpcCombatAttributeSet(const UNpcCombatA
 	OwnerASC->GetGameplayAttributeValueChangeDelegate(UNpcCombatAttributeSet::GetReactionAttribute())
 	   .AddUObject(this, &UNpcCombatLogicComponent::OnReactionChanged);
 	
-	SetAttackRange(OwnerNPC->GetAttackRange());
+	SetAttackRange(CombatInterface->GetAttackRange_NpcCombat());
 	SetSurroundRange(NpcCombatAttributeSet->GetSurroundRange());
 	SetAggression(NpcCombatAttributeSet->GetAggression());
 	SetIntelligence(NpcCombatAttributeSet->GetIntellect());
@@ -130,15 +148,19 @@ void UNpcCombatLogicComponent::InitializeNpcCombatAttributeSet(const UNpcCombatA
 
 float UNpcCombatLogicComponent::GetTauntProbabilityOnSuccessfulAttack() const
 {
-	IThreat* ActiveEnemy = OwnerNPC->GetActiveTarget();
-	float EnemyHealth = ActiveEnemy->GetHealth();
+	// IThreat* ActiveEnemy = OwnerNPC->GetActiveTarget();
+	auto ActiveEnemy = Cast<INpcThreat>(GetPrimaryTargetActor());
+	if (!ensure(ActiveEnemy))
+		return 0.f;
+	
+	float EnemyHealth = ActiveEnemy->GetHealth_NpcThreat();
 	const auto& NpcCombatEvaluationParameters = NpcCombatParameters->NpcCombatEvaluationParameters;
-	bool bShouldTaunt = ActiveEnemy->IsStaggered();
+	bool bShouldTaunt = ActiveEnemy->IsStaggered_NpcThreat();
 	if (!bShouldTaunt)
 	{
 		const float TrueDistanceBetweenEnemyAndNpc = (ActiveEnemy->GetThreatLocation() - GetOwner()->GetActorLocation()).Size();
 		float PerceivedDistanceBetweenEnemyAndNpc = GetIntellectAffectedDistance(TrueDistanceBetweenEnemyAndNpc);
-		bShouldTaunt = PerceivedDistanceBetweenEnemyAndNpc > GetIntellectAffectedDistance(AttackRange + ActiveEnemy->GetAttackRange()) * NpcCombatEvaluationParameters.SafeDistanceForTauntFactor;
+		bShouldTaunt = PerceivedDistanceBetweenEnemyAndNpc > GetIntellectAffectedDistance(AttackRange + ActiveEnemy->GetAttackRange_NpcThreat()) * NpcCombatEvaluationParameters.SafeDistanceForTauntFactor;
 	}
 
 	bShouldTaunt &= Health / EnemyHealth > NpcCombatEvaluationParameters.NpcToEnemyHealthRatioToTauntStaggeredEnemy;
@@ -159,26 +181,6 @@ float UNpcCombatLogicComponent::GetBackdashProbabilityOnWhiff() const
 	// TODO FMath::Min(StaminaDependency->Eval(Stamina), AggressionDependency->Eval(Aggression))
 }
 
-void UNpcCombatLogicComponent::SetEnemyThreatLevel(const FGameplayTag& InThreatLevelTag)
-{
-	ActiveThreatLevelTag = InThreatLevelTag;
-	if (InThreatLevelTag.IsValid())
-	{
-		if (const float* MinAnxietyLevel = NpcCombatParameters->NpcCombatEvaluationParameters.PerceivedThreatToMinAnxiety.Find(InThreatLevelTag))
-		{
-			
-		}
-		else
-		{
-			// ensure(false);			
-		}
-	}
-	else
-	{
-		// TODO start reducing anxiety
-	}
-}
-
 void UNpcCombatLogicComponent::OnBlockCompleted()
 {
 	ResetReactionToIncomingAttack();
@@ -196,6 +198,7 @@ void UNpcCombatLogicComponent::ReactToIncomingAttack(AActor* ThreatActor)
 	if (IsImmobilized())
 		return;
 	
+	bool bCanBlock = IsValid(OwnerNpcCombatInterface.GetObject()) ? OwnerNpcCombatInterface->CanBlock() : false;
 	auto OwnerLocal = OwnerPawn.Get();
 	
 	if (!IsValid(ThreatActor))
@@ -207,7 +210,7 @@ void UNpcCombatLogicComponent::ReactToIncomingAttack(AActor* ThreatActor)
 	
 	UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Log, TEXT("Reacting to incoming attack from %s"), *ThreatActor->GetName());
 	
-	const auto* ThreatData = ActiveThreats.Find(ThreatActor);
+	const auto* ThreatData = ImmediateThreats.Find(ThreatActor);
 	if (!ThreatData)
 	{
 		UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Error, TEXT("UNpcCombatLogicComponent::ReactToIncomingAttack: threat actor is not in NPCs active threats"));
@@ -225,8 +228,12 @@ void UNpcCombatLogicComponent::ReactToIncomingAttack(AActor* ThreatActor)
 	}
 #endif
 	
+	const float DotProduct = (ThreatActor->GetActorLocation() - OwnerLocal->GetActorLocation()).GetSafeNormal() | OwnerLocal->GetActorForwardVector();
+	if (DotProduct < 0.5f)
+		return;
+	
 	// @AK: FYI this formula is out of my ass. feel free to adjust if the parry chance seems to be too rare
-	const float OtherAttacksReactionsScale = DefensiveActionCauser.IsValid() ? 0.5f : 1.f;
+	const float OtherAttacksReactionsScale = DefensiveActionCauser ? 0.5f : 1.f;
 	const float ChanceToReact = FMath::Clamp(
 		(Reaction + Intelligence * 0.75f - Aggressiveness * 0.25f) * NormalizedStamina * OtherAttacksReactionsScale,
 		0.25f,
@@ -255,48 +262,57 @@ void UNpcCombatLogicComponent::ReactToIncomingAttack(AActor* ThreatActor)
 	
 	AttackingThreats.Add(ThreatActor);
 
-	ENpcDefensiveAction RecommendedAction = ENpcDefensiveAction::Parry;
-	int RelevantThreatsCount = 0;
-	int EnemiesAttackingMe = 0;
-	GetRelevantThreatsCounts(RelevantThreatsCount, EnemiesAttackingMe);
-	if (EnemiesAttackingMe >= 2)
+	ENpcDefensiveAction RecommendedAction = ENpcDefensiveAction::None;
+	if (bCanBlock)
 	{
-		UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Verbose, TEXT("More than 1 threat is attacking me. Using dodge"));
-		RecommendedAction = ENpcDefensiveAction::Dodge;
+		RecommendedAction = ENpcDefensiveAction::Parry;
+		int RelevantThreatsCount = 0;
+		int EnemiesAttackingMe = 0;
+		GetRelevantThreatsCounts(RelevantThreatsCount, EnemiesAttackingMe);
+		if (EnemiesAttackingMe >= 2)
+		{
+			UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Verbose, TEXT("More than 1 threat is attacking me. Using dodge"));
+			RecommendedAction = ENpcDefensiveAction::Dodge;
+		}
+		else
+		{
+			RecommendedAction = ENpcDefensiveAction::Parry;
+			if (PerceivedDistance + NpcCombatParameters->NpcCombatEvaluationParameters.StepOutDistance > PerceivedEnemyAttackRange)
+			{
+				float BackdashProbability = 0.5f;
+				if (const auto BackdashAggressionDependency = NpcCombatParameters->NpcCombatEvaluationParameters.BackstepAggressionProbabilityDependency.GetRichCurveConst())
+					if (BackdashAggressionDependency->HasAnyData())
+						BackdashProbability = BackdashAggressionDependency->Eval(Aggressiveness);
+
+				UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Log, TEXT("Evaluating backdash probability: %.2f"), BackdashProbability);
+			
+				if (FMath::RandRange(0.f, 1.f) <= BackdashProbability)
+				{
+					UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Verbose, TEXT("Recommended action was parry but backdash chance occured: %.2f"), BackdashProbability);
+					RecommendedAction = ENpcDefensiveAction::Backdash;
+				}
+			}	
+
+			if (RecommendedAction == ENpcDefensiveAction::Parry)
+			{
+				// 13 Feb 2026 (aki): TODO add anxiety to calculation
+				float RefuseParryUseDodgeProbability = (NormalizedStamina - 0.5f) * (1.2f - Aggressiveness * NormalizedHealth);
+				RefuseParryUseDodgeProbability = FMath::Clamp(RefuseParryUseDodgeProbability, 0.05f, 0.9f);
+				UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, VeryVerbose, TEXT("Unclamped refuse parry for dodge probability: %.2f"), RefuseParryUseDodgeProbability);
+				if (FMath::RandRange(0.f, 1.f) <= RefuseParryUseDodgeProbability)
+				{
+					RecommendedAction = ENpcDefensiveAction::Dodge;
+					UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Verbose, TEXT("Recommended action was parry but dodge chance occured: %.2f"), RefuseParryUseDodgeProbability);
+				}
+			}
+		
+			DefensiveActionCauser = ThreatActor;	
+		}
 	}
 	else
 	{
-		RecommendedAction = ENpcDefensiveAction::Parry;
-		if (PerceivedDistance + NpcCombatParameters->NpcCombatEvaluationParameters.StepOutDistance > PerceivedEnemyAttackRange)
-		{
-			float BackdashProbability = 0.5f;
-			if (const auto BackdashAggressionDependency = NpcCombatParameters->NpcCombatEvaluationParameters.BackstepAggressionProbabilityDependency.GetRichCurveConst())
-				if (BackdashAggressionDependency->HasAnyData())
-					BackdashProbability = BackdashAggressionDependency->Eval(Aggressiveness);
-
-			UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Log, TEXT("Evaluating backdash probability: %.2f"), BackdashProbability);
-			
-			if (FMath::RandRange(0.f, 1.f) <= BackdashProbability)
-			{
-				UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Verbose, TEXT("Recommended action was parry but backdash chance occured: %.2f"), BackdashProbability);
-				RecommendedAction = ENpcDefensiveAction::Backdash;
-			}
-		}	
-
-		if (RecommendedAction == ENpcDefensiveAction::Parry)
-		{
-			// 13 Feb 2026 (aki): TODO add anxiety to calculation
-			float RefuseParryUseDodgeProbability = (NormalizedStamina - 0.5f) * (1.2f - Aggressiveness * NormalizedHealth);
-			RefuseParryUseDodgeProbability = FMath::Clamp(RefuseParryUseDodgeProbability, 0.05f, 0.9f);
-			UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, VeryVerbose, TEXT("Unclamped refuse parry for dodge probability: %.2f"), RefuseParryUseDodgeProbability);
-			if (FMath::RandRange(0.f, 1.f) <= RefuseParryUseDodgeProbability)
-			{
-				RecommendedAction = ENpcDefensiveAction::Dodge;
-				UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Verbose, TEXT("Recommended action was parry but dodge chance occured: %.2f"), RefuseParryUseDodgeProbability);
-			}
-		}
-		
-		DefensiveActionCauser = ThreatActor;	
+		RecommendedAction = ENpcDefensiveAction::Dodge;
+		DefensiveActionCauser = ThreatActor;
 	}
 	
 	UE_VLOG(OwnerLocal, LogARPGAI_CombatLogic, Log, TEXT("Setting defense action from %s attack: %s"),
@@ -367,7 +383,7 @@ void UNpcCombatLogicComponent::GetRelevantThreatsCounts(int& RelevantEnemiesCoun
 {
 	FVector OwnerLocation = OwnerPawn->GetActorLocation();
 	float DotProductThreshold = FMath::Cos(FMath::DegreesToRadians(Angle));
-	for (const auto& KnownThreat : ActiveThreats)
+	for (const auto& KnownThreat : ImmediateThreats)
 	{
 		FVector ThreatToMe = OwnerLocation - KnownThreat.Key->GetActorLocation();
 		float RelevantDistance = (KnownThreat.Value.AttackRange + AttackRange) * RelevantDistanceScale;
@@ -420,7 +436,7 @@ void UNpcCombatLogicComponent::ReactToFeintedAttack(AActor* ThreatActor)
 	}
 	
 	// source of formula: i just felt this way at the moment of writing it
-	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetMaxStamina())) / 2.f;
+	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetNpcAliveCreatureMaxStamina())) / 2.f;
 	if (FMath::RandRange(0.f, 1.f) <= ChanceToCounterAttack)
 		BlackboardComponent->SetValueAsEnum(NpcBlackboardKeys->DefenseActionBBKey.SelectedKeyName, (uint8)ENpcDefensiveAction::CounterAttack);
 	else // in theory, this should abort block immediately
@@ -450,7 +466,7 @@ void UNpcCombatLogicComponent::ReactToEnemyWhiffedAttack(AActor* ThreatActor)
 		return;	
 	}
 	
-	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetMaxStamina())) / 2.f;
+	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetNpcAliveCreatureMaxStamina())) / 2.f;
 	if (FMath::RandRange(0.f, 1.f) <= ChanceToCounterAttack)
 		BlackboardComponent->SetValueAsEnum(NpcBlackboardKeys->DefenseActionBBKey.SelectedKeyName, (uint8)ENpcDefensiveAction::CounterAttack);
 	
@@ -479,15 +495,15 @@ void UNpcCombatLogicComponent::ReactToEnemyChangeWeapon(AActor* Actor)
 	if (IsImmobilized())
 		return;
 	
-	if (auto ThreatData = ActiveThreats.Find(Actor))
-		if (auto Threat = Cast<IThreat>(Actor))
-			ThreatData->AttackRange = Threat->GetAttackRange();
+	if (auto ThreatData = ImmediateThreats.Find(Actor))
+		if (auto Threat = Cast<INpcThreat>(Actor))
+			ThreatData->AttackRange = Threat->GetAttackRange_NpcThreat();
 }
 
 void UNpcCombatLogicComponent::ResetReactionToIncomingAttack()
 {
 #if WITH_EDITOR
-	bool bWasValid = DefensiveActionCauser.IsValid();
+	bool bWasValid = IsValid(DefensiveActionCauser);
 	UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Log, TEXT("Resetting reaction to incoming attack"));
 	if (bWasValid)
 		UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Log, TEXT("Was reacting to attack from %s"), *DefensiveActionCauser->GetName());
@@ -495,7 +511,7 @@ void UNpcCombatLogicComponent::ResetReactionToIncomingAttack()
 		UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Warning, TEXT("By the way, active attacker is invalid"));
 #endif		
 	
-	DefensiveActionCauser.Reset();
+	DefensiveActionCauser = nullptr;
 }
 
 void UNpcCombatLogicComponent::OnAttributeAdded(UAbilitySystemComponent* ASC, const UAttributeSet* Attributes)
@@ -506,20 +522,15 @@ void UNpcCombatLogicComponent::OnAttributeAdded(UAbilitySystemComponent* ASC, co
 	}
 }
 
-float UNpcCombatLogicComponent::GetCombatEvaluatorInterval() const
-{
-	return CombatEvaluatorInterval;
-}
-
 void UNpcCombatLogicComponent::OnNpcDeathStarted(AActor* OwningActor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcCombatLogicComponent::OnNpcDeathStarted)
 	
-	ClearCurrentCombatTarget();
+	ClearCurrentCombatTarget(PrimaryTargetData.ActiveBehaviorTypeTag);
 	
-	for (auto& ActiveThreat : ActiveThreats)
+	for (auto& ActiveThreat : ImmediateThreats)
 	{
-		if (auto Threat = Cast<IThreat>(ActiveThreat.Key))
+		if (auto Threat = Cast<INpcThreat>(ActiveThreat.Key))
 		{
 			Threat->OnThreatStartedAttackEvent.RemoveAll(this);
 			Threat->OnThreatAttackCompletedEvent.RemoveAll(this);
@@ -530,7 +541,7 @@ void UNpcCombatLogicComponent::OnNpcDeathStarted(AActor* OwningActor)
 		}
 	}
 
-	ActiveThreats.Reset();
+	ImmediateThreats.Reset();
 	AttackingThreats.Reset();
 	UnsubscribeFromDelegates();
 	bDead = true;
@@ -538,28 +549,38 @@ void UNpcCombatLogicComponent::OnNpcDeathStarted(AActor* OwningActor)
 
 void UNpcCombatLogicComponent::SetEvaluatedTargetMoveDirection(ENpcTargetDistanceEvaluation NewTargetMoveDirectionEvaluation)
 {
+	auto OldDistanceEvaluation = TargetMoveDirectionEvaluation;
 	TargetMoveDirectionEvaluation = NewTargetMoveDirectionEvaluation;
+	
+	auto NpcCombatSettings = GetDefault<UNpcCombatSettings>();
+	auto OldTargetMoveDirectionEvaluationTag = NpcCombatSettings->NpcTargetDistanceEvaluationEnumToTag.Find(OldDistanceEvaluation);
+	if (OldTargetMoveDirectionEvaluationTag != nullptr)
+		OwnerTagsActorNPC->RemoveTags_NPC(OldTargetMoveDirectionEvaluationTag->GetSingleTagContainer());
+	
+	auto NewTargetMoveDirectionEvaluationTag = NpcCombatSettings->NpcTargetDistanceEvaluationEnumToTag.Find(NewTargetMoveDirectionEvaluation);
+	if (NewTargetMoveDirectionEvaluationTag != nullptr)
+		OwnerTagsActorNPC->GiveTags_NPC(NewTargetMoveDirectionEvaluationTag->GetSingleTagContainer());
 }
 
 TArray<APawn*> UNpcCombatLogicComponent::GetAllies(bool bIgnoreSquadLeader) const
 {
-	return GetWorld()->GetSubsystem<UNpcSquadSubsystem>()->GetAllies(OwnerPawn.Get(), bIgnoreSquadLeader, true);
+	return GetWorld()->GetSubsystem<UNpcSquadSubsystem>()->GetAllies(OwnerPawn.Get(), true);
 }
 
-void UNpcCombatLogicComponent::SetActiveThreats(const FNpcActiveThreatsContainer& EvaluatedThreats)
+void UNpcCombatLogicComponent::UpdateImmediateThreats(const FNpcCurrentCombatThreatsContainer& EvaluatedThreats)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcCombatLogicComponent::SetActiveThreats)
 	
-	TArray<AActor*> RemovedThreats;
-	FNpcActiveThreatsContainer AddedThreats;
-
-	for (auto& ActiveThreat : ActiveThreats)
+	TArray<AActor*, TInlineAllocator<6>> RemovedThreats;
+	
+	for (auto& ActiveThreat : ImmediateThreats)
 	{
 		if (!EvaluatedThreats.Contains(ActiveThreat.Key))
 		{
-			if (auto ForgottenThreat = Cast<IThreat>(ActiveThreat.Key))
+			if (auto ForgottenThreat = Cast<INpcThreat>(ActiveThreat.Key))
 			{
 				ForgottenThreat->OnThreatStartedAttackEvent.RemoveAll(this);
+				ForgottenThreat->OnThreatAttackCompletedEvent.RemoveAll(this);
 				ForgottenThreat->OnThreatFeintedAttackEvent.RemoveAll(this);
 				ForgottenThreat->OnThreatAttackWhiffedEvent.RemoveAll(this);
 				ForgottenThreat->OnThreatBlockEvent.RemoveAll(this);
@@ -572,18 +593,18 @@ void UNpcCombatLogicComponent::SetActiveThreats(const FNpcActiveThreatsContainer
 
 	for (const auto* RemovedThreat : RemovedThreats)
 	{
-		ActiveThreats.Remove(RemovedThreat);
+		ImmediateThreats.Remove(RemovedThreat);
 	}
 	
 	for (const auto& Threat : EvaluatedThreats)
 	{
-		if (auto* KnownThreat = ActiveThreats.Find(Threat.Key))
+		if (auto* KnownThreat = ImmediateThreats.Find(Threat.Key))
 		{
 			*KnownThreat = Threat.Value;
 		}
 		else
 		{
-			if (auto ThreatInterface = Cast<IThreat>(Threat.Key.Get()))
+			if (auto ThreatInterface = Cast<INpcThreat>(Threat.Key.Get()))
 			{
 				ThreatInterface->OnThreatStartedAttackEvent.AddUObject(this, &UNpcCombatLogicComponent::ReactToIncomingAttack);
 				ThreatInterface->OnThreatAttackCompletedEvent.AddUObject(this, &UNpcCombatLogicComponent::ReactToThreatAttackCompleted);
@@ -593,23 +614,14 @@ void UNpcCombatLogicComponent::SetActiveThreats(const FNpcActiveThreatsContainer
 				ThreatInterface->OnThreatWeaponChangedEvent.AddUObject(this, &UNpcCombatLogicComponent::ReactToEnemyChangeWeapon);
 			}
 
-			ActiveThreats.Add(Threat.Key, Threat.Value);
+			ImmediateThreats.Add(Threat.Key, Threat.Value);
 		}
 	}
-	
-	// ActiveThreats = EvaluatedThreats;
 }
 
-const FNpcActiveThreatsContainer& UNpcCombatLogicComponent::GetActiveThreats() const
+const FNpcCurrentCombatThreatsContainer& UNpcCombatLogicComponent::GetActiveThreats() const
 {
-	return ActiveThreats;
-}
-
-void UNpcCombatLogicComponent::SetCurrentCombatTarget(AActor* Target, const FGameplayTag& BehaviorTypeTag,
-                                                      const FNpcCombatPerceptionData& MobCombatPerceptionData)
-{
-	SetCurrentCombatTarget(Target, BehaviorTypeTag);
-	PrimaryTargetData.NpcCombatPerceptionData = MobCombatPerceptionData;
+	return ImmediateThreats;
 }
 
 void UNpcCombatLogicComponent::SetCurrentCombatTarget(AActor* Target, const FGameplayTag& BehaviorTypeTag)
@@ -621,18 +633,23 @@ void UNpcCombatLogicComponent::SetCurrentCombatTarget(AActor* Target, const FGam
 		return;
 	
 	if (PrimaryTargetData.ActiveTarget.IsValid())
-		ClearCurrentCombatTarget();
+		ClearCurrentCombatTarget(PrimaryTargetData.ActiveBehaviorTypeTag);
 	
 	UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Log, TEXT("UNpcCombatLogicComponent::SetCurrentCombatTarget: Setting new target data: %s [%s]"), 
 		*Target->GetName(), *BehaviorTypeTag.ToString());
 	
 	PrimaryTargetData.ActiveTarget = Target;
 	PrimaryTargetData.ActiveBehaviorTypeTag = BehaviorTypeTag;
-	PrimaryTargetData.NpcCombatPerceptionData = {};
 }
 
-void UNpcCombatLogicComponent::ClearCurrentCombatTarget()
+void UNpcCombatLogicComponent::ClearCurrentCombatTarget(const FGameplayTag& BehaviorId)
 {
+	if (PrimaryTargetData.ActiveBehaviorTypeTag != BehaviorId)
+	{
+		UE_VLOG_UELOG(GetOwner(), LogARPGAI_CombatLogic, Warning, TEXT(""))
+		return;
+	}
+	
 	if (PrimaryTargetData.ActiveTarget.IsValid())
 	{
 		UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Log, TEXT("UNpcCombatLogicComponent::ClearCurrentCombatTarget: Clearing current combat target"));
@@ -691,7 +708,7 @@ void UNpcCombatLogicComponent::SetReaction(float NewValue)
 void UNpcCombatLogicComponent::SetHealth(float NewValue)
 {
 	Health = NewValue;
-	NormalizedHealth = Health / OwnerAliveCreature->GetMaxHealth();
+	NormalizedHealth = Health / OwnerAliveCreature->GetMaxHealth_NpcAliveCreature();
 	if (ensure(NpcBlackboardKeys) && NpcBlackboardKeys->NormalizedHealthBBKey.SelectedKeyName != NAME_None)
 		BlackboardComponent->SetValueAsFloat(NpcBlackboardKeys->NormalizedHealthBBKey.SelectedKeyName, NormalizedHealth);
 }
@@ -699,18 +716,11 @@ void UNpcCombatLogicComponent::SetHealth(float NewValue)
 void UNpcCombatLogicComponent::SetStamina(float NewValue)
 {
 	Stamina = NewValue;
-	NormalizedStamina = Stamina / OwnerAliveCreature->GetMaxStamina();
+	NormalizedStamina = Stamina / OwnerAliveCreature->GetNpcAliveCreatureMaxStamina();
 	if (ensure(NpcBlackboardKeys) && NpcBlackboardKeys->NormalizedStaminaBBKey.SelectedKeyName != NAME_None)
 	{
 		BlackboardComponent->SetValueAsFloat(NpcBlackboardKeys->NormalizedStaminaBBKey.SelectedKeyName, NormalizedStamina);
 	}
-}
-
-void UNpcCombatLogicComponent::SetCombatEvaluatorInterval(float NewValue)
-{
-	CombatEvaluatorInterval = NewValue;
-	if (ensure(NpcBlackboardKeys) && NpcBlackboardKeys->CombatEvaluationIntervalBBKey.SelectedKeyName != NAME_None)
-		BlackboardComponent->SetValueAsFloat(NpcBlackboardKeys->CombatEvaluationIntervalBBKey.SelectedKeyName, CombatEvaluatorInterval);
 }
 
 void UNpcCombatLogicComponent::OnAttackRangeChanged(const FOnAttributeChangeData& OnAttributeChangeData)
@@ -728,10 +738,11 @@ void UNpcCombatLogicComponent::OnHealthChanged(const FOnAttributeChangeData& OnA
 	SetHealth(OnAttributeChangeData.NewValue);
 	if (OnAttributeChangeData.OldValue > OnAttributeChangeData.NewValue && OnAttributeChangeData.GEModData != nullptr)
 	{
-		if (auto Instigator = OnAttributeChangeData.GEModData->EffectSpec.GetEffectContext().GetInstigator())
+		auto Instigator = OnAttributeChangeData.GEModData->EffectSpec.GetEffectContext().GetInstigator();
+		if (Instigator != nullptr && Instigator != OwnerPawn.Get())
 		{
 			UAISense_Damage::ReportDamageEvent(this, GetOwner(), Instigator, OnAttributeChangeData.OldValue - OnAttributeChangeData.NewValue,
-				Instigator->GetActorLocation(), GetOwner()->GetActorLocation());
+			Instigator->GetActorLocation(), GetOwner()->GetActorLocation());
 		}
 	}
 }
@@ -751,21 +762,6 @@ void UNpcCombatLogicComponent::OnReactionChanged(const FOnAttributeChangeData& O
 	SetReaction(OnAttributeChangeData.NewValue);
 }
 
-FGameplayTag UNpcCombatLogicComponent::GetThreatLevel(float BestTargetThreat) const
-{
-	float ThreatDeviation = BestTargetThreat * (1.f - Intelligence);
-	float IntellectAffectedPerceivedThreat = FMath::RandRange(BestTargetThreat - ThreatDeviation, BestTargetThreat + ThreatDeviation);
-	const auto& ThreatLevels = NpcCombatParameters->NpcCombatEvaluationParameters.ThreatLevels;
-	for (int i = 0; i < ThreatLevels.Num(); i++)
-	{
-		if (ThreatLevels[i].ValueRange.Contains(IntellectAffectedPerceivedThreat))
-			return ThreatLevels[i].Tag;
-	}
-
-	ensure(false);
-	return AIGameplayTags::AI_Threat_Considerable;
-}
-
 float UNpcCombatLogicComponent::GetIntellectAffectedDistance(float BaseDistance) const
 {
 	if (DistanceIntelligenceDependencyFactorCachedIntelligence != Intelligence)
@@ -781,33 +777,15 @@ float UNpcCombatLogicComponent::GetIntellectAffectedDistance(float BaseDistance)
 	return FMath::RandRange(BaseDistance - Deviation, BaseDistance + Deviation);
 }
 
-void UNpcCombatLogicComponent::AddIgnoredIncomingAttackFromThreat(const AActor* Actor, float TimeToIgnore)
-{
-	float& IgnoreUntil = IgnoreIncomingAttackUntil.FindOrAdd(Actor);
-	IgnoreUntil = GetWorld()->GetTimeSeconds() + TimeToIgnore;	
-}
-
-bool UNpcCombatLogicComponent::HasIgnoredIncomingAttackFromThreat(const AActor* Actor)
-{
-	if (auto ThreatIgnoredUntil = IgnoreIncomingAttackUntil.Find(Actor))
-	{
-		if (*ThreatIgnoredUntil > GetWorld()->GetTimeSeconds())
-		{
-			return true;
-		}
-		else
-		{
-			IgnoreIncomingAttackUntil.Remove(Actor);
-		}
-	}
-
-	return false;
-}
-
 bool UNpcCombatLogicComponent::IsRetreating() const
 {
-	FGameplayTagContainer NpcTags = OwnerNPC->GetNpcOwnerTags();
-	return NpcTags.HasTag(AIGameplayTags::AI_Behavior_Combat_Retreat);
+	if (OwnerTagsActorNPC)
+	{
+		FGameplayTagContainer NpcTags = OwnerTagsActorNPC->GetTags_NPC();
+		return NpcTags.HasTag(AIGameplayTags::AI_Behavior_Combat_Retreat);
+	}
+	
+	return false;
 }
 
 bool UNpcCombatLogicComponent::IsSurrounding() const
@@ -831,13 +809,12 @@ void UNpcCombatLogicComponent::UpdateBlackboardKeys()
 	SetIntelligence(Intelligence);
 	SetReaction(Reaction);
 	SetHealth(Health);
-	SetCombatEvaluatorInterval(CombatEvaluatorInterval);
 }
 
 void UNpcCombatLogicComponent::SetDistanceToTarget(float NewDistance)
 {
 	DistanceToTarget = NewDistance;
-	if (OwnerASC.IsValid())
+	if (OwnerASC != nullptr)
 	{
 		const UNpcCombatAttributeSet* CombatAttributeSet = Cast<UNpcCombatAttributeSet>(OwnerASC->GetAttributeSet(UNpcCombatAttributeSet::StaticClass()));
 		if (ensure(CombatAttributeSet != nullptr))
@@ -857,60 +834,30 @@ void UNpcCombatLogicComponent::InitializeNpcCombatLogic(AAIController& AIControl
 
 void UNpcCombatLogicComponent::UnsubscribeFromDelegates()
 {
-	if (OwnerASC.IsValid())
+	if (IsValid(OwnerASC))
 	{
-		OwnerASC->GetGameplayAttributeValueChangeDelegate(OwnerNPC->GetAttackRangeAttribute()).RemoveAll(this);
+		auto CombatInterface = Cast<INpcCombatInterface>(OwnerPawn.Get());
+		OwnerASC->GetGameplayAttributeValueChangeDelegate(CombatInterface->GetAttackRangeAttribute()).RemoveAll(this);
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(UNpcCombatAttributeSet::GetAggressionAttribute()).RemoveAll(this);
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(UNpcCombatAttributeSet::GetIntellectAttribute()).RemoveAll(this);
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(UNpcCombatAttributeSet::GetReactionAttribute()).RemoveAll(this);
 		if (OwnerAliveCreature != nullptr)
 		{
-			auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute();
+			auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute_NpcAliveCreature();
 			OwnerASC->GetGameplayAttributeValueChangeDelegate(HealthAttribute).RemoveAll(this);
 
-			auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute();
+			auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute_NpcAliveCreature();
 			OwnerASC->GetGameplayAttributeValueChangeDelegate(StaminaAttribute).RemoveAll(this);
 		}
-	}
-
-	ResetTrackingEnemyAlive();
-}
-
-
-void UNpcCombatLogicComponent::TrackEnemyAlive(AActor* Actor)
-{
-	if (auto NewTrackedEnemyAlive = Cast<INpcAliveCreature>(Actor))
-	{
-		if (ensure(Actor != TrackedEnemyAlive))
-		{
-			UE_VLOG(this, LogARPGAI_CombatLogic, Verbose, TEXT("Tracking new enemy alive state: %s"), *Actor->GetName());
-			
-			NewTrackedEnemyAlive->OnDeathStarted.AddUObject(this, &UNpcCombatLogicComponent::OnEnemyDied);
-			if (TrackedEnemyAlive.IsValid())
-			{
-				auto NpcAliveCreature = Cast<INpcAliveCreature>(TrackedEnemyAlive.Get());
-				NpcAliveCreature->OnDeathStarted.RemoveAll(this);
-			}
-			
-			TrackedEnemyAlive = Actor;
-		}
-	}
-}
-
-void UNpcCombatLogicComponent::ResetTrackingEnemyAlive()
-{
-	if (TrackedEnemyAlive.IsValid())
-	{
-		UE_VLOG(this, LogARPGAI_CombatLogic, Verbose, TEXT("Not tracking enemy alive state anymore: %s"), *TrackedEnemyAlive->GetName());
-		auto AliveCreature = Cast<INpcAliveCreature>(TrackedEnemyAlive.Get());
-		AliveCreature->OnDeathStarted.RemoveAll(this);
-		TrackedEnemyAlive.Reset();
 	}
 }
 
 void UNpcCombatLogicComponent::ReactToReceivedHit(const FGameplayTag& HitTypeTag, AActor* HitCauser, float HealthDamage,
                                                   const FHitResult& HitResult)
 {
+	if (EnemiesCombatMemory.Contains(HitCauser))
+		EnemiesCombatMemory[HitCauser].AccumulatedReceivedDamage += HealthDamage;
+	
 	if (IsImmobilized() || HitCauser == nullptr || !NpcCombatParameters->RegularHitTypes.HasTag(HitTypeTag))
 		return;
 	
@@ -973,50 +920,54 @@ float UNpcCombatLogicComponent::GetBaitAttackDuration() const
 	return NpcCombatParameters->BaitAttackDurationAvg * FMath::RandRange(0.5f,  2.f);
 }
 
-void UNpcCombatLogicComponent::OnEnemyDied(AActor* Actor)
+void UNpcCombatLogicComponent::ClearEnemiesData()
 {
-	UE_VLOG(this, LogARPGAI_CombatLogic, Verbose, TEXT("Active enemy was killed"));
-	
-	if (!TrackedEnemyAlive.IsValid())
-		return;
-
-	auto AliveCreature = Cast<INpcAliveCreature>(Actor);
-	AliveCreature->OnDeathStarted.RemoveAll(this);
-	if (Actor != TrackedEnemyAlive.Get())
-		return;
-	
-	TrackedEnemyAlive.Reset();
-
-	if (ActiveThreats.Num() > 1)
-		return;
-
-	if (!NpcBlackboardKeys->IsAllEnemiesKilledBBKey.SelectedKeyName.IsNone())
-		BlackboardComponent->SetValueAsBool(NpcBlackboardKeys->IsAllEnemiesKilledBBKey.SelectedKeyName, true);
-
-	auto SquadSubsystem = UNpcSquadSubsystem::Get(this);
-	auto Allies = SquadSubsystem->GetAllies(Cast<APawn>(GetOwner()), false, true);
-	// report to allies
-	for (const auto& SquadMember : Allies)
-	{
-		if (SquadMember == GetOwner())
-			continue;
-
-		SquadMember->FindComponentByClass<UNpcCombatLogicComponent>()->ReceiveReportEnemyDied(Actor);
-	}
+	ImmediateThreats.Reset();
 }
 
-void UNpcCombatLogicComponent::ReceiveReportEnemyDied(AActor* KilledActor)
+void UNpcCombatLogicComponent::OnCombatBehaviorStarted()
 {
-	if (!TrackedEnemyAlive.IsValid() || ActiveThreats.Num() > 1)
-		return;
+	if (!EnemiesCombatMemory.IsEmpty())
+		if (GetWorld()->GetTimeSeconds() - LastCombatEndTime > OutOfCombatEnemiesMemoryStorageDuration)
+			EnemiesCombatMemory.Reset();
+}
 
-	if (!NpcBlackboardKeys->IsAllEnemiesKilledBBKey.SelectedKeyName.IsNone())
-		BlackboardComponent->SetValueAsBool(NpcBlackboardKeys->IsAllEnemiesKilledBBKey.SelectedKeyName, true);
+void UNpcCombatLogicComponent::OnCombatBehaviorEnded()
+{
+	LastCombatEndTime = GetWorld()->GetTimeSeconds();
+	// 9 Apr 2026 (aki): DO NOT reset enemies combat memory, because this data is used by combat victory behavior for NPCs to remember where dead bodies are
+	// ATM I believe it doesn't hurt to store this data
+	// EnemiesCombatMemory.Reset();
+}
+
+void UNpcCombatLogicComponent::UpdateCombatMemory(const TMap<TWeakObjectPtr<AActor>, FNpcEnemyCombatMemory>& NewEnemiesData)
+{
+	for (const auto& NewEnemyData : NewEnemiesData)
+		EnemiesCombatMemory.FindOrAdd(NewEnemyData.Key.Get()) = NewEnemyData.Value;
+	
+	for (auto& EnemyData : EnemiesCombatMemory)
+		if (!NewEnemiesData.Contains(EnemyData.Key.Get()))
+			EnemyData.Value.CurrentDetectionSource = EDetectionSource::Assumption;
+}
+
+const FNpcEnemyCombatMemory* UNpcCombatLogicComponent::GetActorCombatMemoryData(const AActor* Actor) const
+{
+	return EnemiesCombatMemory.Find(Actor);
+}
+
+void UNpcCombatLogicComponent::OnDealtDamage(AActor* Actor, float ResultingDamage)
+{
+	if (EnemiesCombatMemory.Contains(Actor))
+		EnemiesCombatMemory[Actor].AccumulatedDealtDamage += ResultingDamage;
 }
 
 void FNpcActiveTargetData::Reset()
 {
 	ActiveTarget.Reset();
 	ActiveBehaviorTypeTag = FGameplayTag::EmptyTag;
-	NpcCombatPerceptionData = {};
+}
+
+bool FNpcActiveTargetData::IsValid() const
+{
+	return ActiveTarget.IsValid() && ActiveBehaviorTypeTag.IsValid();
 }

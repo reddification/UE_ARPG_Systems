@@ -49,6 +49,8 @@ void UBTService_RunEQS_Enhanced::OnBecomeRelevant(UBehaviorTreeComponent& OwnerC
 		bool bEnableEqsTick = Blackboard->GetValueAsBool(GateBBKey.SelectedKeyName) ^ bInversedGate;
 		if (!bEnableEqsTick)
 			SetNextTickTime(NodeMemory, FLT_MAX);
+		else 
+			ScheduleNextTick(OwnerComp, NodeMemory);
 	}
 }
 
@@ -97,24 +99,6 @@ void UBTService_RunEQS_Enhanced::OnQueryFinished2(TSharedPtr<FEnvQueryResult> Re
 
     if (Result->Items.Num() > 0)
     {
-        if (MyMemory->PreviousLocation != FVector::ZeroVector && MyMemory->PreviousLocation != FAISystem::InvalidLocation)
-        {
-            int ThresholdCount = FMath::CeilToInt(Result->Items.Num() * ScoreUpdateThresholdCountRatio);
-            ensure(Result->ItemType == UEnvQueryItemType_Point::StaticClass());
-            const float BestScore = Result->Items[0].Score;
-            for (int i = 0; i < ThresholdCount; i++)
-            {
-                FVector ItemLocation = UEnvQueryItemType_Point::GetValue(Result->RawData.GetData() + Result->Items[i].DataOffset);
-                float DistSq = FVector::DistSquared(MyMemory->PreviousLocation, ItemLocation);
-                if (DistSq < ThresholdDistance * ThresholdDistance && BestScore - Result->Items[i].Score < ScoreUpdateThreshold)
-                {
-                    UE_VLOG(MyOwner, LogEQS, Verbose, TEXT("Previous location is within best %.2f of new items and with relatively the same score as best item[best = %.2f; current = %.2f] so not updating the location"),
-                        ScoreUpdateThresholdCountRatio, BestScore, Result->Items[i].Score);
-                    return;
-                }
-            }
-        }
-
         UBlackboardComponent* MyBlackboard = BTComp->GetBlackboardComponent();
         UEnvQueryItemType* ItemTypeCDO = Result->ItemType->GetDefaultObject<UEnvQueryItemType>();
         bool bSuccess = ItemTypeCDO->StoreInBlackboard(BlackboardKey, MyBlackboard, Result->RawData.GetData() + Result->Items[0].DataOffset);

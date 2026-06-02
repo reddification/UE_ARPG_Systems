@@ -7,8 +7,8 @@
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
-#include "Interfaces/Npc.h"
 #include "Data/NpcCombatParametersDataAsset.h"
+#include "Interfaces/NpcCombatInterface.h"
 
 UBTTask_AttackSequence::UBTTask_AttackSequence()
 {
@@ -38,7 +38,7 @@ void UBTTask_AttackSequence::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* 
 	if (TaskMemory->bPreparingNextAttack)
 	{
 		APawn* Pawn = OwnerComp.GetAIOwner()->GetPawn();
-		if (auto Npc = Cast<INpc>(Pawn))
+		if (auto Npc = Cast<INpcCombatInterface>(Pawn))
 		{
 			UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_Attack, Verbose, TEXT("Morphing attack"));
 			TaskMemory->bPreparingNextAttack = false;
@@ -51,7 +51,7 @@ void UBTTask_AttackSequence::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* 
 EBTNodeResult::Type UBTTask_AttackSequence::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
-	auto Npc = Cast<INpc>(Pawn);
+	auto Npc = Cast<INpcCombatInterface>(Pawn);
 	if (!ensure(Npc))
 		return EBTNodeResult::Failed;
 
@@ -102,7 +102,7 @@ void UBTTask_AttackSequence::OnMessage(UBehaviorTreeComponent& OwnerComp, uint8*
 	auto AttackMemory = reinterpret_cast<FBTMemory_Attack*>(NodeMemory);
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
 	auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
-	auto Npc = Cast<INpc>(Pawn);
+	auto Npc = Cast<INpcCombatInterface>(Pawn);
 	auto NpcCombatComponent = Pawn->FindComponentByClass<UNpcCombatLogicComponent>();
 	const bool bAttackStillRequested = Blackboard->GetValueAsBool(IsWantToAttackBBKey.SelectedKeyName);
 	
@@ -246,7 +246,7 @@ EBTNodeResult::Type UBTTask_AttackSequence::AbortTask(UBehaviorTreeComponent& Ow
 	else
 	{
 		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI_Attack, Verbose, TEXT("Abort requested. No active attack atm -> aborting immediately"));
-		auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
+		auto Npc = Cast<INpcCombatInterface>(OwnerComp.GetAIOwner()->GetPawn());
 		if (Npc)
 			Npc->CancelAttack();
 		
@@ -279,7 +279,8 @@ void UBTTask_AttackSequence::InitializeMemory(UBehaviorTreeComponent& OwnerComp,
 	Memory->bPreparingNextAttack = false;
 }
 
-void UBTTask_AttackSequence::FinalizeAttack(UBehaviorTreeComponent& OwnerComp, FBTMemory_Attack* AttackMemory, UBlackboardComponent* Blackboard, INpc* Npc, bool bRequestFinishAttack) const
+void UBTTask_AttackSequence::FinalizeAttack(UBehaviorTreeComponent& OwnerComp, FBTMemory_Attack* AttackMemory, 
+	UBlackboardComponent* Blackboard, INpcCombatInterface* Npc, bool bRequestFinishAttack) const
 {
 	Blackboard->SetValueAsBool(OutAttackingBBKey.SelectedKeyName, false);
 	Blackboard->SetValueAsEnum(OutAttackResultBBKey.SelectedKeyName, static_cast<uint8>(AttackMemory->AttackResult));

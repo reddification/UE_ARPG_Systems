@@ -32,12 +32,13 @@ public:
 
 	void SetHostile(AActor* ToActor, bool bLethal, bool bShareableWithAllies);
 	void ShareAttitudes(UNpcAttitudesComponent* OtherNpcAttitudesComponent) const;
-	void SetBaseAttitudes(const FNpcAttitudes& Attitudes);
-
+	FGuid AddAttitudes(const FAttitudeSet& Attitudes);
+	void RemoveAttitudes(const FGuid& AttitudeSetId);
+	
 	bool OnHitReceivedFromActor(const AActor* DamageCauser);
 	virtual bool IsHostile(const AActor* Actor);
 	virtual bool IsFriendly(const AActor* Actor);
-
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -48,8 +49,8 @@ protected:
 	TMap<FGameplayTag, float> NpcAttitudesDurationGameTime;
 	mutable TMap<TWeakObjectPtr<const AActor>, FTemporaryCharacterAttitudeMemory> TemporaryCharacterAttitudes;
 
-	FNpcAttitudes BaseAttitudes;
-	FNpcAttitudes CustomAttitudes;
+	TArray<FAttitudeSet> AttitudesStack;
+	FAttitudeSet CustomAttitudes;
 
 	FDataTableRowHandle NpcDTRH;
 	FGameplayTag NpcId;
@@ -62,6 +63,7 @@ protected:
 private:
 	void SetAttitudePresetInternal(const FGameplayTag& InAttitudePreset);
 	void CleanRememberedHitsFromCharacters();
+	FDateTime GetDateTime(float ForDurationGTH) const;
 	
 	struct FReceivedHitsCountMemory
 	{
@@ -71,6 +73,6 @@ private:
 	
 	TMap<FGameplayTag, int> ForgivableCountOfHitsForAttitude;
 	TMap<FGameplayTag, float> RememberHitsFromCharactersDurationsGTH;
-	TMap<TWeakObjectPtr<const AActor>, FReceivedHitsCountMemory> ReceivedHitsFromCharacters; 
+	TMap<TWeakObjectPtr<const AActor>, FReceivedHitsCountMemory> ReceivedHitsFromCharacters;
 	FTimerHandle ForgiveAttacksFromNonHostilesTimer;
 };

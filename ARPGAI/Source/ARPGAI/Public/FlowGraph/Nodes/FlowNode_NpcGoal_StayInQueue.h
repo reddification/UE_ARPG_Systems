@@ -16,7 +16,7 @@ class ARPGAI_API UFlowNode_NpcGoal_StayInQueue : public UFlowNode_NpcGoal
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_StayInQueue(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::StayInQueue; }
+	UFlowNode_NpcGoal_StayInQueue() { NpcGoalType = ENpcGoalType::StayInQueue; }
  
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

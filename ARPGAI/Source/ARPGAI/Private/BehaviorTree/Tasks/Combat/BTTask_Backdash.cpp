@@ -12,11 +12,11 @@ UBTTask_Backdash::UBTTask_Backdash()
 
 EBTNodeResult::Type UBTTask_Backdash::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	Super::ExecuteTask(OwnerComp, NodeMemory);
 	auto Npc = OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcInterfaceComponent>();
 	if (!Npc)
 		return EBTNodeResult::Failed;
 	
+	Super::ExecuteTask(OwnerComp, NodeMemory);
 	bool bStarted = Npc->Backdash();
 	return bStarted ? EBTNodeResult::InProgress : EBTNodeResult::Failed; 
 }
@@ -25,5 +25,4 @@ void UBTTask_Backdash::InitializeFromAsset(UBehaviorTree& Asset)
 {
 	Super::InitializeFromAsset(Asset);
 	CompletedMessageTag = AIGameplayTags::AI_BrainMessage_Backdash_Completed;
-	
 }

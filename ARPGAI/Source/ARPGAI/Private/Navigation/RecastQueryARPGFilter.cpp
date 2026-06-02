@@ -327,7 +327,7 @@ void UARPGNavigationQueryFilter::InitializeFilter(const ANavigationData& NavData
 {
 	const AAIController* AsAIController = Cast<AAIController>(Querier);
     const auto AsPawn = AsAIController != nullptr ? AsAIController->GetPawn() : Cast<const APawn>(Querier);
-	
+	AsAIController = Cast<AAIController>( AsPawn->GetController());
     if (!ensure(AsPawn != nullptr))
     {
     	Super::InitializeFilter(NavData, Querier, Filter);
@@ -357,6 +357,10 @@ void UARPGNavigationQueryFilter::InitializeFilter(const ANavigationData& NavData
     		// danger_avoidance_filter->NpcController.SetInterface(NpcController);
     		danger_avoidance_filter->NpcController = NpcController;
     	}
+		else
+		{
+			int wtf = 1;
+		}
     	
         danger_avoidance_filter->QuerrierLocation = GetQuerrierLocation(AsPawn);
         danger_avoidance_filter->DangerAreaCostMultiplier = CostMultiplier;

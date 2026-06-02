@@ -16,7 +16,7 @@ class ARPGAI_API UFlowNode_NpcGoal_FollowPath : public UFlowNode_NpcGoal
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_FollowPath(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::Patrol; }
+	UFlowNode_NpcGoal_FollowPath() { NpcGoalType = ENpcGoalType::Patrol; }
 
 protected:
 	const FNpcGoalParameters_FollowPath* GetParameters() const;

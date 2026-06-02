@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(Category="Combat")
 class ARPGAI_API UBTTask_SingleAttack : public UBTTask_HandleGameplayAbility
 {
 	GENERATED_BODY()

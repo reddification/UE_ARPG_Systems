@@ -4,6 +4,7 @@
 #include "BehaviorTree/Services/BTService_UpdateTargetWithinNpcArea.h"
 
 #include "AIController.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/NpcAreasComponent.h"
 #include "Components/NpcComponent.h"
@@ -15,6 +16,7 @@ UBTService_UpdateTargetWithinNpcArea::UBTService_UpdateTargetWithinNpcArea()
 	OutIsTargetOutOfNpcAreaBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateTargetWithinNpcArea, OutIsTargetOutOfNpcAreaBBKey));
 	TargetActorBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateTargetWithinNpcArea, TargetActorBBKey), AActor::StaticClass());
 	PredictedTargetLocationBBKey.AddVectorFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_UpdateTargetWithinNpcArea, PredictedTargetLocationBBKey));
+	bNotifyBecomeRelevant = true;
 	bNotifyCeaseRelevant = true;
 }
 
@@ -22,7 +24,7 @@ void UBTService_UpdateTargetWithinNpcArea::TickNode(UBehaviorTreeComponent& Owne
 	float DeltaSeconds)
 {
 	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
-	auto NpcComponent = OwnerComp.GetAIOwner()->GetPawn()->FindComponentByClass<UNpcAreasComponent>();
+	auto NpcComponent = GetNpcAreasComponent(OwnerComp);
 	if (NpcComponent == nullptr)
 	{
 		ensure(false);
@@ -49,6 +51,16 @@ FString UBTService_UpdateTargetWithinNpcArea::GetStaticDescription() const
 	return FString::Printf(TEXT("[out]Is target out of combat zone BB: %s\n[in]Target actor BB: %s\n[in]Predicted target location BB: %s\nAllowed zone area extent: %2.f\n%s"),
 		*OutIsTargetOutOfNpcAreaBBKey.SelectedKeyName.ToString(), *TargetActorBBKey.SelectedKeyName.ToString(),
 		*PredictedTargetLocationBBKey.SelectedKeyName.ToString(), AreaExtent, *Super::GetStaticDescription());
+}
+
+void UBTService_UpdateTargetWithinNpcArea::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
+	auto NpcAreasComponent = GetNpcAreasComponent(OwnerComp);
+	if (!NpcAreasComponent->HasAreas())
+		SetNextTickTime(NodeMemory, FLT_MAX);
+	else 
+		ScheduleNextTick(OwnerComp, NodeMemory);
 }
 
 void UBTService_UpdateTargetWithinNpcArea::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)

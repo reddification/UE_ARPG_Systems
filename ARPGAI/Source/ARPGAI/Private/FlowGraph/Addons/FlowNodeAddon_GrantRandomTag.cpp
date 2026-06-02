@@ -1,10 +1,6 @@
-﻿// 
-
-
-#include "FlowGraph/Addons/FlowNodeAddon_GrantRandomTag.h"
-
+﻿#include "FlowGraph/Addons/FlowNodeAddon_GrantRandomTag.h"
 #include "AIController.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcActorTagsInterface.h"
 
 void UFlowNodeAddon_GrantRandomTag::ExecuteInput(const FName& PinName)
 {
@@ -13,7 +9,7 @@ void UFlowNodeAddon_GrantRandomTag::ExecuteInput(const FName& PinName)
 		return;
 	
 	auto Owner = Cast<AAIController>(TryGetRootFlowActorOwner());
-	auto Npc = Cast<INpc>(Owner->GetPawn());
+	auto Npc = Cast<INpcActorTagsInterface>(Owner->GetPawn());
 	if (Tags.Num() > 1)
 	{
 		const auto& TagsArray = Tags.GetGameplayTagArray();
@@ -24,7 +20,7 @@ void UFlowNodeAddon_GrantRandomTag::ExecuteInput(const FName& PinName)
 		GrantedTag = Tags.First();
 	}
 	
-	Npc->GiveNpcTags(GrantedTag.GetSingleTagContainer());
+	Npc->GiveTags_NPC(GrantedTag.GetSingleTagContainer());
 }
 
 void UFlowNodeAddon_GrantRandomTag::FinishState()
@@ -32,9 +28,9 @@ void UFlowNodeAddon_GrantRandomTag::FinishState()
 	if (!GrantedTag.IsValid())
 		return;
 	
-	auto Owner = Cast<AAIController>(TryGetRootFlowActorOwner());
-	auto Npc = Cast<INpc>(Owner->GetPawn());
-	Npc->RemoveNpcTags(GrantedTag.GetSingleTagContainer());
+	if (auto Owner = Cast<AAIController>(TryGetRootFlowActorOwner()))
+		if (auto Npc = Cast<INpcActorTagsInterface>(Owner->GetPawn()))
+			Npc->RemoveTags_NPC(GrantedTag.GetSingleTagContainer());
 	
 	Super::FinishState();
 }

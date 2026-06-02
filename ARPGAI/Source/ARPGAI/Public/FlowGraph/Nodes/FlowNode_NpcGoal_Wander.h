@@ -15,7 +15,7 @@ class ARPGAI_API UFlowNode_NpcGoal_Wander : public UFlowNode_NpcGoal
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_Wander(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::Wander; }
+	UFlowNode_NpcGoal_Wander() { NpcGoalType = ENpcGoalType::Wander; }
 	
 protected:
 	// use EQSRequest instead

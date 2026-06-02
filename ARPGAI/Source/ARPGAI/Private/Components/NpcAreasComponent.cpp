@@ -89,10 +89,19 @@ const TMap<FGameplayTag, FNpcAreasContainer>& UNpcAreasComponent::GetNpcAreas() 
 bool UNpcAreasComponent::IsLocationWithinNpcArea(const FVector& TestLocation, float AreaExtent) const
 {
 	const auto& ActualNpcAreas = GetNpcAreas();
+	if (ActualNpcAreas.IsEmpty())
+		return true;
+	
 	for (const auto& NpcAreaType : ActualNpcAreas)
 		for (const auto& NpcArea : NpcAreaType.Value.NpcAreas)
 			if (NpcArea->IsLocationWithinNpcArea(TestLocation, AreaExtent))
 				return true;
-
+	
 	return false;
+}
+
+bool UNpcAreasComponent::HasAreas() const
+{
+	const auto& ActualNpcAreas = GetNpcAreas();
+	return !ActualNpcAreas.IsEmpty();
 }

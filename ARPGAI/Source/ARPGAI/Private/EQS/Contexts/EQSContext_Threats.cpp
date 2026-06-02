@@ -15,7 +15,7 @@ void UEQSContext_Threats::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQ
 
 	if (UNpcCombatLogicComponent* MobComponent = MobQuerier->FindComponentByClass<UNpcCombatLogicComponent>())
 	{
-		const FNpcActiveThreatsContainer& ActiveThreats = MobComponent->GetActiveThreats();
+		const FNpcCurrentCombatThreatsContainer& ActiveThreats = MobComponent->GetActiveThreats();
 		TArray<const AActor*> Actors;
 		Actors.Reserve(ActiveThreats.Num());
 		for (const auto& ActiveThreat : ActiveThreats)

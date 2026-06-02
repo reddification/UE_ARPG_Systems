@@ -2,7 +2,7 @@
 
 #include "Components/SplineComponent.h"
 #include "Data/AIGameplayTags.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcActorTagsInterface.h"
 #include "Subsystems/NpcQueueSubsystem.h"
 
 UNpcQueueComponent::UNpcQueueComponent()
@@ -51,7 +51,7 @@ void UNpcQueueComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 FNpcQueueMemberPosition UNpcQueueComponent::StandInQueue(AActor* NewQueueMember, int StandAtPosition)
 {
 	FNpcQueueMemberPosition Result;
-	if (auto Npc = Cast<INpc>(NewQueueMember))
+	if (auto Npc = Cast<INpcActorTagsInterface>(NewQueueMember))
 	{
 		FGameplayTagContainer QueueTags;
 		QueueTags.AddTagFast(AIGameplayTags::AI_State_Queue);
@@ -61,7 +61,7 @@ FNpcQueueMemberPosition UNpcQueueComponent::StandInQueue(AActor* NewQueueMember,
 		if (StandAtPosition == 0)
 			QueueTags.AddTag(AIGameplayTags::AI_State_Queue_First);
 
-		Npc->GiveNpcTags(QueueTags);
+		Npc->GiveTags_NPC(QueueTags);
 	}
 	
 	QueuePoints[StandAtPosition].OccupiedBy = NewQueueMember;
@@ -149,7 +149,7 @@ void UNpcQueueComponent::LeaveQueue(AActor* LeftQueueMember)
 	if (Index == -1)
 		return; // this means that NPC was not in queue. can happen when loading game state
 	
-	if (auto Npc = Cast<INpc>(LeftQueueMember))
+	if (auto Npc = Cast<INpcActorTagsInterface>(LeftQueueMember))
 	{
 		FGameplayTagContainer QueueTags;
 		QueueTags.AddTagFast(AIGameplayTags::AI_State_Queue);
@@ -159,12 +159,12 @@ void UNpcQueueComponent::LeaveQueue(AActor* LeftQueueMember)
 		if (Index == 0)
 			QueueTags.AddTagFast(AIGameplayTags::AI_State_Queue_First.GetTag());
 
-		Npc->RemoveNpcTags(QueueTags);
+		Npc->RemoveTags_NPC(QueueTags);
 	}
 
 	if (Index == 0 && LastQueuePlaceIndex > 0)
-		if (auto Npc = Cast<INpc>(QueuePoints[1].OccupiedBy))
-			Npc->GiveNpcTags(AIGameplayTags::AI_State_Queue_First.GetTag().GetSingleTagContainer());
+		if (auto Npc = Cast<INpcActorTagsInterface>(QueuePoints[1].OccupiedBy))
+			Npc->GiveTags_NPC(AIGameplayTags::AI_State_Queue_First.GetTag().GetSingleTagContainer());
 	
 	while (Index < LastQueuePlaceIndex)
 	{

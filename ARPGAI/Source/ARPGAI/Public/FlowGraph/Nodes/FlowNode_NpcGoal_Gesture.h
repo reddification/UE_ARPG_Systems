@@ -15,7 +15,7 @@ class ARPGAI_API UFlowNode_NpcGoal_Gesture : public UFlowNode_NpcGoal
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_Gesture(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::Gesture; }
+	UFlowNode_NpcGoal_Gesture() { NpcGoalType = ENpcGoalType::Gesture; }
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

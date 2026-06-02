@@ -14,13 +14,13 @@ class ARPGAI_API UBTTask_AttackSequence : public UBTTaskNode
 private:
 	struct FBTMemory_Attack : public FBTTaskMemory
 	{
+		float Intelligence = 0.5f;
+		float Reaction = 0.5f;
+		int MorphCounters = 1;
 		bool bAbortRequested = false;
 		bool bAttacking = false;
 		bool bPreparingNextAttack = false;
-		float Intelligence = 0.5f;
-		float Reaction = 0.5f;
 		ENpcAttackResult AttackResult = ENpcAttackResult::None;
-		int MorphCounters = 1;
 	};
 	
 public:
@@ -71,8 +71,8 @@ protected:
 #endif
 	
 private:
-	void FinalizeAttack(UBehaviorTreeComponent& OwnerComp, FBTMemory_Attack* AttackMemory, UBlackboardComponent* Blackboard, class INpc* Npc, bool
-	                    bRequestFinishAttack) const;
+	void FinalizeAttack(UBehaviorTreeComponent& OwnerComp, FBTMemory_Attack* AttackMemory, UBlackboardComponent* Blackboard, 
+		class INpcCombatInterface* Npc, bool bRequestFinishAttack) const;
 
 	FGameplayTag AttackWhiffedMessageTag;
 	FGameplayTag AttackParriedMessageTag;

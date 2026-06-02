@@ -1,11 +1,8 @@
-﻿// 
-
-
-#include "BehaviorTree/Tasks/Combat/BTTask_SingleAttack.h"
+﻿#include "BehaviorTree/Tasks/Combat/BTTask_SingleAttack.h"
 
 #include "AIController.h"
 #include "Data/AIGameplayTags.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcCombatInterface.h"
 
 UBTTask_SingleAttack::UBTTask_SingleAttack()
 {
@@ -15,7 +12,7 @@ UBTTask_SingleAttack::UBTTask_SingleAttack()
 EBTNodeResult::Type UBTTask_SingleAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
-	auto Npc = Cast<INpc>(Pawn);
+	auto Npc = Cast<INpcCombatInterface>(Pawn);
 	if (!ensure(Npc))
 		return EBTNodeResult::Failed;
 	

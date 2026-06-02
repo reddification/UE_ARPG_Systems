@@ -1,13 +1,11 @@
-﻿// Copyright Pixagon Games, Inc. All Rights Reserved.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-#include "GameplayTagContainer.h"
-#include "Components/NpcCombatLogicComponent.h"
 #include "Components/NpcInfoWidgetComponent.h"
 #include "NpcCombatSettings.generated.h"
+
+enum class ENpcTargetDistanceEvaluation : uint8;
 
 UCLASS(Config=Game, defaultconfig, DisplayName="NPC Combat")
 class ARPGAI_API UNpcCombatSettings : public UDeveloperSettings
@@ -44,17 +42,20 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category = "Death")
 	float RagdollImpulse = 1.f;
 
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.1f, ClampMin = 0.1f))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Combat", meta=(UIMin = 0.1f, ClampMin = 0.1f))
 	float AIAttackRangeScale = 1.333;
 	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.1f, ClampMin = 0.1f))
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Combat", meta=(UIMin = 0.1f, ClampMin = 0.1f))
 	float AttackRangeStepExtension = 80.f;
 	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Perception", meta=(Categories="AI.Noise"))
-	FGameplayTagContainer DangerousSounds;
-	
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Combat")
 	float SurroundAvoidancePathfindingScore = 50.f;
+
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TEnumAsByte<ECollisionChannel> AttackTraceChannel;
+	
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Combat")
+	TMap<ENpcTargetDistanceEvaluation, FGameplayTag> NpcTargetDistanceEvaluationEnumToTag;
 	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="UI")
 	TSubclassOf<class UNpcStateWidget> NpcInfoWidgetClass;
@@ -77,4 +78,11 @@ public:
 	
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="UI", meta=(UIMin = -1.f, ClampMin = -1.f, ClampMax = 1.f, UIMax = 1.f))
 	float MinPlayerToNpcDotProductToShowWidget = -0.5f;
+	
+	// Graph: 
+	// X (time): enemy combat advantage - my combat advantage
+	// Y (value): static threat score
+	// A combat advantage over B: A damage output / B protection rate 
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Combat|ThreatEvaluation")
+	FRuntimeFloatCurve ThreatDependency;
 };

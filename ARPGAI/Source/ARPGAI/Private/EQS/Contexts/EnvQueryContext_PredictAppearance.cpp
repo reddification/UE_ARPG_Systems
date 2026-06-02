@@ -5,6 +5,7 @@
 
 #include "AIController.h"
 #include "NavigationSystem.h"
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/NpcComponent.h"
 #include "Data/LogChannels.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
@@ -26,7 +27,13 @@ void UEnvQueryContext_PredictAppearance::ProvideContext(FEnvQueryInstance& Query
 	TArray<FVector> AwaitedLocationsLocations;
 	FVector PredictionTargetLocation = FAISystem::InvalidLocation;
 	
-	auto NpcComponent = QuerierPawn->FindComponentByClass<UNpcComponent>();
+	auto NpcComponent = GetNpcComponent(QuerierPawn);
+	if (NpcComponent == nullptr)
+	{
+		UE_VLOG(AIController, LogARPGAI_EQS, Error, TEXT("UEnvQueryContext_PredictAppearance::ProvideContext: UNpcComponent not found"));
+		return;
+	}
+	
 	if (auto AwaitedActor = NpcComponent->GetStoredActor(PredictionTargetParameterTag))
 		PredictionTargetLocation = AwaitedActor->GetActorLocation();
 	else
@@ -34,7 +41,7 @@ void UEnvQueryContext_PredictAppearance::ProvideContext(FEnvQueryInstance& Query
 	
 	if (PredictionTargetLocation == FAISystem::InvalidLocation)
 	{
-		UE_VLOG(AIController, LogARPGAI_EQS, Warning, TEXT("No locations to search predicted appearance position for"));
+		UE_VLOG(AIController, LogARPGAI_EQS, Warning, TEXT("UEnvQueryContext_PredictAppearance::ProvideContext: No locations to search predicted appearance position for"));
 		return;
 	}
 	

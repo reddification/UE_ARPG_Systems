@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "BTService_PrepareAttack.generated.h"
 
+class UNpcAttitudesComponent;
 class UNpcCombatLogicComponent;
 /**
  * 
@@ -23,7 +24,9 @@ private:
 		float AttackRange = 0.f;
 		float TooCloseDistance = 0.f;
 		TWeakObjectPtr<UNpcCombatLogicComponent> NpcCombatComponent = nullptr;
+		TWeakObjectPtr<UNpcAttitudesComponent> AttitudesComponent = nullptr;
 		TWeakObjectPtr<AActor> TargetActor;
+		ECollisionChannel AttackTraceChannel;
 	};
 	
 public:
@@ -80,4 +83,6 @@ private:
 	EBlackboardNotificationResult OnAttackRangeChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
 	EBlackboardNotificationResult OnTargetChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
 
+	bool IsAnythingBlocksAttack(const FBTMemory_PrepareAttack* BTMemory, const AActor* Target, const APawn* Pawn,
+								const FVector& NpcLocation, const FVector& TargetLocation) const;
 };

@@ -21,6 +21,10 @@ public:
 	virtual FString GetStaticDescription() const override;
 	
 protected:
+	// Recommended to be unique in request stack, but in general - optional
+	UPROPERTY(EditAnywhere)
+	FName RequestId = FName("BTDecorator_BlockBehaviorEvaluators");
+	
 	UPROPERTY(EditAnywhere)
 	FGameplayTagContainer BlockedBehaviorTags;
 };

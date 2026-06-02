@@ -1,5 +1,6 @@
 ﻿#include "EQS/Tests/EnvQueryTest_AvoidThreats.h"
 
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_VectorBase.h"
@@ -16,21 +17,15 @@ void UEnvQueryTest_AvoidThreats::RunTest(FEnvQueryInstance& QueryInstance) const
 {
 	ACharacter* QueryOwner = Cast<ACharacter>(QueryInstance.Owner.Get());
 	if (QueryOwner == nullptr)
-	{
 		return;
-	}
 
-	UNpcCombatLogicComponent* MobComponent = QueryOwner->FindComponentByClass<UNpcCombatLogicComponent>();
+	UNpcCombatLogicComponent* MobComponent = GetNpcCombatLogicComponent(QueryOwner);
 	if (MobComponent == nullptr)
-	{
 		return;
-	}
 
-	const FNpcActiveThreatsContainer& ActiveThreats = MobComponent->GetActiveThreats();
+	const FNpcCurrentCombatThreatsContainer& ActiveThreats = MobComponent->GetActiveThreats();
 	if (ActiveThreats.Num() == 0)
-	{
 		return;
-	}
 
 	ThreatSpeedThresholdValue.BindData(QueryOwner, QueryInstance.QueryID);
 	ThreatPredictionTimeValue.BindData(QueryOwner, QueryInstance.QueryID);
@@ -40,21 +35,19 @@ void UEnvQueryTest_AvoidThreats::RunTest(FEnvQueryInstance& QueryInstance) const
 	const float ThreatPredictionTime = ThreatPredictionTimeValue.GetValue();
 	const float GeneratorRadius = GeneratorRadiusValue.GetValue();
 	
-	TArray<FAvoidThreatData> ThreatsToAvoid;
-	ThreatsToAvoid.Reserve(ActiveThreats.Num());
+	TArray<FAvoidThreatData, TInlineAllocator<4>> ThreatsToAvoid;
 	for (const auto& ActiveThreat : ActiveThreats)
 	{
 		if (ActiveThreat.Key.IsValid() == false)
-		{
 			continue;
-		}
 		
 		const FVector& ThreatLocation = ActiveThreat.Key->GetActorLocation();
-		ThreatsToAvoid.Add(FAvoidThreatData { ThreatLocation, ActiveThreat.Key.Get(), ActiveThreat.Value.RetreatUtilityScore });
+		ThreatsToAvoid.Add(FAvoidThreatData { ThreatLocation, ActiveThreat.Key.Get(), ActiveThreat.Value.BehaviorEvaluatorScore });
 		FVector ThreatVelocity = ActiveThreat.Key->GetVelocity();
 		if (ThreatVelocity.Size() > ThreatSpeedThreshold)
 		{
-			ThreatsToAvoid.Add(FAvoidThreatData { ThreatLocation + ThreatVelocity * ThreatPredictionTime, ActiveThreat.Key.Get(), ActiveThreat.Value.RetreatUtilityScore });
+			ThreatsToAvoid.Add(FAvoidThreatData { ThreatLocation + ThreatVelocity * ThreatPredictionTime, 
+				ActiveThreat.Key.Get(), ActiveThreat.Value.BehaviorEvaluatorScore });
 		}	
 	}
 	
@@ -74,8 +67,7 @@ void UEnvQueryTest_AvoidThreats::RunTest(FEnvQueryInstance& QueryInstance) const
 			CollisionQueryParams.AddIgnoredActor(QueryOwner);
 			CollisionQueryParams.AddIgnoredActor(ThreatToAvoid.Actor);
 			FHitResult HitResult;
-			TArray<FVector> ItemLocations;
-			ItemLocations.Reserve(3);
+			TArray<FVector, TInlineAllocator<3>> ItemLocations;
 			ItemLocations.Emplace(ItemLocation);
 			ItemLocations.Emplace(ItemLocation + FVector::UpVector * VerticalTraceOffset);
 			ItemLocations.Emplace(ItemLocation - FVector::UpVector * VerticalTraceOffset);
@@ -83,12 +75,10 @@ void UEnvQueryTest_AvoidThreats::RunTest(FEnvQueryInstance& QueryInstance) const
 			bool bInCover = true;
 			for (int i = 0; i < 3; i++)
 			{
-				bInCover = GetWorld()->LineTraceSingleByChannel(HitResult, ThreatToAvoid.Location, ItemLocations[i],
+				bInCover = GetWorld()->LineTraceSingleByChannel(HitResult, ThreatToAvoid.Location + FVector::UpVector * 60.f, ItemLocations[i],
 				ECC_Visibility, CollisionQueryParams);
 				if (bInCover == false)
-				{
 					break;
-				}
 			}
 			
 			if (bInCover)
@@ -105,7 +95,7 @@ void UEnvQueryTest_AvoidThreats::RunTest(FEnvQueryInstance& QueryInstance) const
 
 FText UEnvQueryTest_AvoidThreats::GetDescriptionDetails() const
 {
-	FString Description = FString::Printf(TEXT("Calculate score how good this point is to cover from threats from UMobComponent"));
+	FString Description = FString::Printf(TEXT("Calculate score how good this point is to cover from threats from UNpcCombatLogicComponent"));
 	Description = Description.Append(FString::Printf(TEXT("\nThreat location prediction time: %.2fs\nThreat min speed threshold = %.2f"),
 		ThreatPredictionTimeValue.GetValue(), ThreatSpeedThresholdValue.GetValue()));
 	return FText::FromString(Description);

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "GameplayTagContainer.h"
-
+#include "Data/NpcCombatTypes.h"
+#include "Data/AiDataTypes.h"
 #include "NpcCombatParametersDataAsset.generated.h"
 
 USTRUCT(BlueprintType)
@@ -52,30 +53,6 @@ USTRUCT(BlueprintType)
 struct FNpcCombatEvaluationParameters
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float UpdateInterval;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
-	bool bIgnoreTeamDamage;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
-	float DamageScoreFactor;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
-	float TeammateTargetScoreFactor;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Combat")
-	float MobCoordinatorScoreFactor;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Utility")
-	TMap<FGameplayTag, FBehaviorUtilityParameters> CombatBehaviorUtilityParameters;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TArray<FTagFloatPair> ThreatLevels;
-
-	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, meta=(Categories="AI.Threat"))
-	TMap<FGameplayTag, float> PerceivedThreatToMinAnxiety;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FRuntimeFloatCurve IntelligenceAttackRangeDeviationDependency;

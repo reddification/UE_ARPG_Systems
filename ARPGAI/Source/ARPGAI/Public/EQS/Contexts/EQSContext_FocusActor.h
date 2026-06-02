@@ -1,6 +1,4 @@
-﻿// Copyright Pixagon Games, Inc. All Rights Reserved.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "EnvironmentQuery/EnvQueryContext.h"

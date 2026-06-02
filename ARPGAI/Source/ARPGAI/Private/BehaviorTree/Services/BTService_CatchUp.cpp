@@ -8,6 +8,7 @@
 #include "Data/NpcCombatTypes.h"
 #include "GameFramework/GameModeBase.h"
 #include "Interfaces/Npc.h"
+#include "Interfaces/NpcEmoteInterface.h"
 #include "Interfaces/NpcSystemGameMode.h"
 #include "Perception/AISense_Hearing.h"
 
@@ -62,13 +63,17 @@ void UBTService_CatchUp::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* Node
 
 	if (WorldTime > BTMemory->NextDrawAttentionAt && DistanceToTarget < MaxRangeToDrawAttention)
 	{
-		UAISense_Hearing::ReportNoiseEvent(Pawn, Pawn->GetActorLocation(), Loudness, Pawn, PhraseHeardAtRange, DrawAttentionPhraseId.GetTagName());
-		auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-		if (ensure(NpcGameMode))
-			NpcGameMode->ReportNpcSpeak(Pawn, Npc->GetNpcIdTag(), DrawAttentionPhraseId, PhraseHeardAtRange * Loudness);
-
-		if (DrawAttentionGestureId.IsValid())
-			Npc->PerformNpcGesture(DrawAttentionGestureId);
+		if (bReportNoiseEvent)
+			UAISense_Hearing::ReportNoiseEvent(Pawn, Pawn->GetActorLocation(), Loudness, Pawn, PhraseHeardAtRange, DrawAttentionPhraseId.GetTagName());
+		
+		if (auto NpcEmoteInterface = Cast<INpcEmoteInterface>(Pawn))
+		{
+			if (DrawAttentionPhraseId.IsValid())
+				NpcEmoteInterface->SayPhrase_NPC(DrawAttentionPhraseId);
+			
+			if (DrawAttentionGestureId.IsValid())
+				NpcEmoteInterface->PerformGesture_NPC(DrawAttentionGestureId);
+		}
 
 		BTMemory->NextDrawAttentionAt = WorldTime + FMath::RandRange(DrawAttentionCooldown * 0.75f, DrawAttentionCooldown * 1.25f);
 	}

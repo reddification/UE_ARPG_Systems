@@ -28,6 +28,13 @@ protected:
 	UPROPERTY(EditAnywhere)
 	FBlackboardKeySelector LocationBBKey;
 
+	// added to bounds 
 	UPROPERTY(EditAnywhere, meta=(ClampMin = 0.f, UIMin = 0.f))
-	float Extent = 1.f;
+	float Extent = 0.f;
+	
+	UPROPERTY(EditAnywhere)
+	bool bResultIfNpcHasNoTerritory = true;
+	
+private:
+	EBlackboardNotificationResult OnLocationChanged(const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key);
 };

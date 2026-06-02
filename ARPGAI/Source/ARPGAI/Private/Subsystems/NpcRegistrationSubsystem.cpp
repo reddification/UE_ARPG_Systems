@@ -5,6 +5,7 @@
 
 #include "Components/NpcComponent.h"
 #include "Interfaces/Npc.h"
+#include "Interfaces/NpcActorTagsInterface.h"
 
 UNpcRegistrationSubsystem* UNpcRegistrationSubsystem::Get(const UObject* WorldContextObject)
 {
@@ -14,11 +15,15 @@ UNpcRegistrationSubsystem* UNpcRegistrationSubsystem::Get(const UObject* WorldCo
 void UNpcRegistrationSubsystem::RegisterNpc(UNpcComponent* NpcComponent)
 {
 	Npcs.Add(NpcComponent->GetNpcIdTag(), NpcComponent);
+	auto NpcPawnOwner = Cast<APawn>(NpcComponent->GetOwner());
+	if (ensure(NpcPawnOwner))
+		NpcPawns.Add(NpcPawnOwner);
 }
 
 void UNpcRegistrationSubsystem::UnregisterNpc(UNpcComponent* NpcComponent)
 {
 	Npcs.Remove(NpcComponent->GetNpcIdTag(), NpcComponent);
+	NpcPawns.Remove(Cast<APawn>(NpcComponent->GetOwner()));
 }
 
 TArray<UNpcComponent*> UNpcRegistrationSubsystem::GetNpcsInRange(const FVector& Origin,
@@ -41,11 +46,11 @@ TArray<UNpcComponent*> UNpcRegistrationSubsystem::GetNpcsInRange(const FVector& 
 			bool bNpcPassesFilters = true;
 			if (!NpcsFilters.IsEmpty())
 			{
-				auto NpcInterface = Cast<INpc>(NpcComponent->GetOwner());
+				auto NpcInterface = Cast<INpcActorTagsInterface>(NpcComponent->GetOwner());
 				if (!NpcInterface)
 					continue;
 
-				FGameplayTagContainer NpcTags = NpcInterface->GetNpcOwnerTags();
+				FGameplayTagContainer NpcTags = NpcInterface->GetTags_NPC();
 				for (const auto& NpcFilter : NpcsFilters)
 				{
 					if (!NpcFilter.IsEmpty() && !NpcFilter.Matches(NpcTags))

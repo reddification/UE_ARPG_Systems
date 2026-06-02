@@ -1,7 +1,4 @@
-﻿// 
-
-
-#include "BehaviorTree/Tasks/SmartObjects/BTTask_InteractWithSmartObject.h"
+﻿#include "BehaviorTree/Tasks/SmartObjects/BTTask_InteractWithSmartObject.h"
 
 #include "AIController.h"
 #include "BlackboardKeyType_SOClaimHandle.h"
@@ -10,7 +7,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcInteractionInterface.h"
 
 UBTTask_InteractWithSmartObject::UBTTask_InteractWithSmartObject()
 {
@@ -30,15 +27,24 @@ EBTNodeResult::Type UBTTask_InteractWithSmartObject::ExecuteTask(UBehaviorTreeCo
 	if (!SmartObjectClaimHandle.IsValid())
 		return EBTNodeResult::Failed;
 	
-	auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
+	auto Npc = Cast<INpcInteractionInterface>(OwnerComp.GetAIOwner()->GetPawn());
 	if (!Npc)
 		return EBTNodeResult::Failed;
 
 	auto InteractionActor = Cast<AActor>(Blackboard->GetValueAsObject(InteractionActorBBKey.SelectedKeyName));
-	Npc->StartInteractingWithSmartObject(InteractionActor, SmartObjectClaimHandle);
-	// I just hope the actual SO interaction behavior is activated right away and not in the following frames
-	if (!Npc->IsNpcInteractingWithSmartObject())
+	if (InteractionActor == nullptr)
+	{
+		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, Warning, TEXT("UBTTask_InteractWithSmartObject::ExecuteTask: Failed to start interaction - interaction actor is not set"));
 		return EBTNodeResult::Failed;
+	}
+	
+	Npc->StartInteracting_NPC(InteractionActor, SmartObjectClaimHandle);
+	// I just hope the actual SO interaction behavior is activated right away and not in the following frames
+	if (!Npc->IsInteracting_NPC())
+	{
+		UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, Warning, TEXT("UBTTask_InteractWithSmartObject::ExecuteTask: Failed to start interaction with smart object %s"), *InteractionActor->GetName());
+		return EBTNodeResult::Failed;
+	}
 	
 	Blackboard->SetValue<UBlackboardKeyType_SOClaimHandle>(ActiveSmartObjectClaimHandleBBKey.SelectedKeyName, SmartObjectClaimHandle);
 	WaitForMessage(OwnerComp, AIGameplayTags::AI_BrainMessage_SmartObjectInteraction_Completed.GetTag().GetTagName());
@@ -64,9 +70,9 @@ EBTNodeResult::Type UBTTask_InteractWithSmartObject::AbortTask(UBehaviorTreeComp
 	
 	WaitForMessage(OwnerComp, AIGameplayTags::AI_BrainMessage_SmartObjectInteraction_Completed.GetTag().GetTagName());
 	
-	auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
+	auto Npc = Cast<INpcInteractionInterface>(OwnerComp.GetAIOwner()->GetPawn());
 	if (Npc)
-		Npc->StopInteractingWithSmartObject();
+		Npc->StopInteracting_NPC();
 	
 	UE_VLOG(OwnerComp.GetAIOwner(), LogARPGAI, Verbose, TEXT("UBTTask_InteractWithSmartObject::AbortTask: waiting for interaction end"));
 	return EBTNodeResult::InProgress;

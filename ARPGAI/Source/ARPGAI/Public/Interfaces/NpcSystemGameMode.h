@@ -26,7 +26,6 @@ public:
 	virtual float GetTimeRateSeconds() const = 0;
 	virtual FVector GetNpcLocation(const FGameplayTag& LocationTagId, const FVector& QuerierLocation, bool bRandomInVolume) const = 0;
 	virtual bool IsWorldAtState(const FGameplayTagQuery& GameplayTagQuery) const = 0;
-	virtual void ReportNpcSpeak(AActor* Npc, const FGameplayTag& NpcIdTag, const FGameplayTag& AISoundTag, const float Range) = 0;
 	virtual const FGameplayTagContainer& GetWorldState() const = 0;
 	virtual const FDateTime& GetARPGAIGameTime() const = 0;
 	virtual const FGameplayTag& GetForcedAttitudeToActor(const FGameplayTag& NpcIdTag, const FGameplayTagContainer& ActorTags) const = 0;

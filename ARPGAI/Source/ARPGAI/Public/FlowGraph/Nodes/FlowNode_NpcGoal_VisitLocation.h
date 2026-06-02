@@ -15,10 +15,10 @@ class ARPGAI_API UFlowNode_NpcGoal_VisitLocation : public UFlowNode_NpcGoal
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_VisitLocation(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::VisitLocation; }
+	UFlowNode_NpcGoal_VisitLocation() { NpcGoalType = ENpcGoalType::VisitLocation; }
 	
 protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(Categories="Location.Id,G2VS2.Location.Id"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagContainer LocationOptions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

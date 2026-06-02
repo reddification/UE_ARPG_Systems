@@ -5,7 +5,7 @@
 
 #include "Components/Controller/NpcFlowComponent.h"
 
-UFlowNode_FinishNpcActivity::UFlowNode_FinishNpcActivity(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UFlowNode_FinishNpcActivity::UFlowNode_FinishNpcActivity()
 {
 #if WITH_EDITOR
 	Category = TEXT("NPC");

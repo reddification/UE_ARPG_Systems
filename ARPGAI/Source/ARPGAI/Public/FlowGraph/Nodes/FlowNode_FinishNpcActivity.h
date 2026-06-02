@@ -15,6 +15,6 @@ class ARPGAI_API UFlowNode_FinishNpcActivity : public UFlowNode
 	GENERATED_BODY()
 
 public:
-	UFlowNode_FinishNpcActivity(const FObjectInitializer& ObjectInitializer);
+	UFlowNode_FinishNpcActivity();
 	virtual void ExecuteInput(const FName& PinName) override;
 };

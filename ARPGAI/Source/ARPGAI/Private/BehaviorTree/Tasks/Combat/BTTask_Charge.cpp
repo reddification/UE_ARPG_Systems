@@ -1,7 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "BehaviorTree/Tasks/Combat/BTTask_Charge.h"
+﻿#include "BehaviorTree/Tasks/Combat/BTTask_Charge.h"
 
 #include "AIController.h"
 #include "BehaviorTree/BehaviorTree.h"
@@ -10,7 +7,7 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Vector.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcCombatInterface.h"
 
 UBTTask_Charge::UBTTask_Charge()
 {
@@ -23,7 +20,7 @@ EBTNodeResult::Type UBTTask_Charge::ExecuteTask(UBehaviorTreeComponent& OwnerCom
 {
 	Super::ExecuteTask(OwnerComp, NodeMemory);
 	auto Pawn = OwnerComp.GetAIOwner()->GetPawn();
-	auto NPC = Cast<INpc>(Pawn);
+	auto NPC = Cast<INpcCombatInterface>(Pawn);
 	if (NPC == nullptr)
 		return EBTNodeResult::Failed;
 	
@@ -51,7 +48,7 @@ EBTNodeResult::Type UBTTask_Charge::AbortTask(UBehaviorTreeComponent& OwnerComp,
 {
 	if (auto AIController = OwnerComp.GetAIOwner())
 	{
-		if (auto Npc = Cast<INpc>(AIController->GetPawn()))
+		if (auto Npc = Cast<INpcCombatInterface>(AIController->GetPawn()))
 		{
 			if (Npc->IsChargeInActive())
 			{

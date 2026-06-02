@@ -6,6 +6,7 @@
 #include "Data/NpcDTR.h"
 #include "GameFramework/GameModeBase.h"
 #include "Interfaces/Npc.h"
+#include "Interfaces/NpcActorTagsInterface.h"
 #include "Interfaces/NpcSystemGameMode.h"
 #include "ReactionEvaluators/NpcReactionEvaluatorBase.h"
 
@@ -37,9 +38,18 @@ void UNpcPerceptionReactionComponent::SetPawn(APawn* InPawn)
 	if (OwnerNPC.GetObject() == InPawn)
 		return;
 	
-	OwnerNPC.SetObject(InPawn);
-	OwnerNPC.SetInterface(Cast<INpc>(InPawn));
-
+	if (auto NpcInterface = Cast<INpc>(InPawn))
+	{
+		OwnerNPC.SetObject(InPawn);
+		OwnerNPC.SetInterface(NpcInterface);
+	}
+	
+	if (auto TagsInterface = Cast<INpcActorTagsInterface>(InPawn))
+	{
+		OwnerActorTagsNPC.SetObject(InPawn);
+		OwnerActorTagsNPC.SetInterface(TagsInterface);
+	}
+	
 	auto NpcDTRH = OwnerNPC->GetNpcDataTableRowHandle();
 
 	if (const FNpcDTR* NpcDTR = NpcDTRH.GetRow<FNpcDTR>(""))
@@ -53,7 +63,8 @@ void UNpcPerceptionReactionComponent::SetPawn(APawn* InPawn)
 		}
 	}
 
-	OwnerNPC->OnNpcTagsChangedEvent.AddUObject(this, &UNpcPerceptionReactionComponent::OnNpcStateChanged);
+	
+	OwnerActorTagsNPC->OnTagsChangedEvent_NPC.AddUObject(this, &UNpcPerceptionReactionComponent::OnNpcStateChanged);
 	auto GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
 	GameMode->NpcWorldStateChangedEvent.AddUObject(this, &UNpcPerceptionReactionComponent::OnWorldStateChanged);
 }
@@ -63,8 +74,8 @@ void UNpcPerceptionReactionComponent::EndPlay(const EEndPlayReason::Type EndPlay
 	if (auto GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode()))
 		GameMode->NpcWorldStateChangedEvent.RemoveAll(this);
 
-	if (IsValid(OwnerNPC.GetObject()))
-		OwnerNPC->OnNpcTagsChangedEvent.RemoveAll(this);
+	if (IsValid(OwnerActorTagsNPC.GetObject()) && OwnerActorTagsNPC.GetInterface() != nullptr)
+		OwnerActorTagsNPC->OnTagsChangedEvent_NPC.RemoveAll(this);
 	
 	Super::EndPlay(EndPlayReason);
 }
@@ -179,7 +190,7 @@ void UNpcPerceptionReactionComponent::AddReactionBehaviorEvaluators(const TArray
 {
 	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
 	const FGameplayTagContainer& WorldState = NpcGameMode->GetWorldState();
-	const FGameplayTagContainer& CharacterState = OwnerNPC->GetNpcOwnerTags();
+	const FGameplayTagContainer& CharacterState = OwnerActorTagsNPC->GetTags_NPC();
 	for (const auto& PerceptionReactionEvaluator : ReactionBehaviorEvaluators)
 	{
 		UObject* EvaluatorMemory = PerceptionReactionEvaluator->CreateMemory(this);
@@ -260,7 +271,7 @@ void UNpcPerceptionReactionComponent::OnWorldStateChanged(const FGameplayTagCont
 	}
 }
 
-void UNpcPerceptionReactionComponent::OnNpcStateChanged(const FGameplayTagContainer& NewNpcState)
+void UNpcPerceptionReactionComponent::OnNpcStateChanged(AActor* Npc, const FGameplayTagContainer& NewNpcState)
 {
 	for (auto& BehaviorEvaluatorStates : BehaviorReactionEvaluators)
 	{

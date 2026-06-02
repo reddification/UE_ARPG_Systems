@@ -91,6 +91,10 @@ class ARPGAI_API UFlowNodeAddon_RequestBehaviorEvaluators : public UFlowNodeAddo
 	GENERATED_BODY()
 
 public:
+	// Recommended to be unique in request stack, but in general - optional
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FName RequestId = FName("FlowNodeAddon_RequestBehaviorEvaluators");
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagContainer BehaviorEvaluatorsTags;
 

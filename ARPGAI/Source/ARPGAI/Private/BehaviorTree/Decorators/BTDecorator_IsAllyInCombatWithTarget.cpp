@@ -29,7 +29,7 @@ bool UBTDecorator_IsAllyInCombatWithTarget::CalculateRawConditionValue(UBehavior
 	
 	auto NpcPawn = OwnerComp.GetAIOwner()->GetPawn();
 	auto NpcSquadSubsystem = UNpcSquadSubsystem::Get(NpcPawn);
-	auto Allies = NpcSquadSubsystem->GetAllies(NpcPawn, false, true);
+	auto Allies = NpcSquadSubsystem->GetAllies(NpcPawn, true);
 	if (Allies.Num() < RequiredAlliesCount)
 		return false;
 	

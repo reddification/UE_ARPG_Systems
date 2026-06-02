@@ -37,3 +37,15 @@ struct ARPGAI_API FShapeComponentsWrapper
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<class UShapeComponent*> Shapes;
 };
+
+USTRUCT(BlueprintType)
+struct FTagFloatPair
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FGameplayTag Tag;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float Value = 0.f;
+};

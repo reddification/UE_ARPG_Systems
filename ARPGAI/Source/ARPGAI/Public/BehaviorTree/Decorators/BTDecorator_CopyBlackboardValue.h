@@ -22,7 +22,8 @@ public:
 
 protected:
 	virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData) override;
-
+	virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult) override;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FBlackboardKeySelector SourceBBKey;
 

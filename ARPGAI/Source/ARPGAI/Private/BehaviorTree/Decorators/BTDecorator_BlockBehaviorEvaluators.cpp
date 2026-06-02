@@ -16,19 +16,21 @@ UBTDecorator_BlockBehaviorEvaluators::UBTDecorator_BlockBehaviorEvaluators()
 void UBTDecorator_BlockBehaviorEvaluators::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
 {
 	Super::OnNodeActivation(SearchData);
-	GetNpcBehaviorEvaluatorComponent(SearchData.OwnerComp)->RequestEvaluatorsBlocked(BlockedBehaviorTags, true);
+	if (auto Component = GetNpcBehaviorEvaluatorComponent(SearchData.OwnerComp))
+		Component->RequestEvaluatorsBlocked(BlockedBehaviorTags, true, RequestId);
 }
 
 void UBTDecorator_BlockBehaviorEvaluators::OnNodeDeactivation(FBehaviorTreeSearchData& SearchData,
 	EBTNodeResult::Type NodeResult)
 {
 	if (auto NpcBehaviorEvaluatorComponent = GetNpcBehaviorEvaluatorComponent(SearchData.OwnerComp))
-		NpcBehaviorEvaluatorComponent->RequestEvaluatorsBlocked(BlockedBehaviorTags, false);
+		NpcBehaviorEvaluatorComponent->RequestEvaluatorsBlocked(BlockedBehaviorTags, false, RequestId);
 	
 	Super::OnNodeDeactivation(SearchData, NodeResult);
 }
 
 FString UBTDecorator_BlockBehaviorEvaluators::GetStaticDescription() const
 {
-	return FString::Printf(TEXT("Block behavior evaluators:\n%s"), *BlockedBehaviorTags.ToStringSimple());
+	return FString::Printf(TEXT("Block behavior evaluators:\n%s\nRequest id: %s"),
+		*BlockedBehaviorTags.ToStringSimple(), *RequestId.ToString());
 }

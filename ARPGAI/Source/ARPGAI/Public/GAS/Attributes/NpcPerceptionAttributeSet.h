@@ -23,6 +23,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UNpcPerceptionAttributeSet, SightRadius);
 	ATTRIBUTE_ACCESSORS(UNpcPerceptionAttributeSet, SightHalfAngle);
 	ATTRIBUTE_ACCESSORS(UNpcPerceptionAttributeSet, HearingRadius);
+	ATTRIBUTE_ACCESSORS(UNpcPerceptionAttributeSet, HearingLoudnessThreshold);
 
 protected:
 	UPROPERTY(BlueprintReadOnly, Meta = (AllowPrivateAccess = true))
@@ -34,4 +35,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Meta = (AllowPrivateAccess = true))
 	FGameplayAttributeData HearingRadius;
 	
+	UPROPERTY(BlueprintReadOnly, Meta = (AllowPrivateAccess = true))
+	FGameplayAttributeData HearingLoudnessThreshold;
 };

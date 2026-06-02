@@ -4,6 +4,7 @@
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Data/NpcBlackboardDataAsset.h"
+#include "Data/NpcDTR.h"
 #include "Navigation/CrowdFollowingComponent.h"
 #include "Subsystems/NpcSquadSubsystem.h"
 
@@ -127,7 +128,7 @@ void UNpcSquadMemberComponent::AddBehaviorCooldownToAllies(const FGameplayTag& C
 	if (!SquadSubsystem)
 		return;
 
-	auto Allies = SquadSubsystem->GetAllies(OwnerController->GetPawn(), false, true);
+	auto Allies = SquadSubsystem->GetAllies(OwnerController->GetPawn(), true);
 	for (const auto& Ally : Allies)
 	{
 		auto AllyController = Ally->GetController<AAIController>();

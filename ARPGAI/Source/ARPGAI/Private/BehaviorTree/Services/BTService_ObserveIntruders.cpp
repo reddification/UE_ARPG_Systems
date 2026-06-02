@@ -62,7 +62,7 @@ APawn* UBTService_ObserveIntruders::GetClosestIntruder(AAIController* AIControll
 
 				if (auto AliveCreature = Cast<INpcAliveCreature>(VisualTarget))
 				{
-					if (!AliveCreature->IsNpcActorAlive())
+					if (!AliveCreature->IsAlive_NpcAliveCreature())
 					{
 						continue;
 					}

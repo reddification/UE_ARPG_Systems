@@ -45,13 +45,13 @@ void UNpcSpawnerComponent::AddNpc(AActor* Npc)
 	AliveNpcs.Add(Npc);
 	auto NpcAliveCreature = Cast<INpcAliveCreature>(Npc);
 	if (ensure(NpcAliveCreature))
-		NpcAliveCreature->OnDeathStarted.AddUObject(this, &UNpcSpawnerComponent::OnNpcDied);
+		NpcAliveCreature->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcSpawnerComponent::OnNpcDied);
 }
 
 void UNpcSpawnerComponent::OnNpcDied(AActor* Actor)
 {
 	auto NpcAliveCreature = Cast<INpcAliveCreature>(Actor);
-	NpcAliveCreature->OnDeathStarted.RemoveAll(this);
+	NpcAliveCreature->OnNpcAliveCreatureDeathStarted.RemoveAll(this);
 	AliveNpcs.Remove(Actor);
 
 	if (bRespawnAfterAllNpcsKilled && AliveNpcs.IsEmpty())
@@ -137,7 +137,7 @@ void UNpcSpawnerComponent::SpawnNpcs()
 		}
 
 		if (SpawnDescriptor.SquadId.IsValid())
-			NpcSquadSubsystem->JoinSquad(SpawnedNpc, SpawnDescriptor.SquadId);
+			NpcSquadSubsystem->JoinOrCreateSquad(SpawnedNpc, SpawnDescriptor.SquadId);
 
 		PendingNpcSpawns.RemoveAt(i);
 	}

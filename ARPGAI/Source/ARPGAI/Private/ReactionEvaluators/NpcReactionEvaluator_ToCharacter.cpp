@@ -33,7 +33,7 @@ float UNpcReactionEvaluator_ToCharacter::ProcessPerceptionInternal(AAIController
 	for (auto TargetActor : SeenActors)
 	{
 		if (auto AliveCreature = Cast<INpcAliveCreature>(TargetActor))
-			if (!AliveCreature->IsNpcActorAlive())
+			if (!AliveCreature->IsAlive_NpcAliveCreature())
 				continue;
 		
 		const float DistSq = (NpcPawnLocation - TargetActor->GetActorLocation()).SizeSquared();

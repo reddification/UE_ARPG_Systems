@@ -167,18 +167,6 @@ void UBTService_EvaluateDistanceToTarget::OnBecomeRelevant(UBehaviorTreeComponen
 			SetNextTickTime(NodeMemory, FLT_MAX);
 	}
 
-	// Blackboard->SetValueAsEnum(OutEvaluatedTargetMoveDirectionBBKey.SelectedKeyName, static_cast<uint8>(ENpcTargetDistanceEvaluation::TargetIsStationary));
-	// auto Target = Cast<AActor>(Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName));
-	// if (ensure(Target))
-	// {
-	// 	auto NpcPawn = OwnerComp.GetAIOwner()->GetPawn();;
-	// 	// 16.01.2025 @AK: TODO handle pathfinding case
-	// 	float Distance = bUseSquareDistance
-	// 		? (Target->GetActorLocation() - NpcPawn->GetActorLocation()).SizeSquared()
-	// 		: (Target->GetActorLocation() - NpcPawn->GetActorLocation()).Size();
-	// 	Blackboard->SetValueAsFloat(OutDistanceBBKey.SelectedKeyName, Distance);
-	// }
-
 	BTMemory->NpcCombatLogicComponent = GetNpcCombatLogicComponent(OwnerComp);
 	ResetEvaluations(*Blackboard, *OwnerComp.GetAIOwner()->GetPawn(), BTMemory->NpcCombatLogicComponent.Get());
 }
@@ -188,14 +176,6 @@ void UBTService_EvaluateDistanceToTarget::OnCeaseRelevant(UBehaviorTreeComponent
 	FBTMemory_EvaluateDistanceToTarget* BTMemory = reinterpret_cast<FBTMemory_EvaluateDistanceToTarget*>(NodeMemory);
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
 	Blackboard->UnregisterObserversFrom(this);
-	
-	// BTMemory->NpcCombatLogicComponent->SetDistanceToTarget(0.f);
-	// BTMemory->NpcCombatLogicComponent->SetEvaluatedTargetMoveDirection(ENpcTargetDistanceEvaluation::TargetIsStationary);
-	//
-	// Blackboard->ClearValue(OutDistanceBBKey.SelectedKeyName);
-	// Blackboard->SetValueAsEnum(OutEvaluatedTargetMoveDirectionBBKey.SelectedKeyName, static_cast<uint8>(ENpcTargetDistanceEvaluation::TargetIsStationary));
-	// if (!OutCurrentDistanceBehaviorDurationBBKey.IsNone())
-	// 	Blackboard->ClearValue(OutCurrentDistanceBehaviorDurationBBKey.GetSelectedKeyID());
 	
 	if (auto AIController = OwnerComp.GetAIOwner())
 		if (auto Pawn = AIController->GetPawn())

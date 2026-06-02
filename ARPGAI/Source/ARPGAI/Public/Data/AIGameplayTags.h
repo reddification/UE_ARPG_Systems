@@ -17,6 +17,7 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(GameplayCue_AI_Spawn);
 
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Idle);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Conversation);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Combat);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Combat_Engage);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Behavior_Combat_Pursue);
@@ -28,9 +29,11 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Dialogue_Refuse_Hostile);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Dialogue_Refuse_Busy);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Dialogue_Refuse_Sleeping);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Dialogue_Refuse_AlreadyInConversation);
 	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Loot);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_Steal);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Interaction_ConversationCompatible);
 	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Threat_Minor);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Threat_Considerable);
@@ -51,8 +54,6 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_State_Conversation_OnHold);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_State_Conversation_MaintainActivity_IgnoreOrientationToInvoker);
 
-	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_State_DirectVisualContact);
-	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_Shot);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_EnemySpotted);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Noise_Throwable_Bounce);
@@ -88,11 +89,15 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_LookAt_Completed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Dialogue_Npc_Completed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_SmartObjectInteraction_Completed);
-	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Dialogue_Player_Completed);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Backdash_Completed);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_UseConsumable_Completed);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_PickUp_Completed);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_LootContainer_Completed);
 	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Conversation_OnHold);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_BrainMessage_Conversation_Completed);
+	
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BrainMessage_Investigate_Event_Completed);
 	
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Attitude_Friendly);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(AI_Attitude_Neutral);
@@ -126,4 +131,12 @@ namespace AIGameplayTags
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Activity);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Arbitrary);
 	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Location_Spawner);
+	
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Observation_Combat_Target_Area_Inside);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Observation_Combat_Target_Area_Outside);
+	
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Behavior_Investigation_Cause_Location);
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Behavior_Investigation_Cause_Actor);
+
+	ARPGAI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(BehaviorEvaluation_ConditionalUtility_Interaction);
 }

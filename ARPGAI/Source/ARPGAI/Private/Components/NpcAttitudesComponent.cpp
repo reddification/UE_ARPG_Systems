@@ -6,7 +6,9 @@
 #include "Data/NpcDTR.h"
 #include "Data/NpcSettings.h"
 #include "Gameframework/GameModeBase.h"
+#include "Interfaces/NpcAliveCreature.h"
 #include "Interfaces/NpcSystemGameMode.h"
+
 
 UNpcAttitudesComponent::UNpcAttitudesComponent()
 {
@@ -37,7 +39,7 @@ void UNpcAttitudesComponent::InitializeNpcAttitudes(const FGameplayTag& InNpcId,
 	NpcDTRH = InNpcDTRH;
 	auto NpcDTR = GetNpcDTR();
 	if (ensure(NpcDTR))
-		BaseAttitudes = NpcDTR->BaseAttitudes;
+		AttitudesStack.Add(NpcDTR->BaseAttitudes);
 	
 	NpcId = InNpcId;
 	ForgivableCountOfHitsForAttitude = NpcDTR->NpcCombatParametersDataAsset->ForgivableCountOfReceivedHits;
@@ -70,7 +72,7 @@ void UNpcAttitudesComponent::SetAttitudePreset(const FGameplayTag& InAttitudePre
 void UNpcAttitudesComponent::ClearAttitudePreset()
 {
 	CurrentAttitudePreset = FGameplayTag::EmptyTag;
-	CustomAttitudes.NpcAttitudes.Empty();
+	CustomAttitudes.Attitudes.Empty();
 }
 
 void UNpcAttitudesComponent::SetTemporaryAttitudePreset(const FGameplayTag& InAttitudePreset)
@@ -95,10 +97,6 @@ void UNpcAttitudesComponent::SetAttitudePresetInternal(const FGameplayTag& InAtt
 		if (auto CustomAttitudesPtr = NpcDTR->CustomAttitudes.Find(InAttitudePreset); ensure(CustomAttitudesPtr))
 			CustomAttitudes = *CustomAttitudesPtr;
 	}
-
-	BaseAttitudes = NpcDTR->BaseAttitudes;
-
-	// TODO sort NpcAttributes priority
 }
 
 void UNpcAttitudesComponent::CleanRememberedHitsFromCharacters()
@@ -108,7 +106,7 @@ void UNpcAttitudesComponent::CleanRememberedHitsFromCharacters()
 		return;
 	
 	const auto& DateTime = GameMode->GetARPGAIGameTime();
-	TArray<TWeakObjectPtr<const AActor>> ForgetHitsFromActors;
+	TArray<TWeakObjectPtr<const AActor>, TInlineAllocator<4>> ForgetHitsFromActors;
 	for (const auto& RememberedHit : ReceivedHitsFromCharacters)
 		if (DateTime >= RememberedHit.Value.ForgetAtGameTime)
 			ForgetHitsFromActors.Add(RememberedHit.Key);
@@ -118,6 +116,12 @@ void UNpcAttitudesComponent::CleanRememberedHitsFromCharacters()
 	
 	if (ReceivedHitsFromCharacters.IsEmpty())
 		GetWorld()->GetTimerManager().ClearTimer(ForgiveAttacksFromNonHostilesTimer);
+}
+
+FDateTime UNpcAttitudesComponent::GetDateTime(float ForDurationGTH) const
+{
+	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
+	return NpcGameMode->GetARPGAIGameTime() + FTimespan::FromHours(ForDurationGTH);
 }
 
 void UNpcAttitudesComponent::ResetTemporaryAttitudePreset()
@@ -148,11 +152,27 @@ void UNpcAttitudesComponent::ShareAttitudes(UNpcAttitudesComponent* OtherNpcAtti
 			OtherNpcAttitudesComponent->TemporaryCharacterAttitudes.Add(TemporaryCharacterAttitude.Key, TemporaryCharacterAttitude.Value);
 }
 
-void UNpcAttitudesComponent::SetBaseAttitudes(const FNpcAttitudes& Attitudes)
+FGuid UNpcAttitudesComponent::AddAttitudes(const FAttitudeSet& Attitudes)
 {
-	BaseAttitudes = Attitudes;
+	AttitudesStack.Add(Attitudes);
+	return Attitudes.Id;
 }
 
+void UNpcAttitudesComponent::RemoveAttitudes(const FGuid& AttitudeSetId)
+{
+	for (int i = AttitudesStack.Num() - 1; i >= 0; --i)
+	{
+		if (AttitudesStack[i].Id == AttitudeSetId)
+		{
+			AttitudesStack.RemoveAt(i);
+			return;
+		}
+	}
+}
+
+// 20 Feb 2026 (aki) TODO: implement attitudes cache. For some AI evaluation systems GetAttitude can be called very frequently
+// think of some redis-like system like when an attitude is requested it is cached for x seconds and if it is stale - update it
+// and add a timer that would remove obsolete caches like every 10 seconds or so
 // There are 3 sources of attitudes:
 // 1. Game-forced attitude (by dialogue outcome/quest system)
 // 2. Immediate temporal attitude (from threat/attack)
@@ -186,18 +206,15 @@ FGameplayTag UNpcAttitudesComponent::GetAttitude(const AActor* Actor) const
 			TemporaryCharacterAttitudes.Remove(Actor);
 	}
 	
-	for (const auto& NpcAttitude : CustomAttitudes.NpcAttitudes)
-	{
+	for (const auto& NpcAttitude : CustomAttitudes.Attitudes)
 		if (!NpcAttitude.CharacterTagsAndWorldState.IsEmpty() && NpcAttitude.CharacterTagsAndWorldState.Matches(ActorTags))
-			return NpcAttitude.Attitude;
-	}
+			return NpcAttitude.AttitudeTag;
 
-	for (const auto& NpcAttitude : BaseAttitudes.NpcAttitudes)
-	{
-		if (!NpcAttitude.CharacterTagsAndWorldState.IsEmpty() && NpcAttitude.CharacterTagsAndWorldState.Matches(ActorTags))
-			return NpcAttitude.Attitude;
-	}
-
+	for (int i = AttitudesStack.Num() - 1; i >= 0; --i)
+		for (const auto& Attitude : AttitudesStack[i].Attitudes)
+			if (!Attitude.CharacterTagsAndWorldState.IsEmpty() && Attitude.CharacterTagsAndWorldState.Matches(ActorTags))
+				return Attitude.AttitudeTag;	
+	
 	return AIGameplayTags::AI_Attitude_Neutral;
 }
 

@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(Category="Smart Objects")
 class ARPGAI_API UBTTask_InteractWithSmartObject : public UBTTaskNode
 {
 	GENERATED_BODY()

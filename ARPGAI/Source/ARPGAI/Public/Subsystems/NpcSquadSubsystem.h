@@ -1,10 +1,7 @@
-﻿// 
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Components/NpcComponent.h"
 #include "Data/NpcActivitiesDataTypes.h"
 #include "UObject/Object.h"
 #include "NpcSquadSubsystem.generated.h"
@@ -36,23 +33,45 @@ class ARPGAI_API UNpcSquadSubsystem : public UWorldSubsystem
 public:
 	static UNpcSquadSubsystem* Get(const UObject* WorldContextObject);
 	
+	UFUNCTION(BlueprintCallable)
 	void RegisterNpc(const FGameplayTag& NpcIdTag, APawn* Pawn);
+
+	UFUNCTION(BlueprintCallable)
 	void UnregisterNpc(const FGameplayTag& NpcIdTag, APawn* Pawn);
+	
+	UFUNCTION(BlueprintCallable)
 	APawn* GetClosestNpc(const FGameplayTag& SquadLeaderTag, APawn* Instigator);
+	
+	UFUNCTION(BlueprintCallable)
 	bool CreateSquad(APawn* SquadLeader, const FGameplayTagContainer& MemberIds, const FGameplayTagQuery& MembersFilter,
 	                 const float InRange, int DesiredCount, const FNpcSquadMemberFollowParameters& SquadMemberParameters);
-	void JoinSquad(APawn* SquadMember, const FGuid& SquadId);
-	void DisbandSquad(const FGuid& SquadId);
-	void DisbandSquad(APawn* SquadLeader);
+	
+	UFUNCTION(BlueprintCallable)
+	void JoinOrCreateSquad(APawn* SquadMember, const FGuid& SquadId);
 
-	TArray<APawn*> GetAllies(const APawn* RequestorNpc, bool bIgnoreSquadLeader, bool bIgnoreDead) const;
-	const FNpcSquadMemberFollowParameters* GetSquadParameters(APawn* ForSquadMember) const;
-	APawn* GetSquadLeader(const FGuid& SquadId);
-	APawn* GetSquadLeader(const APawn* SquadMember);
+	UFUNCTION(BlueprintCallable)
+	TArray<APawn*> GetAllies(const APawn* RequestorNpc, bool bIgnoreDead) const;
+	
+	UFUNCTION(BlueprintCallable)
 	void LeaveSquad(APawn* Pawn);
+	
+	UFUNCTION(BlueprintCallable)
 	bool IsInSquad(const APawn* Pawn) const;
+	
+	UFUNCTION(BlueprintCallable)
 	void RequestLeaderRole(const APawn* Pawn);
+	
+	UFUNCTION(BlueprintCallable)
+	APawn* GetSquadLeader(const APawn* SquadMember);
 
+	UFUNCTION(BlueprintCallable)
+	void DisbandSquad(APawn* SquadLeader);
+	
+	const FNpcSquadMemberFollowParameters* GetSquadParameters(APawn* ForSquadMember) const;
+
+	void DisbandSquad(const FGuid& SquadId);
+	APawn* GetSquadLeader(const FGuid& SquadId);
+	
 private:
 	TMultiMap<FGameplayTag, TWeakObjectPtr<APawn>> NPCs;
 

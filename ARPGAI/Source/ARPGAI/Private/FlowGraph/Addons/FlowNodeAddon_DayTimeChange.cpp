@@ -11,7 +11,7 @@ UFlowNodeAddon_DayTimeChange::UFlowNodeAddon_DayTimeChange()
 {
 #if WITH_EDITOR
 	for (const auto& OutputTag : DayTimeTagToOutput)
-		OutputPins.Add(FFlowPin(OutputTag.Value, EFlowPinType::Exec));
+		OutputPins.Add(FFlowPin(OutputTag.Value));
 #endif
 }
 
@@ -48,7 +48,7 @@ void UFlowNodeAddon_DayTimeChange::PostEditChangeProperty(struct FPropertyChange
 	{
 		OutputPins.Empty();
 		for (const auto& OutputTag : DayTimeTagToOutput)
-			OutputPins.Add(FFlowPin(OutputTag.Value, EFlowPinType::Exec));
+			OutputPins.Add(FFlowPin(OutputTag.Value));
 
 		OnReconstructionRequested.ExecuteIfBound();
 	}
@@ -59,7 +59,7 @@ TArray<FFlowPin> UFlowNodeAddon_DayTimeChange::GetContextOutputs() const
 	auto ContextOutputs = Super::GetContextOutputs();
 	
 	for (const auto& OutputTag : DayTimeTagToOutput)
-		ContextOutputs.Add(FFlowPin(OutputTag.Value, EFlowPinType::Exec));
+		ContextOutputs.Add(FFlowPin(OutputTag.Value));
 	
 	return ContextOutputs;
 }

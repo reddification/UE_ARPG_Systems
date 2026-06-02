@@ -29,7 +29,7 @@ FGameplayTag UARPGAIFunctionLibrary::GetNpcAttitude(AActor* Npc, AActor* TestedA
 bool UARPGAIFunctionLibrary::IsActorAlive(AActor* TestActor)
 {
 	auto NpcAliveCreature = Cast<INpcAliveCreature>(TestActor);
-	return NpcAliveCreature ? NpcAliveCreature->IsNpcActorAlive() : false;
+	return NpcAliveCreature ? NpcAliveCreature->IsAlive_NpcAliveCreature() : false;
 }
 
 FGameplayTag UARPGAIFunctionLibrary::RequestGameplayTagFromName(const FName& TagName, bool bErrorOnFail)

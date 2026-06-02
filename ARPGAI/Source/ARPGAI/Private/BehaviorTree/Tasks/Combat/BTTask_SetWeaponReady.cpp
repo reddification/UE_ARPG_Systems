@@ -1,11 +1,8 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "BehaviorTree/Tasks/Combat/BTTask_SetWeaponReady.h"
+﻿#include "BehaviorTree/Tasks/Combat/BTTask_SetWeaponReady.h"
 
 #include "AIController.h"
 #include "Data/AIGameplayTags.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcWeaponInterface.h"
 
 UBTTask_SetWeaponReady::UBTTask_SetWeaponReady()
 {
@@ -14,26 +11,24 @@ UBTTask_SetWeaponReady::UBTTask_SetWeaponReady()
 
 EBTNodeResult::Type UBTTask_SetWeaponReady::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	auto NPC = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn());
+	auto NPC = Cast<INpcWeaponInterface>(OwnerComp.GetAIOwner()->GetPawn());
 	if (ensure(NPC))
 	{
-		bool bAlreadyInRequestedState = NPC->RequestWeaponReady(bSetReady);
+		Super::ExecuteTask(OwnerComp, NodeMemory);
+		bool bAlreadyInRequestedState = NPC->RequestWeaponReady_NPC(bSetReady);
 		if (!bAlreadyInRequestedState && bAwaitCompletion)
-		{
-			Super::ExecuteTask(OwnerComp, NodeMemory);
 			return EBTNodeResult::InProgress;
-		}
 
 		return EBTNodeResult::Succeeded;
 	}
 
-	return EBTNodeResult::Failed;
+	return bForceSuccess ? EBTNodeResult::Succeeded : EBTNodeResult::Failed;
 }
 
 EBTNodeResult::Type UBTTask_SetWeaponReady::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	if (auto NPC = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn()))
-		NPC->CancelWeaponReady(bSetReady);
+	if (auto NPC = Cast<INpcWeaponInterface>(OwnerComp.GetAIOwner()->GetPawn()))
+		NPC->CancelWeaponReady_NPC(bSetReady);
 	
 	return Super::AbortTask(OwnerComp, NodeMemory);
 }
@@ -49,7 +44,10 @@ FString UBTTask_SetWeaponReady::GetStaticDescription() const
 	FString Result = bSetReady ? TEXT("Unsheathe weapon") : TEXT("Sheathe weapon");
 	
 	if (bAwaitCompletion)
-		Result = Result.Append(FString::Printf(TEXT("\nWait for completion")));
+		Result += TEXT("\nWait for completion");
 
+	if (bForceSuccess)
+		Result += TEXT("\nForce success");
+	
 	return Result;
 }

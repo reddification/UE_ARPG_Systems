@@ -23,6 +23,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category=Generator)
 	TSubclassOf<UEnvQueryContext> StartRelativeTo;
 
+	UPROPERTY(EditDefaultsOnly, Category=Generator)
+	FAIDataProviderFloatValue Offset;
+		
+	
 	// if true - the grid will be generated in direction opposing vector from primary context to "relative to" context
 	// useful for backing off queries
 	UPROPERTY(EditDefaultsOnly, Category=Generator)

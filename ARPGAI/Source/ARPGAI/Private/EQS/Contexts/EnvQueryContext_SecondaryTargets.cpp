@@ -16,7 +16,7 @@ void UEnvQueryContext_SecondaryTargets::ProvideContext(FEnvQueryInstance& QueryI
 	if (UNpcCombatLogicComponent* NpcCombatLogicComponent = GetNpcCombatLogicComponent(QuerierPawn))
 	{
 		auto PrimaryTarget = NpcCombatLogicComponent->GetPrimaryTargetActor();
-		const FNpcActiveThreatsContainer& ActiveTargets = NpcCombatLogicComponent->GetActiveThreats();
+		const FNpcCurrentCombatThreatsContainer& ActiveTargets = NpcCombatLogicComponent->GetActiveThreats();
 		TArray<const AActor*> Actors;
 		Actors.Reserve(ActiveTargets.Num());
 		for (const auto& ActiveThreat : ActiveTargets)

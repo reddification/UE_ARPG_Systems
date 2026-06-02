@@ -15,7 +15,7 @@ class ARPGAI_API UFlowNode_NpcGoal_FindArea : public UFlowNode_NpcGoal
 	GENERATED_BODY()
 
 public:
-	UFlowNode_NpcGoal_FindArea(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { NpcGoalType = ENpcGoalType::FindArea; }
+	UFlowNode_NpcGoal_FindArea() { NpcGoalType = ENpcGoalType::FindArea; }
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

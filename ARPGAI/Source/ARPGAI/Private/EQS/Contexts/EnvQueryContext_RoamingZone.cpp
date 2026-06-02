@@ -3,6 +3,7 @@
 
 #include "EQS/Contexts/EnvQueryContext_RoamingZone.h"
 
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/NpcAreasComponent.h"
 #include "Components/NpcComponent.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
@@ -17,13 +18,16 @@ void UEnvQueryContext_RoamingZone::ProvideContext(FEnvQueryInstance& QueryInstan
 
 	TArray<AActor*> NpcAreaActors;
 	
-	if (auto NpcComponent = Pawn->FindComponentByClass<UNpcAreasComponent>())
+	if (auto NpcComponent = GetNpcAreasComponent(Pawn))
 	{
 		const auto& NpcAreas = NpcComponent->GetNpcAreas();
-		for (const auto& NpcAreaType : NpcAreas)
+		if (NpcAreas.Num() > 0)
 		{
-			for (const auto& NpcArea : NpcAreaType.Value.NpcAreas)
-				NpcAreaActors.Add(const_cast<AActor*>(Cast<const AActor>(NpcArea.GetObject())));
+			NpcAreaActors.Reserve(NpcAreas.Num());
+		
+			for (const auto& NpcAreaType : NpcAreas)
+				for (const auto& NpcArea : NpcAreaType.Value.NpcAreas)
+					NpcAreaActors.Add(const_cast<AActor*>(Cast<const AActor>(NpcArea.GetObject())));
 		}
 	}
 	

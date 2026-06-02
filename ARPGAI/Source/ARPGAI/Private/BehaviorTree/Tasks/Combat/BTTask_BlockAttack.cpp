@@ -11,7 +11,7 @@
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
 #include "Data/NpcCombatTypes.h"
-#include "Interfaces/Npc.h"
+#include "Interfaces/NpcCombatInterface.h"
 
 UBTTask_BlockAttack::UBTTask_BlockAttack()
 {
@@ -30,7 +30,7 @@ EBTNodeResult::Type UBTTask_BlockAttack::ExecuteTask(UBehaviorTreeComponent& Own
 	}
 	
 	auto OwnerPawn = OwnerComp.GetAIOwner()->GetPawn();
-	if (auto Npc = Cast<INpc>(OwnerPawn))
+	if (auto Npc = Cast<INpcCombatInterface>(OwnerPawn))
 	{
 		bool bBlocking = Npc->BlockAttack();
 		if (bBlocking)
@@ -65,7 +65,7 @@ EBTNodeResult::Type UBTTask_BlockAttack::ExecuteTask(UBehaviorTreeComponent& Own
 
 EBTNodeResult::Type UBTTask_BlockAttack::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	if (auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn()))
+	if (auto Npc = Cast<INpcCombatInterface>(OwnerComp.GetAIOwner()->GetPawn()))
 		Npc->CancelBlock();
 
 	return Super::AbortTask(OwnerComp, NodeMemory);
@@ -95,7 +95,7 @@ void UBTTask_BlockAttack::HandleBlockResult(UBehaviorTreeComponent& OwnerComp, E
 	{
 		OwnerComp.GetBlackboardComponent()->SetValueAsEnum(BlockResultBBKey.SelectedKeyName, static_cast<uint8>(BlockResult));
 		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
-		if (auto Npc = Cast<INpc>(OwnerComp.GetAIOwner()->GetPawn()))
+		if (auto Npc = Cast<INpcCombatInterface>(OwnerComp.GetAIOwner()->GetPawn()))
 			Npc->CancelBlock();
 	}
 }

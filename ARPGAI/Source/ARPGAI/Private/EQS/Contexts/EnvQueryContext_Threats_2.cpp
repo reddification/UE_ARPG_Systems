@@ -3,6 +3,7 @@
 
 #include "EQS/Contexts/EnvQueryContext_Threats_2.h"
 
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
@@ -14,16 +15,16 @@ void UEnvQueryContext_Threats_2::ProvideContext(FEnvQueryInstance& QueryInstance
 	if (!Pawn)
 		return;
 
-	auto NpcPerceptionComponent = Pawn->GetController()->FindComponentByClass<UNpcPerceptionComponent>();
-	if (!NpcPerceptionComponent)
+	auto NpcMemoryComponent = GetNpcShortTermMemoryComponent(Pawn);
+	if (!NpcMemoryComponent)
 		return;
 
 	TArray<AActor*> Threats;
-	const auto& CachedPerception = NpcPerceptionComponent->GetAnimatePerceptionData();
+	const auto& CachedPerception = NpcMemoryComponent->GetShortTermCharactersMemory();
 	for (const auto& CharacterPerception : CachedPerception)
 	{
 		bool bValidThreat = CharacterPerception.Value.IsAlive() && CharacterPerception.Value.IsHostile()
-			&& (CharacterPerception.Value.DetectionSource & NpcCombatEvaluation::Visual) != 0;
+			&& (CharacterPerception.Value.DetectionSource & EDetectionSource::VisualMemory) != EDetectionSource::None;
 		if (!bValidThreat)
 			continue;
 

@@ -18,7 +18,7 @@ void UFlowNodeAddon_FormSquad::ExecuteInput(const FName& PinName)
 	                                               DesiredFollowers, SquadMemberParameters);
 	if (bSquadCreated)
 	{
-		auto SquadMembers = NpcSquadSubsystem->GetAllies(SquadLeaderPawn, true, true);
+		auto SquadMembers = NpcSquadSubsystem->GetAllies(SquadLeaderPawn, true);
 		for (auto SquadMember : SquadMembers)
 		{
 			if (SquadMemberAttitudePreset.IsValid())
@@ -49,7 +49,7 @@ void UFlowNodeAddon_FormSquad::FinishState()
 		if (auto NpcSquadSubsystem = UNpcSquadSubsystem::Get(AIController))
 		{
 			auto SquadLeaderPawn = AIController->GetPawn();
-			auto SquadMembers = NpcSquadSubsystem->GetAllies(SquadLeaderPawn, true, true);
+			auto SquadMembers = NpcSquadSubsystem->GetAllies(SquadLeaderPawn, true);
 			for (auto SquadMember : SquadMembers)
 			{
 				if (SquadMemberAttitudePreset.IsValid())

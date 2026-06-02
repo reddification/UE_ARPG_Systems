@@ -9,6 +9,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
+#include "BehaviorTree/Composites/BTComposite_Utility.h"
 #include "BehaviorTree/Tasks/BTTask_RunBehaviorDynamic.h"
 #include "Components/NpcCombatLogicComponent.h"
 #include "Components/NpcComponent.h"
@@ -66,6 +67,10 @@ void UEnhancedBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelT
 	FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	
+	if (MessagesToProcess.Num() > 0 && TreeHasBeenStarted() && !IsPaused())
+		ScheduleNextTick(0.0f);
+	
 	if (bPausePending)
 	{
 		if (IsPaused())
@@ -117,24 +122,111 @@ void UEnhancedBehaviorTreeComponent::LoadDynamicTrees(const FGameplayTagContaine
 	if (BehaviorTags.IsEmpty())
 		return;
 
-	auto NpcComponent = GetAIOwner()->GetPawn()->FindComponentByClass<UNpcComponent>();
-	auto NpcDTR = NpcComponent->GetNpcDTR();
 	auto BehaviorTagsArray = BehaviorTags.GetGameplayTagArray();
-	
 	for (const auto& DynamicBehaviorTag : BehaviorTagsArray)
-	{
-		if (auto BTPtr = NpcDTR->DynamicBehaviors.Find(DynamicBehaviorTag))
-		{
-			auto BT = const_cast<UBehaviorTree*>(*BTPtr);
-			SetDynamicSubtree(DynamicBehaviorTag, BT, StartingNode);
-		}
-	}
+		if (auto BTPtr = BehaviorsConfiguration->DynamicBehaviors.Find(DynamicBehaviorTag))
+			SetDynamicSubtree(DynamicBehaviorTag, *BTPtr, StartingNode);
 }
 
 void UEnhancedBehaviorTreeComponent::InitializeNpc(const FNpcDTR* NpcDTR)
 {
-	if (ensure(NpcDTR) && IsValid(NpcDTR->NpcBlackboardDataAsset))
-		FlowControlBlackboardKeys = NpcDTR->NpcBlackboardDataAsset->FlowControlBlackboardKeys;
+	if (ensure(NpcDTR))
+	{
+		if (IsValid(NpcDTR->NpcBlackboardDataAsset))
+			FlowControlBlackboardKeys = NpcDTR->NpcBlackboardDataAsset->FlowControlBlackboardKeys;
+		
+		if (!NpcDTR->BehaviorsConfiguration.IsNull())
+			BehaviorsConfiguration = NpcDTR->BehaviorsConfiguration.LoadSynchronous();
+	}
+}
+
+void UEnhancedBehaviorTreeComponent::AddStackedService(const FName& Key, UBTservice_ExclusiveStackedService* Service)
+{
+	auto& Stack = StackedServices.FindOrAdd(Key);
+	if (!Stack.IsEmpty())
+	{
+		auto& PreviousService = Stack.Last();
+		if (ensure(PreviousService.IsValid()))
+		{
+			auto* NodeMemory = GetNodeMemory(PreviousService.Get(), FindInstanceContainingNode(PreviousService.Get()));
+			PreviousService->Freeze(NodeMemory);
+		}
+	}
+	
+	Stack.Add(Service);
+}
+
+void UEnhancedBehaviorTreeComponent::RemoveStackedService(const FName& Key, UBTservice_ExclusiveStackedService* Service)
+{
+	auto Stack = StackedServices.Find(Key);
+	if (!Stack)
+	{
+		ensure(false);
+		return;
+	}
+	
+	const bool bWasLast = Stack->Last() == Service;
+	Stack->Remove(Service);
+	if (bWasLast && !Stack->IsEmpty())
+	{
+		const auto& NewTopSerivce = Stack->Last();
+		if (ensure(NewTopSerivce.IsValid()))
+		{
+			auto* NodeMemory = GetNodeMemory(NewTopSerivce.Get(), FindInstanceContainingNode(NewTopSerivce.Get()));
+			NewTopSerivce->Unfreeze(NodeMemory);
+		}
+	}
+}
+
+void UEnhancedBehaviorTreeComponent::AddUtilityObserver(const FBlackboardKeySelector& BBKey,
+	const UBTComposite_Utility* UtilityComposite, int ChildIndex, bool bSuppressesRest)
+{
+	if (auto* ExistingContainer = UtilityBlackboardObservers.Find(BBKey.GetSelectedKeyID()))
+	{
+		ExistingContainer->Items.Add(FBTUtilityCompositeData (UtilityComposite, ChildIndex, bSuppressesRest));	
+	}
+	else
+	{
+		FOnBlackboardChangeNotification ObserverDelegate = FOnBlackboardChangeNotification::CreateUObject(this,
+			&UEnhancedBehaviorTreeComponent::OnUtilityChanged);
+		auto& Container = UtilityBlackboardObservers.Add(BBKey.GetSelectedKeyID());
+		Container.Items.Add(FBTUtilityCompositeData(UtilityComposite, ChildIndex, bSuppressesRest));
+		Container.ObserverHandle = GetBlackboardComponent()->RegisterObserver(BBKey.GetSelectedKeyID(), this, ObserverDelegate);
+	}
+}
+
+void UEnhancedBehaviorTreeComponent::RemoveUtilityObserver(const FBlackboardKeySelector& BBKey,
+	const UBTComposite_Utility* UtilityComposite)
+{
+	auto* Container = UtilityBlackboardObservers.Find(BBKey.GetSelectedKeyID());
+	if (!ensure(Container && !Container->Items.IsEmpty()))
+		return;
+	
+	ensure(Container->Items.Last().Utility == UtilityComposite);
+	for (int i = Container->Items.Num() - 1; i >= 0; --i)
+	{
+		if (Container->Items[i].Utility == UtilityComposite)
+		{
+			if (Container->Items[i].bSupressRest)
+			{
+				for (int j = i - 1; j >= 0; --j)
+				{
+					Container->Items[j].Utility->OnUtilityChanged(*this, BBKey.GetSelectedKeyID(), Container->Items[j].ChildIndex);
+					if (Container->Items[j].bSupressRest)
+						break;
+				}
+			}
+			
+			Container->Items.RemoveAt(i);
+			break;
+		}
+	}
+	
+	if (Container->Items.IsEmpty())
+	{
+		GetBlackboardComponent()->UnregisterObserver(BBKey.GetSelectedKeyID(), Container->ObserverHandle);
+		UtilityBlackboardObservers.Remove(BBKey.GetSelectedKeyID());
+	}
 }
 
 void UEnhancedBehaviorTreeComponent::ResetFlowControlBlackboardKeys()
@@ -145,4 +237,21 @@ void UEnhancedBehaviorTreeComponent::ResetFlowControlBlackboardKeys()
 	auto Blackboard = GetBlackboardComponent();
 	for (const auto& FlowControlBB : FlowControlBlackboardKeys)
 		Blackboard->ClearValue(FlowControlBB.SelectedKeyName);
+}
+
+EBlackboardNotificationResult UEnhancedBehaviorTreeComponent::OnUtilityChanged(
+	const UBlackboardComponent& BlackboardComponent, FBlackboard::FKey Key)
+{
+	auto* Container = UtilityBlackboardObservers.Find(Key);
+	if (Container == nullptr || Container->Items.IsEmpty())
+		return EBlackboardNotificationResult::RemoveObserver;
+	
+	for (int i = Container->Items.Num() - 1; i >= 0; --i)
+	{
+		Container->Items[i].Utility->OnUtilityChanged(*this, Key, Container->Items[i].ChildIndex);
+		if (Container->Items[i].bSupressRest)
+			break;
+	}
+	
+	return EBlackboardNotificationResult::ContinueObserving;
 }

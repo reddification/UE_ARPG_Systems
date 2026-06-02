@@ -77,8 +77,29 @@ void UBTDecorator_OptionalBlackboardTimeLimit::OnNodeProcessed(FBehaviorTreeSear
 	Super::OnNodeProcessed(SearchData, NodeResult);
 	auto NodeMemory = GetNodeMemory<FBTMemory_OptionalBlackboardTimeLimit>(SearchData);
 	if (NodeResult != EBTNodeResult::Aborted && NodeMemory->bTimeLimitSet && NodeMemory->bTimeLimitExpired && bTreatTimeoutAsSuccess)
-		NodeResult = EBTNodeResult::Succeeded;
+	{
+		bool bCanForceSuccess = true;
 
+		// Decorator is always allowed to force success during the search to ignore an optional branch in a sequence.
+		// But when used to override the node result on failure we only modify result if search originates
+		// from our parent node (abort self) or on our associated node (failure).
+		if (!SearchData.bSearchInProgress)
+		{
+			const int32 InstanceIdx = SearchData.OwnerComp.GetActiveInstanceIdx();
+			const FBTNodeIndex ParentNodeIndex(InstanceIdx, GetParentNode() != nullptr ? GetParentNode()->GetExecutionIndex() : 0);
+			const UBTNode* MyNode = GetMyNode();
+			const FBTNodeIndex MyNodeIndex(InstanceIdx, MyNode != nullptr ? MyNode->GetExecutionIndex() : 0);
+			bCanForceSuccess = (SearchData.SearchRootNode == ParentNodeIndex || SearchData.SearchRootNode == MyNodeIndex);
+		}
+
+		if (bCanForceSuccess)
+		{
+			checkf(NodeResult != EBTNodeResult::Aborted, TEXT("Should never change a result set to 'Aborted'"));
+			NodeResult = EBTNodeResult::Succeeded;
+			BT_SEARCHLOG(SearchData, Log, TEXT("Forcing Success: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(this));
+		}
+	}
+	
 	NodeMemory->bTimeLimitExpired = false;
 	NodeMemory->bTimeLimitSet = false;
 }

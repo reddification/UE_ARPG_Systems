@@ -21,26 +21,35 @@ enum class ENpcStates : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FNpcAttitude
+struct FAttitude
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagQuery CharacterTagsAndWorldState;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(Categories="AI.Attitude"))
-	FGameplayTag Attitude;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTag AttitudeTag;
 };
 
 USTRUCT(BlueprintType)
-struct FNpcAttitudes
+struct FAttitudeSet
 {
 	GENERATED_BODY()
 
+	FAttitudeSet()
+	{
+		Id = FGuid::NewGuid();
+	}
+	
+	// used as a handle to be able to remove attitude sets from attitude stack 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	FGuid Id;
+	
 	// Order matters. When looking for a matching attribute, complexity of the gameplay tag query condition is not taken into account,
 	// only order of appearance is
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TArray<FNpcAttitude> NpcAttitudes;
+	TArray<FAttitude> Attitudes;
 };
 
 /**
@@ -146,4 +155,12 @@ struct FBehaviorEvaluatorBlockRequest
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(EditCondition="bIndefinitely==false"))
 	float Duration = 10.f;
+};
+
+UENUM(BlueprintType)
+enum class ECharacterQueryMode : uint8
+{
+	All,
+	AliveOnly,
+	DeadOnly
 };

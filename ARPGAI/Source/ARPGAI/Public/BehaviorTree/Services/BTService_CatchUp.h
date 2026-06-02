@@ -72,4 +72,7 @@ protected:
 
 	UPROPERTY(EditAnywhere, meta=(EditCondition="bDrawAttention"), Category="Draw attention")
 	float Loudness = 1.5f;
+	
+	UPROPERTY(EditAnywhere, meta=(EditCondition="bDrawAttention"), Category="Draw attention")
+	bool bReportNoiseEvent = false;
 };

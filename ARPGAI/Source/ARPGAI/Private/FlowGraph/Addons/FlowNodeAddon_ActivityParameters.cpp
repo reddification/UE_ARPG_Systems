@@ -171,9 +171,9 @@ void UFlowNodeAddon_RequestBehaviorEvaluators::ExecuteInput(const FName& PinName
 	if (auto BehaviorEvaluatorComponent = AIController->FindComponentByClass<UNpcBehaviorEvaluatorComponent>())
 	{
 		if (bRequestActive)
-			BehaviorEvaluatorComponent->RequestEvaluatorsActive(BehaviorEvaluatorsTags, true);
+			BehaviorEvaluatorComponent->RequestEvaluatorsRelevant(BehaviorEvaluatorsTags, true, RequestId);
 		else
-			BehaviorEvaluatorComponent->RequestEvaluatorsActive(BehaviorEvaluatorsTags, true);
+			BehaviorEvaluatorComponent->RequestEvaluatorsRelevant(BehaviorEvaluatorsTags, true, RequestId);
 	}
 }
 
@@ -185,9 +185,9 @@ void UFlowNodeAddon_RequestBehaviorEvaluators::FinishState()
 		if (auto BehaviorEvaluatorComponent = AIController->FindComponentByClass<UNpcBehaviorEvaluatorComponent>())
 		{
 			if (bRequestActive)
-				BehaviorEvaluatorComponent->RequestEvaluatorsActive(BehaviorEvaluatorsTags, false);
+				BehaviorEvaluatorComponent->RequestEvaluatorsRelevant(BehaviorEvaluatorsTags, false, RequestId);
 			else
-				BehaviorEvaluatorComponent->RequestEvaluatorsActive(BehaviorEvaluatorsTags, false);
+				BehaviorEvaluatorComponent->RequestEvaluatorsRelevant(BehaviorEvaluatorsTags, false, RequestId);
 		}
 	}
 	
@@ -200,7 +200,8 @@ FText UFlowNodeAddon_RequestBehaviorEvaluators::GetNodeConfigText() const
 {
 	return BehaviorEvaluatorsTags.IsEmpty()
 		? FText::FromString(TEXT("No behavior evaluators provided"))
-		: FText::FromString(FString::Printf(TEXT("%s behavior evaluators:\n%s"), bRequestActive ? TEXT("Request") : TEXT("Block"), *BehaviorEvaluatorsTags.ToStringSimple()));
+		: FText::FromString(FString::Printf(TEXT("%s behavior evaluators:\n%s\nRequest id: %s"), 
+			bRequestActive ? TEXT("Request") : TEXT("Block"), *BehaviorEvaluatorsTags.ToStringSimple(), *RequestId.ToString()));
 }
 
 #endif

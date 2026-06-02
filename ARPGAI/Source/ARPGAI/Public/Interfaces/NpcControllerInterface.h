@@ -4,11 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Components/NpcComponent.h"
+#include "Data/NpcCombatTypes.h"
 #include "UObject/Interface.h"
 #include "NpcControllerInterface.generated.h"
 
 struct FAttackingThreatData;
-struct FNpcThreatData;
+struct FNpcImmediateThreatData;
 struct FNpcActiveTargetData;
 
 // This class does not need to be modified.
@@ -32,7 +33,7 @@ public:
 	virtual bool IsWantToAvoidThreats() const = 0;
 	virtual float GetPathfindingDesiredAvoidThreatsDistance() const = 0;
 	virtual float GetPathfindingAvoidThreatsScoreFactor() const = 0;
-	virtual const FNpcActiveThreatsContainer& GetThreats() const = 0;
+	virtual const FNpcCurrentCombatThreatsContainer& GetThreats() const = 0;
 	virtual bool IsSurroundingTarget() const = 0;
 	virtual void SetEnabled(bool bEnabled) = 0;
 	virtual uint8 GetMaxFocusPriority() const = 0;

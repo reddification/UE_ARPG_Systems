@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BehaviorTree/Decorators/BTDecorator_TagCooldown.h"
+#include "BehaviorTree/BTDecorator.h"
+#include "BehaviorTree/ValueOrBBKey.h"
 #include "BTDecorator_SquadTagCooldown.generated.h"
 
 /**
