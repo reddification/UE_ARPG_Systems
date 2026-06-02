@@ -7,6 +7,7 @@
 #include "Engine/DataTable.h"
 #include "QuestSubsystem.generated.h"
 
+class IDelayedQuestAction;
 class IQuestSystemGameMode;
 class ULevelSequencePlayer;
 class IQuestCharacter;
@@ -19,7 +20,6 @@ struct FQuestActionSpawnItems;
 struct FQuestActionSpawnNPCs;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FQuestStartedEvent, const FQuestDTR* QuestDTR)
-DECLARE_MULTICAST_DELEGATE_TwoParams(FQuestEventOccuredEvent, const FQuestDTR* QuestDTR, const FQuestEventDTR* QuestEventDTR);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FQuestCompletedEvent, const FQuestDTR* QuestDTR, bool bAutocompleted)
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FQuestCharacterCrossedLocationEvent, const FGameplayTag& LocationId, const IQuestCharacter* QuestCharacter);
@@ -56,7 +56,7 @@ public:
 	void OnPlayerDied();
 	
 	UFUNCTION(BlueprintCallable)
-	void StartQuest(const FDataTableRowHandle& QuestDTRH);
+	bool StartQuest(const FDataTableRowHandle& QuestDTRH);
 	
 	void ExecuteDelayedAction(const FGuid& DelayedActionId);
 
@@ -65,8 +65,7 @@ public:
 	FVector GetRandomNavigableLocationNearPlayer(const FVector& PlayerLocation, float Radius, float FloorOffset) const;
 	void OnNpcKnockdowned(IQuestCharacter* KnockdownedBy, IQuestCharacter* KnockdownedCharacter);
 
-	void ExecuteQuestActionsExternal(const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions);
-	void CompleteQuestEventExternal(const FDataTableRowHandle& QuestEventDTRH);
+	void CompleteQuestEventExternal(const FName& QuestId, const FGuid& QuestFlowNodeId, const FName& FlowNodeOutput);
 
 	const TMap<FName, FQuestProgress>& GetActiveQuests() const { return ActiveQuests; }
 	const TMap<FName, FQuestProgress>& GetCompletedQuests() const { return CompletedQuests; }
@@ -85,7 +84,6 @@ public:
 
 	mutable FQuestStartedEvent QuestStartedEvent;
 	mutable FQuestCompletedEvent QuestCompletedEvent;
-	mutable FQuestEventOccuredEvent QuestEventOccuredEvent;
 	
 	mutable FQuestCharacterCrossedLocationEvent QuestCharacterReachedLocationEvent;
 	mutable FQuestCharacterCrossedLocationEvent QuestCharacterLeftLocationEvent;
@@ -121,15 +119,10 @@ private:
 	TMap<FGuid, TScriptInterface<IDelayedQuestAction>> DelayedQuestActions;
 	
 	bool CanStartQuest(const FDataTableRowHandle& QuestDTRH);
-   
-	void InitializeQuest(const FDataTableRowHandle& QuestDTRH, const FQuestDTR* QuestDTR);
-	
-	void OnQuestEventOccured(UQuestEventTriggerProxy* QuestEventTrigger);
-	void OnQuestEventCovered(UQuestEventTriggerProxy* QuestEventTrigger);
-	void CompleteQuestEvent(UQuestEventTriggerProxy* QuestEventTrigger, bool bEventCovered);
 
+	bool InitializeQuest(const FDataTableRowHandle& QuestDTRH, const FQuestDTR* QuestDTR);
+	
 	void CompleteQuest(FQuestProgress& CompletedQuest, EQuestState QuestFinalState);
-	void ExecuteQuestActions(const FQuestSystemContext& QuestSystemContext, const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions);
 
 	bool bStateLoaded = false;
 };

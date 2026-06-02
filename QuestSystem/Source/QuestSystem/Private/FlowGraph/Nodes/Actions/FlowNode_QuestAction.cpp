@@ -1,11 +1,8 @@
-﻿// 
-
-
-#include "FlowGraph/Nodes/Actions/FlowNode_QuestAction.h"
+﻿#include "FlowGraph/Nodes/Actions/FlowNode_QuestAction.h"
 
 #include "Data/QuestRequirements.h"
+#include "Interfaces/DelayedQuestActionInterface.h"
 #include "Interfaces/FlowPredicateInterface.h"
-#include "Subsystems/QuestNpcSubsystem.h"
 #include "Subsystems/QuestSubsystem.h"
 
 FName UFlowNode_QuestAction::PinOut_Executed("Executed");
@@ -13,9 +10,9 @@ FName UFlowNode_QuestAction::PinOut_Failed("Failed");
 FName UFlowNode_QuestAction::PinOut_Delayed("Delayed");
 FName UFlowNode_QuestAction::PinOut_CannotExecute("Can't execute");
 
-UFlowNode_QuestAction::UFlowNode_QuestAction(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+UFlowNode_QuestAction::UFlowNode_QuestAction()
 {
-	OutputPins.Append({ PinOut_Executed, PinOut_Failed, PinOut_Delayed, PinOut_CannotExecute });
+	OutputPins.Append({ FFlowPin(PinOut_Executed), FFlowPin(PinOut_Failed), FFlowPin(PinOut_Delayed), FFlowPin(PinOut_CannotExecute) });
 	if (!ActionId.IsValid())
 		ActionId = FGuid::NewGuid();
 	

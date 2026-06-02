@@ -25,24 +25,11 @@ struct QUESTSYSTEM_API FQuestDTR : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
     FGameplayTagContainer QuestTags;
 
-	// TODO consider moving this one to TSoftObjectPtr<UQuestEventsDataAsset>, especially because of usage of instanced objects
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta=(RequiredAssetDataTags="RowStructure=/Script/QuestSystem.QuestEventDTR"))
-	class UDataTable* QuestEventsDT;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSoftObjectPtr<UFlowAsset> QuestFlow;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct))
 	TArray<TInstancedStruct<FQuestRequirementBase>> QuestRequirements;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
-	TArray<TInstancedStruct<FQuestActionBase>> BeginQuestActions;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
-	TArray<TInstancedStruct<FQuestActionBase>> SuccessfulEndQuestActions;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (ExcludeBaseStruct))
-	TArray<TInstancedStruct<FQuestActionBase>> FailureEndQuestActions;
 	
     UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TArray<FQuestNavigationGuidanceData> NavigationGuideances;

@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include "QuestEventDTR.h"
-#include "QuestEventTriggerProxy.h"
 #include "Engine/DataTable.h"
 #include "QuestProgress.generated.h"
 
@@ -11,20 +9,7 @@ struct FQuestEventData
     GENERATED_BODY()
 
     UPROPERTY(SaveGame)
-    FDataTableRowHandle QuestTaskDTRH;
-    
-    UPROPERTY()
-    UQuestEventTriggerProxy* OccuredTrigger = nullptr;
-
-    UPROPERTY()
-    UQuestEventTriggerProxy* CoveredTrigger = nullptr;
-    
-    FQuestEventDTR* GetQuestEventDTR() const { return !QuestTaskDTRH.IsNull() ? QuestTaskDTRH.GetRow<FQuestEventDTR>("") : nullptr; }
-    void Finalize()
-    {
-        OccuredTrigger = nullptr;
-        CoveredTrigger = nullptr;
-    };
+    int TODO_FlowNodesSaveState;
 };
 
 USTRUCT(BlueprintType)
@@ -32,6 +17,8 @@ struct FQuestProgress
 {
     GENERATED_BODY()
 
+    FQuestProgress() = default;
+    
     UPROPERTY(SaveGame)
     FDataTableRowHandle QuestDTRH;
 
@@ -51,14 +38,61 @@ struct FQuestProgress
     
     UPROPERTY(SaveGame)
     TMap<FName, FQuestEventData> CompletedQuestEvents;
+    
+    TWeakObjectPtr<UFlowAsset> FlowInstance;
+    
+    FQuestProgress(const FQuestProgress& Other)
+        : QuestDTRH(Other.QuestDTRH),
+          JournalLogs(Other.JournalLogs),
+          QuestState(Other.QuestState),
+          PendingQuestEvents(Other.PendingQuestEvents),
+          CoveredQuestEvents(Other.CoveredQuestEvents),
+          CompletedQuestEvents(Other.CompletedQuestEvents),
+          FlowInstance(Other.FlowInstance)
+    {
+    }
+
+    FQuestProgress(FQuestProgress&& Other) noexcept
+        : QuestDTRH(std::move(Other.QuestDTRH)),
+          JournalLogs(std::move(Other.JournalLogs)),
+          QuestState(Other.QuestState),
+          PendingQuestEvents(std::move(Other.PendingQuestEvents)),
+          CoveredQuestEvents(std::move(Other.CoveredQuestEvents)),
+          CompletedQuestEvents(std::move(Other.CompletedQuestEvents)),
+          FlowInstance(std::move(Other.FlowInstance))
+    {
+    }
+
+    FQuestProgress& operator=(const FQuestProgress& Other)
+    {
+        if (this == &Other)
+            return *this;
+        QuestDTRH = Other.QuestDTRH;
+        JournalLogs = Other.JournalLogs;
+        QuestState = Other.QuestState;
+        PendingQuestEvents = Other.PendingQuestEvents;
+        CoveredQuestEvents = Other.CoveredQuestEvents;
+        CompletedQuestEvents = Other.CompletedQuestEvents;
+        FlowInstance = Other.FlowInstance;
+        return *this;
+    }
+
+    FQuestProgress& operator=(FQuestProgress&& Other) noexcept
+    {
+        if (this == &Other)
+            return *this;
+        QuestDTRH = std::move(Other.QuestDTRH);
+        JournalLogs = std::move(Other.JournalLogs);
+        QuestState = Other.QuestState;
+        PendingQuestEvents = std::move(Other.PendingQuestEvents);
+        CoveredQuestEvents = std::move(Other.CoveredQuestEvents);
+        CompletedQuestEvents = std::move(Other.CompletedQuestEvents);
+        FlowInstance = std::move(Other.FlowInstance);
+        return *this;
+    }
 };
 
 inline bool operator == (const FQuestProgress& First, const FQuestProgress& Other)
 {
     return First.QuestDTRH == Other.QuestDTRH;
-}
-
-inline bool operator == (const FQuestEventData& First, const FQuestEventData& Second)
-{
-    return First.QuestTaskDTRH == Second.QuestTaskDTRH;
 }

@@ -12,7 +12,7 @@
 
 UFlowNode_QuestEvent::UFlowNode_QuestEvent()
 {
-	OutputPins.Append( { FName("Occured"), FName("Covered") } );
+	OutputPins.Append( { FFlowPin(FName("Occured")), FFlowPin(FName("Covered")) } );
 	
 #if WITH_EDITOR
 	Category = TEXT("Quests|Events");

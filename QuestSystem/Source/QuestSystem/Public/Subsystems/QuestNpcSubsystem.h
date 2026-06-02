@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
-#include "Data/QuestActions.h"
 #include "Engine/DataTable.h"
+#include "Data/QuestActions.h"
 #include "Interfaces/QuestNPC.h"
 #include "Containers/Map.h"
 #include "Data/QuestActionStopConditions.h"
@@ -51,7 +51,6 @@ public:
 	TArray<TScriptInterface<IQuestNPC>> GetNpcsInRange(const FGameplayTag& NpcId, const FVector& QuerierLocation, float Range, const FGameplayTagQuery* OptionalFilter = nullptr) const;
 	
 private:
-	//UPROPERTY()
 	TMultiMap<FGameplayTag, TScriptInterface<IQuestNPC>> Npcs;
 
 	UPROPERTY()

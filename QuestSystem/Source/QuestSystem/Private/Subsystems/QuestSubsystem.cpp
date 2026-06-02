@@ -1,7 +1,6 @@
 #include "Subsystems/QuestSubsystem.h"
 
 #include "FlowSubsystem.h"
-#include "GameplayTagAssetInterface.h"
 #include "NavigationSystem.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/GameMode.h"
@@ -69,83 +68,37 @@ void UQuestSubsystem::OnPlayerDied()
 	PlayerDiedEvent.Broadcast();
 }
 
-void UQuestSubsystem::StartQuest(const FDataTableRowHandle& QuestDTRH)
+bool UQuestSubsystem::StartQuest(const FDataTableRowHandle& QuestDTRH)
 {
 	if (!CanStartQuest(QuestDTRH))
-		return;
+		return false;
 
-	FQuestSystemContext QuestSystemContext = GetQuestSystemContext();
 	FQuestDTR* QuestDTR = QuestDTRH.DataTable->FindRow<FQuestDTR>(QuestDTRH.RowName, "");
-	InitializeQuest(QuestDTRH, QuestDTR);
+	bool bInitialized = InitializeQuest(QuestDTRH, QuestDTR);
+	if (bInitialized)
+		QuestStartedEvent.Broadcast(QuestDTR);
 	
-	// 05.08.2025 @AK: this means that the quest uses old quest system version. maybe I should just add versioning to QuestDTR like int QuestSystemVersion
-	// or just remove it when i'm sure that FlowGraph is up and running
-	if (QuestDTR->QuestEventsDT && QuestDTR->QuestFlow.IsNull())
-	{
-		const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions = QuestDTR->BeginQuestActions;
-		ExecuteQuestActions(QuestSystemContext, QuestActions);
-	}
-	
-	QuestStartedEvent.Broadcast(QuestDTR);
+	return bInitialized;
 }
 
-void UQuestSubsystem::InitializeQuest(const FDataTableRowHandle& QuestDTRH, const FQuestDTR* QuestDTR)
+bool UQuestSubsystem::InitializeQuest(const FDataTableRowHandle& QuestDTRH, const FQuestDTR* QuestDTR)
 {
+	if (QuestDTR->QuestFlow.IsNull())
+		return ensure(false);
+	
 	FQuestProgress QuestProgress;
 	QuestProgress.QuestDTRH = QuestDTRH;
 
-	if (!QuestDTR->QuestFlow.IsNull())
-	{
-		FlowAssetToQuestIdLookup.Add(QuestDTR->QuestFlow, QuestDTRH.RowName);
-		ActiveQuests.Add(QuestDTRH.RowName, QuestProgress);
-		auto FS = GetGameInstance()->GetSubsystem<UFlowSubsystem>();
-		FS->StartRootFlow(this, QuestDTR->QuestFlow.LoadSynchronous(), false);
-		return;		
-	}
-
-	// @AK 05.08.2025: legacy approach that uses quest events DTRHs. TODO Remove when FlowGraph approach is tested
-	TArray<FName> QuestEventsDataTableRowNames = QuestDTR->QuestEventsDT->GetRowNames();
-	FQuestSystemContext QuestSystemContext = GetQuestSystemContext();
+	FlowAssetToQuestIdLookup.Add(QuestDTR->QuestFlow, QuestDTRH.RowName);
+	auto FlowSubsystem = GetGameInstance()->GetSubsystem<UFlowSubsystem>();
+	auto CreatedQuestFlow = FlowSubsystem->CreateRootFlow(this, QuestDTR->QuestFlow.LoadSynchronous(), false);
+	if (!ensure(CreatedQuestFlow))
+		return false;
 	
-	for (const auto& RowName : QuestEventsDataTableRowNames)
-	{
-		FDataTableRowHandle QuestEventDTRH;
-		QuestEventDTRH.DataTable = QuestDTR->QuestEventsDT;
-		QuestEventDTRH.RowName = RowName;
-		FQuestEventDTR* QuestEventDTR = QuestEventDTRH.GetRow<FQuestEventDTR>("");
-		FQuestEventData QuestEventState;
-		QuestEventState.QuestTaskDTRH = QuestEventDTRH;
-		QuestEventState.OccuredTrigger = nullptr;
-		QuestEventState.CoveredTrigger = nullptr;
-
-		const bool bQuestEventAlreadyCovered = QuestEventDTR->EventCoveredTrigger.IsValid()
-			&& QuestEventDTR->EventCoveredTrigger.GetPtr<FQuestEventTriggerBase>()->AreRequirementsFulfilled(QuestSystemContext);
-			
-		if (!bQuestEventAlreadyCovered)
-		{
-			if (QuestEventDTR->EventCompletedTrigger.IsValid())
-			{
-				QuestEventState.OccuredTrigger = QuestEventDTR->EventCompletedTrigger.Get<FQuestEventTriggerBase>().MakeProxy(QuestSystemContext, QuestDTRH, QuestEventDTRH);
-				QuestEventState.OccuredTrigger->QuestEventOccuredEvent.BindUObject(this, &UQuestSubsystem::OnQuestEventOccured);
-			}
-
-			if (QuestEventDTR->EventCoveredTrigger.IsValid())
-			{
-				QuestEventState.CoveredTrigger = QuestEventDTR->EventCoveredTrigger.Get<FQuestEventTriggerBase>().MakeProxy(QuestSystemContext, QuestDTRH, QuestEventDTRH);
-				QuestEventState.CoveredTrigger->QuestEventOccuredEvent.BindUObject(this, &UQuestSubsystem::OnQuestEventCovered);
-			}
-
-			QuestProgress.PendingQuestEvents.Add(RowName, QuestEventState);
-		}
-		else
-		{
-			QuestProgress.CoveredQuestEvents.Add(QuestEventDTRH.RowName, QuestEventState);
-			if (QuestEventDTR->bExecuteActionsWhenCovered)
-				ExecuteQuestActions(QuestSystemContext, QuestEventDTR->EventOccuredActions);
-		}
-	}
-	
+	QuestProgress.FlowInstance = CreatedQuestFlow;
 	ActiveQuests.Add(QuestDTRH.RowName, QuestProgress);
+	CreatedQuestFlow->StartFlow();
+	return true;
 }
 
 bool UQuestSubsystem::CanStartQuest(const FDataTableRowHandle& QuestDTRH)
@@ -174,115 +127,19 @@ bool UQuestSubsystem::CanStartQuest(const FDataTableRowHandle& QuestDTRH)
 	return true;
 }
 
-void UQuestSubsystem::OnQuestEventOccured(UQuestEventTriggerProxy* QuestEventTrigger)
-{
-	CompleteQuestEvent(QuestEventTrigger, false);
-}
-
-void UQuestSubsystem::OnQuestEventCovered(UQuestEventTriggerProxy* QuestEventTrigger)
-{
-	CompleteQuestEvent(QuestEventTrigger, true);
-}
-
-void UQuestSubsystem::CompleteQuestEvent(UQuestEventTriggerProxy* QuestEventTrigger, bool bEventCovered)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UQuestSubsystem::CompleteQuestEvent)
-	
-	// wtf is this situation
-	if (!ensure(ActiveQuests.Num() > 0))
-		return;
-	
-	auto ActiveQuest = ActiveQuests.Find(QuestEventTrigger->GetQuestDTRH().RowName);
-	if (!ensure(ActiveQuest))
-		return;
-	
-	auto* PendingQuestEvent = ActiveQuest->PendingQuestEvents.Find(QuestEventTrigger->GetQuestEventDTRH().RowName);
-	if (!ensure(PendingQuestEvent))
-		return;
-
-	QuestEventTrigger->Disable();
-	auto OccuredEventDTR = QuestEventTrigger->GetQuestEventDTRH().GetRow<FQuestEventDTR>("");
-
-	if (bEventCovered)
-	{
-		if (PendingQuestEvent->OccuredTrigger && PendingQuestEvent->OccuredTrigger->IsInitialized())
-			PendingQuestEvent->OccuredTrigger->Disable();
-
-		ActiveQuest->CoveredQuestEvents.Add(QuestEventTrigger->GetQuestEventDTRH().RowName, *PendingQuestEvent);
-	}
-	else
-	{
-		if (PendingQuestEvent->CoveredTrigger != nullptr && PendingQuestEvent->CoveredTrigger->IsInitialized())
-			PendingQuestEvent->CoveredTrigger->Disable();
-
-		ActiveQuest->CompletedQuestEvents.Add(QuestEventTrigger->GetQuestEventDTRH().RowName, *PendingQuestEvent);
-		const FQuestDTR* QuestRow = QuestEventTrigger->GetQuestDTRH().GetRow<FQuestDTR>("");
-		QuestEventOccuredEvent.Broadcast(QuestRow, OccuredEventDTR);
-	}
-
-	PendingQuestEvent->Finalize();
-	ActiveQuest->PendingQuestEvents.Remove(QuestEventTrigger->GetQuestEventDTRH().RowName);
-		
-	bool bNoPendingEventLeft = true;
-	if (OccuredEventDTR->QuestStateChange != EQuestState::Completed && OccuredEventDTR->QuestStateChange != EQuestState::Failed)
-	{
-		for (const auto& PendingQuestTask : ActiveQuest->PendingQuestEvents)
-		{
-			FQuestEventDTR* QuestTaskDTR = PendingQuestTask.Value.GetQuestEventDTR();
-			if (!QuestTaskDTR->bImplicit)
-			{
-				bNoPendingEventLeft = false;
-				break;
-			}
-		}
-	}
-
-	if (!bEventCovered || OccuredEventDTR->bExecuteActionsWhenCovered)
-	{
-		auto QuestSystemContext = GetQuestSystemContext();
-		ExecuteQuestActions(QuestSystemContext, OccuredEventDTR->EventOccuredActions);
-	}
-		
-	if (bNoPendingEventLeft || OccuredEventDTR->QuestStateChange == EQuestState::Completed || OccuredEventDTR->QuestStateChange == EQuestState::Failed)
-	{
-		EQuestState FinalQuestState = OccuredEventDTR->QuestStateChange == EQuestState::InProgress && bNoPendingEventLeft
-			? EQuestState::Completed
-			: OccuredEventDTR->QuestStateChange;
-		ActiveQuest->QuestState = FinalQuestState;
-		CompleteQuest(*ActiveQuest, FinalQuestState);
-	}
-}
-
 void UQuestSubsystem::CompleteQuest(FQuestProgress& CompletedQuest, EQuestState QuestFinalState)
 {
-	FQuestSystemContext QuestSystemContext = GetQuestSystemContext();
-
 	FQuestDTR* QuestDTR = CompletedQuest.QuestDTRH.DataTable->FindRow<FQuestDTR>(CompletedQuest.QuestDTRH.RowName, "");
 	if (!ensure(QuestDTR))
 		return;
 		
 	bool bQuestAutocompleted = QuestFinalState == EQuestState::Completed || QuestFinalState == EQuestState::Failed;
 		
-	for (auto& PendingTask : CompletedQuest.PendingQuestEvents)
-	{
-		if (PendingTask.Value.OccuredTrigger != nullptr && PendingTask.Value.OccuredTrigger->IsInitialized())
-			PendingTask.Value.OccuredTrigger->Disable();
-
-		if (PendingTask.Value.CoveredTrigger != nullptr && PendingTask.Value.CoveredTrigger->IsInitialized())
-			PendingTask.Value.CoveredTrigger->Disable();
-
-		PendingTask.Value.Finalize();
-	}
-
-	if (QuestDTR->QuestEventsDT != nullptr && QuestDTR->QuestFlow.IsNull()) // TODO remove when QuestFlow is tested
-		ExecuteQuestActions(QuestSystemContext, QuestFinalState != EQuestState::Failed ? QuestDTR->SuccessfulEndQuestActions : QuestDTR->FailureEndQuestActions);
-
 	CompletedQuests.Add(CompletedQuest.QuestDTRH.RowName, MoveTemp(CompletedQuest));
 	ActiveQuests.Remove(CompletedQuest.QuestDTRH.RowName);
 	
-	if (!QuestDTR->QuestFlow.IsNull())
-		if (auto FS = GetGameInstance()->GetSubsystem<UFlowSubsystem>())
-			FS->FinishRootFlow(this, QuestDTR->QuestFlow.LoadSynchronous(), EFlowFinishPolicy::Keep);
+	if (auto FS = GetGameInstance()->GetSubsystem<UFlowSubsystem>())
+		FS->FinishRootFlow(this, QuestDTR->QuestFlow.LoadSynchronous(), EFlowFinishPolicy::Keep);
 	
 	if (QuestCompletedEvent.IsBound())
 		QuestCompletedEvent.Broadcast(QuestDTR, bQuestAutocompleted);
@@ -300,7 +157,6 @@ void UQuestSubsystem::Reset()
 {
 	QuestStartedEvent.Clear();
 	QuestCompletedEvent.Clear();
-	QuestEventOccuredEvent.Clear();
 	QuestCharacterReachedLocationEvent.Clear();
 	QuestCharacterLeftLocationEvent.Clear();
 	QuestCharacterKilledEvent.Clear();
@@ -322,35 +178,6 @@ void UQuestSubsystem::Reset()
 	ActiveQuests.Empty();
 	CompletedQuests.Empty();
 	bStateLoaded = false;
-}
-
-void UQuestSubsystem::ExecuteQuestActions(const FQuestSystemContext& QuestSystemContext, const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions)
-{
-	for (const auto& QuestActionInstancedStruct : QuestActions)
-	{
-		if (!ensure(QuestActionInstancedStruct.IsValid()))
-			continue;
-
-		const auto& QuestAction = QuestActionInstancedStruct.Get<FQuestActionBase>();
-		if (!QuestAction.IsEnabled())
-			continue;
-		
-		if (!QuestAction.IsDelayed())
-		{
-			QuestAction.Execute(QuestSystemContext);
-		}
-		else // if (QuestAction.CanExecute(QuestSystemContext))
-		{
-			// 17.12.2024 @AK: deliberately not checking if quest action can be executed now because even if it can't now - it might be able in future
-			UQuestActionProxy* QuestActionProxy = NewObject<UQuestActionProxy>( QuestSystemContext.World.Get());
-			QuestActionProxy->Initialize(QuestActionInstancedStruct, QuestSystemContext);
-			DelayedQuestActions.Add(QuestAction.ActionId, QuestActionProxy);
-			if (QuestAction.StartAtNextTimeOfDay.IsValid())
-				QuestSystemContext.GameMode->RequestDelayedQuestAction(QuestAction.ActionId, QuestAction.StartAtNextTimeOfDay);
-			else
-				QuestSystemContext.GameMode->RequestDelayedQuestAction(QuestAction.ActionId, QuestAction.GameTimeDelayHours);
-		}
-	}
 }
 
 void UQuestSubsystem::DelayAction(const FGuid& ActionId, const TScriptInterface<IDelayedQuestAction>& DelayedAction, float GameTimeDelayHours)
@@ -415,23 +242,18 @@ void UQuestSubsystem::OnNpcKnockdowned(IQuestCharacter* KnockdownedBy, IQuestCha
 		QuestCharacterKnockdownedEvent.Broadcast(KnockdownedBy, KnockdownedCharacter);
 }
 
-void UQuestSubsystem::ExecuteQuestActionsExternal(const TArray<TInstancedStruct<FQuestActionBase>>& QuestActions)
+void UQuestSubsystem::CompleteQuestEventExternal(const FName& QuestId, const FGuid& QuestFlowNodeId, const FName& FlowNodeOutput)
 {
-	auto QuestSystemContext = GetQuestSystemContext();
-	ExecuteQuestActions(QuestSystemContext, QuestActions);
-}
-
-void UQuestSubsystem::CompleteQuestEventExternal(const FDataTableRowHandle& QuestEventDTRH)
-{
-	for (const auto& ActiveQuest : ActiveQuests)
-	{
-		if (ActiveQuest.Value.QuestDTRH.GetRow<FQuestDTR>("")->QuestEventsDT == QuestEventDTRH.DataTable)
-		{
-			auto QuestEvent = ActiveQuest.Value.PendingQuestEvents.Find(QuestEventDTRH.RowName);
-			CompleteQuestEvent(QuestEvent->OccuredTrigger, false);
-			break;
-		}
-	}
+	auto ActiveQuestPtr = ActiveQuests.Find(QuestId);
+	if (ActiveQuestPtr == nullptr || !ActiveQuestPtr->FlowInstance.IsValid())
+		return;
+	
+	
+	auto FlowNode = ActiveQuestPtr->FlowInstance->GetNode(QuestFlowNodeId);
+	if (!ensure(FlowNode != nullptr))
+		return;
+	
+	FlowNode->TriggerOutput(FlowNodeOutput, true);
 }
 
 FQuestSystemContext UQuestSubsystem::GetQuestSystemContext()

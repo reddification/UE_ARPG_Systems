@@ -3,6 +3,7 @@
 #include "GameplayTagContainer.h"
 #include "QuestTypes.generated.h"
 
+struct FNpcQuestBehaviorEndConditionBase;
 class UWorldLocationComponent;
 class UWorldLocationsSubsystem;
 class IQuestSystemGameMode;

@@ -27,7 +27,7 @@ class QUESTSYSTEM_API UFlowNode_QuestAction : public UFlowNode, public IDelayedQ
 protected:
 
 public:
-	UFlowNode_QuestAction(const FObjectInitializer& ObjectInitializer);
+	UFlowNode_QuestAction();
 	virtual void ExecuteInput(const FName& PinName) override;
 
 #if WITH_EDITOR
