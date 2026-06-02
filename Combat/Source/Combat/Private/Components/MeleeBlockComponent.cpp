@@ -166,6 +166,7 @@ void UMeleeBlockComponent::AddBlockInput(const FVector2D& BlockInput, float Delt
 	FVector2D AccumulatedBlockPreChange = AccumulatedBlock;
 
 	auto OwnerLocal = GetOwner();
+#if WITH_EDITOR
 	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("=========== Block ==========="));
 	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Block input = %s"), *BlockInput.ToString());
 	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Current block direction = %s"), *CurrentBlockDirection.ToString());
@@ -173,10 +174,14 @@ void UMeleeBlockComponent::AddBlockInput(const FVector2D& BlockInput, float Delt
 	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Direction collinear = %s"), bDirectionCollinear ? TEXT("true") : TEXT("false"));
 	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Block strength score = %.2f"), BlockStrengthScore);
 	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Accumulated block pre change = %s"), *AccumulatedBlock.ToString());
+#endif
 	
 	AccumulatedBlock = AccumulatedBlock + BlockInput;
 	AccumulatedBlock = AccumulatedBlock.ClampAxes(-1.f, 1.f);
-
+#if WITH_EDITOR
+	if (DebugOptions.Contains(TEXT("ShowAccumulatedBlock")))
+		GEngine->AddOnScreenDebugMessage(111, 3.f, FColor::Emerald, FString::Printf(TEXT("Accumulated block: %s"), *AccumulatedBlock.ToString()));
+#endif
 	UE_VLOG(OwnerLocal, LogCombat_Block, VeryVerbose, TEXT("Accumulated block post change = %s"), *AccumulatedBlock.ToString());
 
 	const float DeltaBlockStrength = (AccumulatedBlock - AccumulatedBlockPreChange).Size();
@@ -219,7 +224,7 @@ FVector UMeleeBlockComponent::GetIncomingAttackDirection(const AActor* Attacking
 	const FVector AttackerForwardVector = AttackingActor->GetActorForwardVector();
 	const FVector AttackerRightVector = AttackingActor->GetActorRightVector();
 	auto AttackerCombatant = Cast<ICombatant>(AttackingActor);
-	const float AttackRange = AttackerCombatant->GetAttackRange();
+	const float AttackRange = AttackerCombatant->GetAttackRange_Combatant();
 	const float AdjustedAttackRange = AttackRange * 0.8f;
 	const FVector ExpectedHitLocation = AttackerLocation + FVector::UpVector * 15.f + AttackerForwardVector * AttackRange;
 	FVector AttackingPointOrigin = FVector::ZeroVector;

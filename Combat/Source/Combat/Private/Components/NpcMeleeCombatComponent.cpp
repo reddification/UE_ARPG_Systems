@@ -25,8 +25,7 @@ void UNpcMeleeCombatComponent::BeginPlay()
 
 void UNpcMeleeCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	auto World = GetWorld();
-	if (World)
+	if (auto World = GetWorld())
 		World->GetTimerManager().ClearTimer(ResetPreviousAttackTimer);
 	
 	Super::EndPlay(EndPlayReason);
@@ -105,7 +104,7 @@ EMeleeAttackType UNpcMeleeCombatComponent::GetNextAttack(const ICombatant* Targe
 	EMeleeAttackType ActiveEnemyAttackTrajectory = TargetCombatant != nullptr ? TargetCombatant->GetActiveAttackTrajectory() : EMeleeAttackType::None;
 
 	// TODO figure out some smarter way for starting attack. Ideally AI should analyze active stance
-	TArray<EMeleeAttackType> PossibleAttacks;
+	TArray<EMeleeAttackType, TInlineAllocator<8>> PossibleAttacks;
 		
 	if (PreviousAttack != EMeleeAttackType::None)
 	{
@@ -121,17 +120,14 @@ EMeleeAttackType UNpcMeleeCombatComponent::GetNextAttack(const ICombatant* Targe
 			PossibleAttacks.Add(ChainableAttack.Key);
 	}
 
-	NewAttack = PossibleAttacks[FMath::RandRange(0, PossibleAttacks.Num() - 1)];
-		
 	// currently attack animations are in states of an ABP
 	// however, there is no way to handle a situation when you need to chain a horizontal swing into the same horizontal swing - the ABP will just think that it is already
 	// in the required state and hence NPC won't continue attack but AI controller will stuck because it waits for calls from the NPC attack gameplay ability
 	// which awaits a call from this component, and this component waits for anim notifies, which will never occur in this case, to call the component state functions
-	if (PreviousAttack < EMeleeAttackType::Type && NewAttack == PreviousAttack)
-	{
-		do NewAttack = PossibleAttacks[FMath::RandRange(0, PossibleAttacks.Num() - 1)];
-		while (NewAttack == PreviousAttack);
-	}
+	if (PreviousAttack < EMeleeAttackType::Type)
+		PossibleAttacks.Remove(PreviousAttack);
+		
+	NewAttack = PossibleAttacks[FMath::RandRange(0, PossibleAttacks.Num() - 1)];
 	
 	return NewAttack;
 }
@@ -152,7 +148,7 @@ bool UNpcMeleeCombatComponent::RequestNextAttack(EMeleeAttackType NewAttack)
 	const float Intelligence = OwnerNPCCombatant->GetIntelligence();
 	const float TrueTargetDistance = Target != nullptr ? (GetOwner()->GetActorLocation() - Target->GetActorLocation()).Size() : 200.f;
 	float TargetDistance = AddIntelligenceMisperception(TrueTargetDistance, Intelligence, CombatSettings->AITargetDistanceIntelligenceMisperceptionFactor);
-	const float RawAttackRange = OwnerCombatant->GetAttackRange();
+	const float RawAttackRange = OwnerCombatant->GetAttackRange_Combatant();
 	float AttackRange = AddIntelligenceMisperception(RawAttackRange, Intelligence, CombatSettings->AIAttackRangeIntelligenceMisperceptionFactor);
 	if (NewAttack == EMeleeAttackType::None)
 		NewAttack = GetNextAttack(TargetCombatant, OwnerCombatStyle, EnemyCombatStyle, CombatSettings);
@@ -182,14 +178,14 @@ bool UNpcMeleeCombatComponent::RequestNextAttack(EMeleeAttackType NewAttack)
 	}
 #endif
 
-	CombatAnimInstance->SetAttack(NewAttack, Acceleration, AttackStepDirection, RequestedAttacksCount);
+	ActiveAttack = NewAttack;
 	OnAttackStartedEvent.Broadcast(NewAttack);
-	if (NewAttack <= EMeleeAttackType::SpinRightOberhauw)
+	if (NewAttack < EMeleeAttackType::Type)
 		ActiveAttackTrajectory = NewAttack;
 	else 
 		ActiveAttackTrajectory = EMeleeAttackType::None;
 			
-	ActiveAttack = NewAttack;
+	CombatAnimInstance->SetAttack(NewAttack, Acceleration, AttackStepDirection, RequestedAttacksCount);
 	PreviousAttack = NewAttack;
 	return true;
 }

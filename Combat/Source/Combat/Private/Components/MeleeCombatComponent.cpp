@@ -14,7 +14,15 @@
 UMeleeCombatComponent::UMeleeCombatComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bStartWithTickEnabled = false;	
+	PrimaryComponentTick.bStartWithTickEnabled = true;	
+}
+
+void UMeleeCombatComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (AttackPhase == EMeleeAttackPhase::Release && ActiveAttack != EMeleeAttackType::None && ActiveAnimationId != 0)
+		SweepWeaponCollisions();
 }
 
 void UMeleeCombatComponent::BeginPlay()
@@ -25,19 +33,19 @@ void UMeleeCombatComponent::BeginPlay()
 	{
 		OwnerCombatant.SetObject(GetOwner());
 		OwnerCombatant.SetInterface(CombatantInterface);
-
 		CombatAnimInstance = OwnerCombatant->GetCombatAnimInstance();
 		ensure(IsValid(CombatAnimInstance.GetObject()));
 	}
 
 	CachedMeleeCombatSettings = GetDefault<UMeleeCombatSettings>();
-	WeaponCollisionSweepsPerSecond = CachedMeleeCombatSettings->WeaponCollisionSweepsPerSeconds;
 	WeaponCollisionProfileName = CachedMeleeCombatSettings->WeaponCollisionProfileName;
 	CombatCollisionName = CachedMeleeCombatSettings->CombatCollisionName;
 	CombatCollisionCenterSocketName = CachedMeleeCombatSettings->CombatCollisionCenterSocketName;
 	ConsequitiveComboAttackWindUpSpeedScale = CachedMeleeCombatSettings->ConsequitiveComboAttackWindUpSpeedScale;
 	HeavyAttackWindupSpeedModifier = CachedMeleeCombatSettings->HeavyAttackWindupSpeedModifier;
 	KeepWeaponReadyAfterAttackDelay = CachedMeleeCombatSettings->KeepWeaponReadyAfterAttackDelay;
+	
+	SetComponentTickInterval(1.f / CachedMeleeCombatSettings->TickRate);
 }
 
 void UMeleeCombatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -59,7 +67,6 @@ float UMeleeCombatComponent::GetAttackDamage(const FAttackDamageEvaluationData& 
                                              const FGameplayTag& WeaponTypeTag, const FHitResult& HitResult)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMeleeCombatComponent::GetAttackDamage)
-	// TODO utilize weapon types (rapiers are more dexterity dependent than zweihanders, etc
 	float WeaponMasteryDamageScale = 1.f;
 	float StrengthDeltaDamageScale = 1.f;
 	float DexterityDeltaDamageScale = 1.f;
@@ -160,7 +167,7 @@ FVector UMeleeCombatComponent::GetActiveAttackDirection() const
 	FVector OwnerLocation = GetOwner()->GetActorLocation() + FVector::UpVector * 35.f;
 	FVector OwnerUpVector = GetOwner()->GetActorUpVector();
 	FVector OwnerRightVector = GetOwner()->GetActorRightVector();
-	FVector AttackLocation = OwnerLocation + FVector::UpVector * 15.f + GetOwner()->GetActorForwardVector() * OwnerCombatant->GetAttackRange();
+	FVector AttackLocation = OwnerLocation + FVector::UpVector * 15.f + GetOwner()->GetActorForwardVector() * OwnerCombatant->GetAttackRange_Combatant();
 	FVector AttackOrigin = FVector::ZeroVector;
 	switch (ActiveAttack)
 	{
@@ -261,7 +268,7 @@ void UMeleeCombatComponent::ResetAttackState()
 	OwnerCombatant->SetCombatantMovementEnabled(CombatGameplayTags::Combat_Movement_Lock_Attack,true);
 	CombatAnimInstance->OnAttackFinished();
 	CurrentComboAttacksHitCount = 0;
-	CurrentComboTotalAttacksCount = 0;
+	CurrentComboTotalAttacksCount = 1;
 	ActiveAttack = EMeleeAttackType::None;
 	ActiveAttackTrajectory = EMeleeAttackType::None;
 	ActiveAnimationId = 0;
@@ -279,7 +286,7 @@ float UMeleeCombatComponent::GetAttackPhasePlayRate(EMeleeAttackPhase NewAttackP
 	{
 		if (const float* SpeedScalePtr = AttackPhasesSpeedScales->AttackPhaseSpeed.Find(NewAttackPhase))
 		{
-			const float ComboScale = CurrentComboTotalAttacksCount > 0 && NewAttackPhase == EMeleeAttackPhase::WindUp
+			const float ComboScale = CurrentComboTotalAttacksCount > 1 && NewAttackPhase == EMeleeAttackPhase::WindUp
 				? ConsequitiveComboAttackWindUpSpeedScale
 				: 1.f;
 			
@@ -422,18 +429,15 @@ void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 Anima
 	SetAttackPhase(EMeleeAttackPhase::Release, TotalDuration);
 	CurrentAttackActorsHit.Reset();
 	AliveActorsHit = 0;
+	Debug_SweepsDone = 0;
 	CurrentComboTotalAttacksCount++;
 	// SetDamageCollisionsEnabled(true);
 	OnAttackCommitedEvent.Broadcast();
 
 	int i = 0;
 	for (const auto* WeaponCollision : WeaponCollisionsComponents)
-		PreviousWeaponCollisionTransform[i++] = WeaponCollision->GetComponentTransform();
+		PreviousWeaponCollisionTransform[i++] = WeaponCollision->GetSocketTransform(CombatCollisionCenterSocketName);
 	
-	auto& TimerManager = GetWorld()->GetTimerManager();
-	TimerManager.SetTimer(WeaponCollisionSweepsTimer, this, &UMeleeCombatComponent::SweepWeaponCollisions,
-		1.f / WeaponCollisionSweepsPerSecond, true);
-
 	const FWeaponFX* WeaponFX = OwnerCombatant->GetWeaponFX(CombatGameplayTags::Combat_FX_Sound_Whoosh);
 	if (WeaponFX && !WeaponFX->SFX.IsNull())
 		if (auto SFX = WeaponFX->SFX.LoadSynchronous())
@@ -442,6 +446,7 @@ void UMeleeCombatComponent::BeginRelease(float TotalDuration, const uint32 Anima
 	if (bBlockWindowActive)
 	{
 		StopBlockWindow();
+		auto& TimerManager = GetWorld()->GetTimerManager();
 		TimerManager.ClearTimer(ActivateBlockWindowDelayTimer);
 		TimerManager.ClearTimer(DeactivateBlockWindowTimer);
 	}
@@ -461,6 +466,11 @@ void UMeleeCombatComponent::BeginRecover(float TotalDuration, const uint32 Anima
 	{
 		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("Begin recover: Active attack is none. Active animation id = %d"), ActiveAnimationId);
 		return;
+	}
+	
+	if (Debug_SweepsDone < 3)
+	{
+		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("Begin recover: Only %d sweeps were made in release phase. Too few"), Debug_SweepsDone);
 	}
 	
 	// ActiveAnimationId = AnimationId; // huh? why did I put it here? it breaks logic in one other place (starting next attack before previous ended)
@@ -486,13 +496,13 @@ void UMeleeCombatComponent::EndRelease(const uint32 AnimationId)
 	UE_VLOG(GetOwner(), LogCombat, Verbose, TEXT("Attack: %s %s"), *AttackEnum->GetDisplayValueAsText(ActiveAttack).ToString(), *AttackEnum->GetDisplayValueAsText(ActiveAttackTrajectory).ToString());
 #endif
 	
+	
 	if (ActiveAnimationId != AnimationId)
 	{
 		UE_VLOG(GetOwner(), LogCombat, Warning, TEXT("End release: Active animation id != updated animation id: %d != %d"), ActiveAnimationId, AnimationId);
 		return;
 	}
 	
-	GetWorld()->GetTimerManager().ClearTimer(WeaponCollisionSweepsTimer);
 	// SetDamageCollisionsEnabled(false);
 	if (CurrentAttackActorsHit.IsEmpty())
 		ReportAttackWhiffed();
@@ -667,12 +677,9 @@ void UMeleeCombatComponent::SweepWeaponCollisions()
 	{
 		if (GetWorld()->GetTimeSeconds() > PhaseEndsAt + 1.f)
 		{
+			ensure(false);
 			UE_VLOG(GetOwner(), LogCombat, Error,
-			TEXT("Something is wrong: UMeleeCombatComponent::SweepWeaponCollisions is called when character is doesn't have an attack in a release phase. Disabling timer"));
-		
-			if (auto WorldLocal = GetWorld())
-				WorldLocal->GetTimerManager().ClearTimer(WeaponCollisionSweepsTimer);
-		
+				TEXT("Something is wrong: UMeleeCombatComponent::SweepWeaponCollisions is called when character is doesn't have an attack in a release phase. Disabling timer"));
 			return;
 		}
 	}
@@ -682,8 +689,27 @@ void UMeleeCombatComponent::SweepWeaponCollisions()
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMeleeCombatComponent::SweepWeaponCollisions)
 	for (int i = 0; i < WeaponCollisionsComponents.Num(); i++)
 	{
+		bool bShit = false;
 		const FTransform& PreviousTransform = PreviousWeaponCollisionTransform[i];
 		const FTransform& CurrentTransform = WeaponCollisionsComponents[i]->GetSocketTransform(CombatCollisionCenterSocketName);
+		
+		const bool bLocationNotChanged = PreviousTransform.TranslationEquals(CurrentTransform, 1.f);
+		const bool bRotationNotChanged = PreviousTransform.RotationEquals(CurrentTransform);
+		if (bLocationNotChanged && bRotationNotChanged)
+		{
+			// GEngine->AddOnScreenDebugMessage(-1, 3.f, FColorList::Red,
+			// 	TEXT("Melee combat component: on sweep collision didnt move WTF"));
+			bShit = true;
+			UE_VLOG(GetOwner(), LogCombat, VeryVerbose, TEXT("[UMeleeCombatComponent::SweepWeaponCollisions] Previous transform == Current transform"));
+		}
+		
+		if (bShit)
+		{
+			// deliberately NOT updating previous transform otherwise if update rate is too fast then having transform micro updates would lead to having no hits registered
+			// PreviousWeaponCollisionTransform[i] = CurrentTransform;
+			continue;
+		}
+		
 		FVector SweepDirection = (CurrentTransform.GetLocation() - PreviousTransform.GetLocation()).GetSafeNormal();
 		FHitResult HitResult;
 		FQuat Rotation = FQuat::Slerp(PreviousTransform.GetRotation(), CurrentTransform.GetRotation(), 0.5f);
@@ -696,15 +722,21 @@ void UMeleeCombatComponent::SweepWeaponCollisions()
 		
 		bool bHit = GetWorld()->SweepSingleByProfile(HitResult, TrueStart, TrueEnd, Rotation,
 			WeaponCollisionProfileName, CollisionShape, CollisionQueryParams);
+		
+		Debug_SweepsDone++;
+		
 		if (bHit)
 			OnWeaponOverlap(HitResult.GetActor(), HitResult.GetComponent(), HitResult, SweepDirection);
 
 #if WITH_EDITOR
 		if (GetDefault<UMeleeCombatSettings>()->bDrawDebugSweeps)
 		{
+			FColor DebugDrawColor = bShit ? FColor::Black : bHit ? FColor::Red : FColor::Green;
+			DrawDebugLine(GetWorld(), TrueStart, TrueEnd, DebugDrawColor, false, 5);
+			
 			if (CollisionShape.IsBox())
 			{
-				DrawDebugBox(GetWorld(), CurrentTransform.GetLocation(), CollisionShape.GetExtent(), Rotation, bHit ? FColor::Red : FColor::Green,
+				DrawDebugBox(GetWorld(), CurrentTransform.GetLocation(), CollisionShape.GetExtent(), Rotation, DebugDrawColor,
 					false, 5);
 			}
 			else if (CollisionShape.IsCapsule())
@@ -712,7 +744,7 @@ void UMeleeCombatComponent::SweepWeaponCollisions()
 				// DrawDebugCapsule(GetWorld(), CurrentTransform.GetLocation(), CollisionShape.GetCapsuleHalfHeight(), CollisionShape.GetCapsuleRadius(),
 				// 	Rotation, bHit ? FColor::Red : FColor::Green, false, 5);
 				DrawDebugCapsule(GetWorld(), TrueEnd, CollisionShape.GetCapsuleHalfHeight(), CollisionShape.GetCapsuleRadius(),
-					Rotation, bHit ? FColor::Red : FColor::Green, false, 5);
+					Rotation, DebugDrawColor, false, 5);
 			}
 			else
 			{

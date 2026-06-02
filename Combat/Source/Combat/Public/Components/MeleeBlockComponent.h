@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DebugDataTypes.h"
 #include "Components/ActorComponent.h"
 #include "Interfaces/CombatAnimInstance.h"
 #include "Interfaces/ICombatant.h"
 #include "MeleeBlockComponent.generated.h"
 
 
+struct FDebugOptionsContainer;
 class IPlayerCombatant;
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -28,7 +30,9 @@ public:
 	virtual void StopBlocking();
 	virtual EBlockResult BlockAttack(const FVector& AttackDirection, float AttackerStrength, const FHitResult& HitResult,
 		AActor* Attacker, const FMeleeAttackDebugInfo& AttackDebugInfo) const;
-	bool IsBlocking() const { return bRegisteringBlock; };
+	bool IsBlocking() const { return bRegisteringBlock; }
+	
+	const FVector2D& GetAccumulatedBlockVector() const { return AccumulatedBlock; };
 
 protected:
 	virtual void BeginPlay() override;
@@ -56,6 +60,11 @@ protected:
 	float BlockStrengthAccumulationScale = 2.f;
 	FVector2D AccumulatedBlock = FVector2D::ZeroVector;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FDebugOptionsContainer DebugOptions;
+#endif
+	
 private:
 	bool bRegisteringBlock = false;
 	bool bBlockPeakNotified = false;

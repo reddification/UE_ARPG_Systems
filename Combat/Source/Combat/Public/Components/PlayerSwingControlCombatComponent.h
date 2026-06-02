@@ -99,7 +99,7 @@ private:
 	FMeleeCombatDirectionalInputParameters MeleeCombatParameters;
 	FVector CurrentAcceleration = FVector::ZeroVector; // denotes direction where player wants to go. I guess it should be like decaying XY movement input
 	
-	TArray<FAttackDirectionToAttackTypeMapping> RadiansToAttackMapping;
+	TArray<FAttackDirectionToAttackTypeMapping, TInlineAllocator<9>> RadiansToAttackMapping;
 	
 	TWeakObjectPtr<AActor> FocusTarget = nullptr;
 };

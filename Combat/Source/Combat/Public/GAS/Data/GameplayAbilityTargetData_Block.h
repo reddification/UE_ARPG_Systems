@@ -12,8 +12,17 @@ public:
 	FGameplayAbilityTargetData_Block();
 	
 	UPROPERTY()
-	float BlockAngle = 0.f;
+	EMeleeAttackType IncomingAttackType;
+
+	UPROPERTY()
+	EMeleeAttackType IncomingAttackTrajectory;
+
+	UPROPERTY()
+	AActor* Attacker = nullptr;
 	
+	UPROPERTY()
+	bool bUseGuidedBlocking = false;
+
 	virtual UScriptStruct* GetScriptStruct() const override
 	{
 		return FGameplayAbilityTargetData_Block::StaticStruct();
@@ -22,7 +31,10 @@ public:
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
 		// The engine already defined NetSerialize for FName & FPredictionKey, thanks Epic!
-		Ar << BlockAngle;
+		Ar << IncomingAttackType;
+		Ar << IncomingAttackTrajectory;
+		Ar << Attacker;
+		Ar << bUseGuidedBlocking;
 		
 		bOutSuccess = true;
 		return true;

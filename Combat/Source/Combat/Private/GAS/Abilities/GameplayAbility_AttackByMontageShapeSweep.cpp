@@ -68,7 +68,7 @@ void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Pa
 	//@AK 19.09.2024: TODO implement virtual GetAttackDirection(OwnerCharacter) and make UGameplayAbility_NpcAttackByMontageShapeSweep
 	FVector AttackDirection = OwnerCharacter->GetActorForwardVector();
 	auto OwnerCombatant = Cast<ICombatant>(OwnerCharacter);
-	const float AttackRange = OwnerCombatant->GetAttackRange();
+	const float AttackRange = OwnerCombatant->GetAttackRange_Combatant();
 	if (auto AIController = Cast<AAIController>(OwnerCharacter->GetController()))
 	{
 		if (auto Target = AIController->GetFocusActor())
@@ -105,7 +105,7 @@ void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Pa
 				return;
 		
 		auto TargetASCInterface = Cast<IAbilitySystemInterface>(DamagedActor);
-		if (!ensure(TargetASCInterface))
+		if (!TargetASCInterface)
 		{
 			FPointDamageEvent PointDamageEvent(FallbackRawDamage * MeleeCombatSettings->GlobalHealthDamageScale, HitResult, AttackDirection, TSubclassOf<UDamageType>());
 			HitResult.GetActor()->TakeDamage(FallbackRawDamage, PointDamageEvent, OwnerCharacter->GetController(), OwnerCharacter);
@@ -153,6 +153,7 @@ void UGameplayAbility_AttackByMontageShapeSweep::DoOverlap(FGameplayEventData Pa
 			? CombatGameplayTags::Combat_Ability_Stagger_Event_Activate
 			: CombatGameplayTags::Combat_Ability_HitReact_Event_Activate;
 
+		OwnerCombatant->OnDealtDamage_Combatant(HitResult.GetActor(), HealthDamage, bStaggeringHit);
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(HitResult.GetActor(), HitReactAbilityTag, OwnerPayload);
 	}
 }

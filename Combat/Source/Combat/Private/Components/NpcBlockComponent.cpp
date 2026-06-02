@@ -33,6 +33,7 @@ void UNpcBlockComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UNpcBlockComponent::StartBlocking(const AActor* AttackingActor, EMeleeAttackType IncomingAttackType)
 {
 	PendingBlockInputs.Reset();
+	bUsingExternalBlockInputSource = false;
 	CurrentPendingBlockIndex = 0;
 
 	float WeaponMastery = OwnerCombatant->GetActiveWeaponMasteryLevel();
@@ -82,24 +83,11 @@ void UNpcBlockComponent::StartBlocking(const AActor* AttackingActor, EMeleeAttac
 #endif
 }
 
-void UNpcBlockComponent::StartBlocking(float Angle)
+void UNpcBlockComponent::StartGuidedBlocking()
 {
-	const float Radians = FMath::DegreesToRadians(Angle);
-	FVector2D NewBlockInput(FMath::Cos(Radians), FMath::Sin(Radians));
-#if WITH_EDITOR
-	ensure(NewBlockInput.Size() == 1.f);
-#endif
-	
-	bool bAddZero = IsBlocking() && PendingBlockInputs.Num() > 0 && (PendingBlockInputs.Last() | NewBlockInput) > 0.5f;
-	PendingBlockInputs.Reset();
-	CurrentPendingBlockIndex = 0;
-	if (bAddZero)
-		PendingBlockInputs.Add(FVector2D(0.f, 0.f));
-	
-	PendingBlockInputs.Add(NewBlockInput);
-
-	bNpcBlockOnHold = false;
-	SetBlockReactionDelay();
+	bUsingExternalBlockInputSource = true;
+	ExternalBlockInput = FVector2D::ZeroVector;
+	StartBlocking();
 }
 
 void UNpcBlockComponent::StartBlocking()
@@ -157,11 +145,19 @@ void UNpcBlockComponent::Debug_TriggerHitReact()
 
 FVector2D UNpcBlockComponent::GetBlockInput(float DeltaTime) const
 {
-	return PendingBlockInputs[CurrentPendingBlockIndex] * BlockInputAccumulationScale * NpcBlockDrawRateScale * DeltaTime;
+	return bUsingExternalBlockInputSource 
+		? ExternalBlockInput * DeltaTime
+		: PendingBlockInputs[CurrentPendingBlockIndex] * BlockInputAccumulationScale * NpcBlockDrawRateScale * DeltaTime;
 }
 
 void UNpcBlockComponent::AddBlockInput(const FVector2D& BlockDirectionInput, float DeltaTime)
 {
+	if (bUsingExternalBlockInputSource)
+	{
+		Super::AddBlockInput(BlockDirectionInput, DeltaTime);
+		return;
+	}
+	
 	if (bNpcBlockOnHold)
 	{
 		DecayBlock(DeltaTime);

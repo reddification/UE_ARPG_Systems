@@ -24,18 +24,12 @@ void UPlayerMovesetCombatComponent::BeginPlay()
 	OwnerPlayerCombat.SetInterface(PlayerCombat);
 	OwnerPlayerCombat.SetObject(GetOwner());
 	CombatAnimInstance->OnLastComboAttackEvent.BindUObject(this, &UPlayerMovesetCombatComponent::OnLastComboAttack);
-	SetComponentTickEnabled(false);
 }
 
 void UPlayerMovesetCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	if (ActiveAttack == EMeleeAttackType::None) // can happen when knocked down
-	{
-		SetComponentTickEnabled(false);
-		return;
-	}
 	
 	// if (!ensure(Target.IsValid()))
 	// 	return;
@@ -136,7 +130,7 @@ bool UPlayerMovesetCombatComponent::RequestAttack(EMeleeAttackType RequestedAtta
 	if (ActualTarget)
 	{
 		TargetDirection = (ActualTarget->GetActorLocation() - OwnerLocation).GetSafeNormal();	
-		const float AttackRange = OwnerCombatant->GetAttackRange();
+		const float AttackRange = OwnerCombatant->GetAttackRange_Combatant();
 		const float DistanceToTargetSq = (ActualTarget->GetActorLocation() - OwnerLocation).SizeSquared();
 		AttackStepDirection = DistanceToTargetSq < AttackRange * AttackRange ? EAttackStepDirection::None : EAttackStepDirection::Forward;
 	}
@@ -157,7 +151,6 @@ void UPlayerMovesetCombatComponent::ResetAttackState()
 	InitialCombatantViewDirection = FVector::ZeroVector;
 	OwnerPlayerCombat->ConsumeCombatMovementRawInput(); // might be redundant since it's called in RequestAttack
 	OwnerPlayerCombat->SetOrientationFollowsAttack(false);
-	SetComponentTickEnabled(false);
 	AutoTarget.Reset();
 	ManualTarget.Reset();
 	bLastComboAttack = false;
@@ -166,7 +159,6 @@ void UPlayerMovesetCombatComponent::ResetAttackState()
 void UPlayerMovesetCombatComponent::BeginWindUp(float TotalDuration, const uint32 AnimationId, EMeleeAttackType WindupAttackType)
 {
 	Super::BeginWindUp(TotalDuration, AnimationId, WindupAttackType);
-	SetComponentTickEnabled(true);
 	// Ok the problem is in combinations some attacks might completely skip wind up phase, hence no possibility of movement
 	// this might be interesting though. Like you as a player have to actually control your actions more
 	OwnerPlayerCombat->SetOrientationFollowsAttack(true);
@@ -179,7 +171,6 @@ void UPlayerMovesetCombatComponent::BeginRelease(float TotalDuration, const uint
 		
 	Super::BeginRelease(TotalDuration, AnimationId, MeleeAttackType);
 	LastValidPlayerInputMovementRequestRotator = FRotator::ZeroRotator;
-	SetComponentTickEnabled(false);
 }
 
 void UPlayerMovesetCombatComponent::BeginRecover(float TotalDuration, const uint32 AnimationId)

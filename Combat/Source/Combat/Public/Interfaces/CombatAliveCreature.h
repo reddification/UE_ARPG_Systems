@@ -23,5 +23,5 @@ private:
 public:
 	FOnCombatCreatureDeadEvent OnCombatCreatureDeadEvent;
 	
-	virtual float GetCombatantHealth() const = 0;
+	virtual float GetHealth_Combatant() const = 0;
 };

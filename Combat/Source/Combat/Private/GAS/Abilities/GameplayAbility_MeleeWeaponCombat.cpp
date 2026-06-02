@@ -401,7 +401,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
                                                         ICombatant* CombatantOwner, ICombatant* CombatantEnemy, const FHitResult& HitResult, const FVector& SweepDirection)
 {
 	if (auto EnemyAliveCreature = Cast<ICombatAliveCreature>(EnemyActor))
-		if (EnemyAliveCreature->GetCombatantHealth() <= 0.f)
+		if (EnemyAliveCreature->GetHealth_Combatant() <= 0.f)
 			return;
 		
 	FAttackDamageEvaluationData AttackerDamageEvaluationData;
@@ -459,7 +459,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
 		OwnerData->HitDirectionTag = GetHitDirectionTag(EnemyActor, SweepDirection, HitResult.ImpactPoint);
 		OwnerData->HitLocation = HitResult.ImpactPoint;
 		OwnerData->HealthDamage = ResultingDamage;
-		OwnerData->SetCauser(EnemyActor);
+		OwnerData->SetCauser(OwnerActor);
 		OwnerData->PoiseDamage = PoiseReduction;
 		OwnerData->HitResult = HitResult;
 		OwnerPayload.TargetData.Add(OwnerData);
@@ -477,6 +477,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
 			CombatantOwner->OnStaggeredActor(EnemyActor);
 		
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(EnemyActor, HitReactAbilityTag, OwnerPayload);
+		CombatantOwner->OnDealtDamage_Combatant(EnemyActor, ResultingDamage, bStaggeringHit);
 	}
 	else
 	{
@@ -512,19 +513,43 @@ void UGameplayAbility_MeleeWeaponCombat::OnAbilityAborted(FGameplayEventData Pay
 
 FGameplayTag UGameplayAbility_MeleeWeaponCombat::GetHitDirectionTag(const AActor* HitActor, const FVector& HitDirection, const FVector& HitLocation) const
 {
-	const FVector ToOriginDirection2D = (HitActor->GetActorLocation() - HitLocation).GetSafeNormal2D();
-	const FVector OwnerForwardVector = HitActor->GetActorForwardVector();
-	const FVector OwnerRightVector = HitActor->GetActorRightVector();
-
-	float HitForwardVectorDotProduct = ToOriginDirection2D | OwnerForwardVector;
-	float HitRightVectorDotProduct = ToOriginDirection2D | OwnerRightVector;
+	ensure(!HitDirection.IsNearlyZero());
+	auto AvatarActor = GetAvatarActorFromActorInfo();
 	
-	if (HitForwardVectorDotProduct > DirectionDotProductThreshold)
-		return CombatGameplayTags::Combat_HitDirection_Back;
-	else if (HitForwardVectorDotProduct < -DirectionDotProductThreshold)
-		return CombatGameplayTags::Combat_HitDirection_Front;
-	else if (HitRightVectorDotProduct > DirectionDotProductThreshold)
-		return CombatGameplayTags::Combat_HitDirection_Left;
+	UE_VLOG(AvatarActor, LogCombat_HitReact, Verbose, TEXT("UGameplayAbility_MeleeWeaponCombat::GetHitDirectionTag reasoning"));
+	UE_VLOG_LOCATION(AvatarActor, LogCombat_HitReact, Verbose, HitLocation, 12, FColor::Red, TEXT("Hit"));
+	UE_VLOG_CAPSULE(AvatarActor, LogCombat_HitReact, Verbose, AvatarActor->GetActorLocation() - FVector::UpVector * 90.f,
+		90.f, 25.f, FQuat::Identity, FColorList::LightBlue, TEXT("Attacker"));
+	UE_VLOG_CAPSULE(AvatarActor, LogCombat_HitReact, Verbose, HitActor->GetActorLocation() - FVector::UpVector * 90.f,
+		90.f, 25.f, FQuat::Identity, FColorList::DarkSlateBlue, TEXT("Target"));
+	UE_VLOG_ARROW(AvatarActor, LogCombat_HitReact, Verbose, HitLocation - HitDirection * 75.f, HitLocation, FColorList::MandarianOrange, TEXT("Direction"));
+	
+	FGameplayTag Result;
+	const FVector OwnerRightVector = HitActor->GetActorRightVector();
+	const FVector OwnerForwardVector = HitActor->GetActorForwardVector();
+	auto AttackerFV = AvatarActor->GetActorForwardVector();
+	if ((AttackerFV | OwnerForwardVector) > 0.5f)
+	{
+		Result = CombatGameplayTags::Combat_HitDirection_Back;
+	}
 	else
-		return CombatGameplayTags::Combat_HitDirection_Right;	
+	{
+		const FVector ToOriginDirection2D = (HitLocation - HitActor->GetActorLocation()).GetSafeNormal2D();
+
+		float HitForwardVectorDotProduct = ToOriginDirection2D | OwnerForwardVector;
+		float HitRightVectorDotProduct = ToOriginDirection2D | OwnerRightVector;
+	
+		if (HitForwardVectorDotProduct > DirectionDotProductThreshold)
+			Result = CombatGameplayTags::Combat_HitDirection_Front;
+		else if (HitForwardVectorDotProduct < -DirectionDotProductThreshold)
+			Result =  CombatGameplayTags::Combat_HitDirection_Back;
+		else if (HitRightVectorDotProduct > DirectionDotProductThreshold)
+			Result =  CombatGameplayTags::Combat_HitDirection_Left;
+		else
+			Result =  CombatGameplayTags::Combat_HitDirection_Right;
+	
+		UE_VLOG(AvatarActor, LogCombat_HitReact, Verbose, TEXT("UGameplayAbility_MeleeWeaponCombat::GetHitDirectionTag: Result = %s"), *Result.ToString());
+	}
+		
+	return Result;
 }

@@ -16,6 +16,12 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
                                                     const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
+	if (TriggerEventData == nullptr)
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
+		return;
+	}
+	
 	const FGameplayAbilityTargetData_ReceivedHit* ActivationData = GetActivationData<FGameplayAbilityTargetData_ReceivedHit>(TriggerEventData->TargetData);
 	if (!ensure(ActivationData))
 	{
@@ -24,7 +30,7 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 	}
 
 	auto AliveCreature = Cast<ICombatAliveCreature>(ActorInfo->AvatarActor.Get());
-	if(AliveCreature->GetCombatantHealth() <= 0.f )
+	if(AliveCreature->GetHealth_Combatant() <= 0.f )
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
 		return;
@@ -52,6 +58,17 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 	}
 	
 	ActiveHitReactTags = OwnerTags;
+	
+	FReceivedHitData ReceivedHitData;
+	ReceivedHitData.HitDirectionTag = ActivationData->HitDirectionTag;
+	ReceivedHitData.HealthDamage = ActivationData->HealthDamage;
+	ReceivedHitData.PoiseDamage = ActivationData->PoiseDamage;
+	ReceivedHitData.HitResult = ActivationData->HitResult;
+	ReceivedHitData.HitTypeTag = HitTypeTag;
+	ReceivedHitData.Causer = ActivationData->Causer.Get();
+	ReceivedHitData.CauserId = ActivationData->CauserId;
+	CombatantOwner->OnReceivedHit_Combatant(ReceivedHitData);
+	
 	if (ensure(HitReactMontage))
 	{
 		HitReactMontageTask = UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(this, FName("HitReact"), HitReactMontage);
@@ -64,18 +81,7 @@ void UGameplayAbility_HitReactBase::ActivateAbility(const FGameplayAbilitySpecHa
 	else
 	{
 		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), true, false);
-		return;
 	}
-
-	FReceivedHitData ReceivedHitData;
-	ReceivedHitData.HitDirectionTag = ActivationData->HitDirectionTag;
-	ReceivedHitData.HealthDamage = ActivationData->HealthDamage;
-	ReceivedHitData.PoiseDamage = ActivationData->PoiseDamage;
-	ReceivedHitData.HitResult = ActivationData->HitResult;
-	ReceivedHitData.HitTypeTag = HitTypeTag;
-	ReceivedHitData.Causer = ActivationData->Causer.Get();
-	ReceivedHitData.CauserId = ActivationData->CauserId;
-	CombatantOwner->TakeHit(ReceivedHitData);
 }
 
 void UGameplayAbility_HitReactBase::EndAbility(const FGameplayAbilitySpecHandle Handle,

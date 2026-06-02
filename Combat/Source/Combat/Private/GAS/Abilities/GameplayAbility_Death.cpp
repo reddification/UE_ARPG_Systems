@@ -25,8 +25,8 @@ void UGameplayAbility_Death::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	const FGameplayEventData* TriggerEventData)
 {
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);
-	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
-	if (!ensure(Combatant))
+	auto CombatantOwner = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
+	if (!ensure(CombatantOwner))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
 		return;
@@ -36,10 +36,10 @@ void UGameplayAbility_Death::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 	auto GameplayTagsActor = Cast<IGameplayTagAssetInterface>(ActorInfo->AvatarActor.Get());
 	GameplayTagsActor->GetOwnedGameplayTags(OwnerTags);
 	UAnimMontage* CurrentDeathMontage = nullptr;
-	FReceivedHitData LastHit = Combatant->GetLastHitData();
+	const FReceivedHitData& LastHit = CombatantOwner->GetLastHitData();
 	OwnerTags.AddTagFast(LastHit.HitDirectionTag);
 
-	auto OwnerSkeletalMeshComponent = Combatant->GetCombatantSkeletalMeshComponent();
+	auto OwnerSkeletalMeshComponent = CombatantOwner->GetCombatantSkeletalMeshComponent();
 	
 	USkeletalMesh* SkeletalMeshOverride = nullptr;
 	for (const auto& MontageOption : DeathMontages)
@@ -97,13 +97,17 @@ void UGameplayAbility_Death::ActivateAbility(const FGameplayAbilitySpecHandle Ha
 		MontageTask->ReadyForActivation();
 	}
 
-	Combatant->StartDeath();
-	Combatant->PlayCombatSound(CombatGameplayTags::Combat_FX_Sound_Dying);
+	CombatantOwner->OnDeathStarted();
+	CombatantOwner->PlayCombatSound(CombatGameplayTags::Combat_FX_Sound_Dying);
 
+	if (IsValid(LastHit.Causer))
+		if (auto CauserCombatant = Cast<ICombatant>(LastHit.Causer))
+			CauserCombatant->OnKilledActor_Combatant(ActorInfo->AvatarActor.Get(), LastHit);
+	
 	if (CurrentDeathMontage == nullptr)
 	{
-		Combatant->ActivateCombatantRagdoll();
-		EndAbility(Handle, ActorInfo, ActivationInfo, false, false);
+		CombatantOwner->ActivateDeathRagdoll_Combatant();
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 	}
 }
 
@@ -113,7 +117,7 @@ void UGameplayAbility_Death::EndAbility(const FGameplayAbilitySpecHandle Handle,
 {
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	auto Combatant = Cast<ICombatant>(ActorInfo->AvatarActor.Get());
-	Combatant->FinishDeath();
+	Combatant->OnDeathFinished();
 	if (!InitialSkeletalMesh.IsNull())
 	{
 		auto OwnerSkeletalMeshComponent = Combatant->GetCombatantSkeletalMeshComponent();
@@ -134,5 +138,5 @@ void UGameplayAbility_Death::OnMontageCancelled()
 
 void UGameplayAbility_Death::OnMontageInterrupted()
 {
-	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), false, true);
+	EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), false, false);
 }

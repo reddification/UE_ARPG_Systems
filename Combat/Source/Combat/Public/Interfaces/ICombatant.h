@@ -33,7 +33,7 @@ public:
 	virtual void SetAttackPhase(EMeleeAttackPhase NewAttackPhase, EMeleeAttackPhase OldAttackPhase) = 0;
 
 	virtual TScriptInterface<ICombatAnimInstance> GetCombatAnimInstance() const = 0;
-	virtual float GetAttackRange() const = 0;
+	virtual float GetAttackRange_Combatant() const = 0;
 	virtual int GetActiveWeaponMasteryLevel() const = 0;
 	virtual FGameplayTag GetActiveCombatStyleTag() const = 0;
 	virtual FGameplayTag GetActiveWeaponTypeTag() const = 0;
@@ -48,7 +48,9 @@ public:
 	virtual float GetPoise() const = 0;
 	virtual float GetPoiseDamageScale() const = 0;
 	virtual FWeaponDamageData GetWeaponDamageData() const = 0;
-	virtual void TakeHit(const FReceivedHitData& ReceivedHitData) = 0;
+
+	virtual void OnReceivedHit_Combatant(const FReceivedHitData& ReceivedHitData) = 0;
+	virtual void OnDealtDamage_Combatant(AActor* ToActor, float ResultingDamage, bool bStaggeringHit) = 0;
 
 	virtual void OnStaggerStarted(const FGuid& StaggeredBy) = 0;
 	virtual void OnStaggerFinished() = 0;
@@ -65,8 +67,8 @@ public:
 	
 	virtual const FReceivedHitData& GetLastHitData() = 0;
 	
-	virtual void FinishDeath() = 0;
-	virtual void StartDeath() = 0;
+	virtual void OnDeathFinished() = 0;
+	virtual void OnDeathStarted() = 0;
 
 	virtual void FinishKnockdown() = 0;
 	virtual void StartKnockdown() = 0;
@@ -101,6 +103,7 @@ public:
 	virtual ECollisionComponentWeaponType GetCollisionWeaponType(UPrimitiveComponent* WeaponCollisionComponent) = 0;
 	virtual USkeletalMeshComponent* GetCombatantSkeletalMeshComponent() const = 0;
 
-	virtual void ActivateCombatantRagdoll() = 0;
+	virtual void ActivateDeathRagdoll_Combatant() = 0;
 	virtual void FlinchWeapon(const FVector& HitDirectionWorld) = 0;
+	virtual void OnKilledActor_Combatant(AActor* KilledActor, const FReceivedHitData& LastHit) {};
 };

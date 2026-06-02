@@ -29,9 +29,7 @@ void UPlayerSwingControlCombatComponent::BeginPlay()
 	auto CombatSettings = GetDefault<UMeleeCombatSettings>();
 	MeleeCombatParameters = CombatSettings->MeleeCombatDirectionalInputParameters;
 	CurrentPlayerInputs.SetNumZeroed(MeleeCombatParameters.InputBufferSize);
-
-	SetComponentTickInterval(1.f / MeleeCombatParameters.TickRate);
-
+	
 	RadiansToAttackMapping =
 	{
 		FAttackDirectionToAttackTypeMapping { 0.f, EMeleeAttackType::RightMittelhauw },
@@ -372,7 +370,15 @@ EMeleeAttackType UPlayerSwingControlCombatComponent::GetBasicAccumulatedAttack(T
 EAttackStepDirection UPlayerSwingControlCombatComponent::GetAttackStepDirection(const FVector& NormalizedAcceleration, const FVector& ForwardVector) const
 {
 	EAttackStepDirection AttackStepDirection = EAttackStepDirection::None;
-	if (CurrentAccelerationSignificance > MeleeCombatParameters.AccelerationSignificanceThreshold)
+	bool bHasAttackStepDirection = CurrentAccelerationSignificance >= MeleeCombatParameters.AccelerationSignificanceThreshold;
+	if (!bHasAttackStepDirection)
+	{
+		auto CurrentVelocity = GetOwner()->GetVelocity();
+		const double Threshold = MeleeCombatParameters.PlayerAlwaysLongRangeAttackAtSpeed * MeleeCombatParameters.PlayerAlwaysLongRangeAttackAtSpeed;
+		bHasAttackStepDirection = CurrentVelocity.SizeSquared2D() >= Threshold && (CurrentVelocity.GetSafeNormal2D() | NormalizedAcceleration) >= 0.85f;
+	}
+	
+	if (bHasAttackStepDirection)
 	{
 		const float Acc2FVDotProduct = ForwardVector | NormalizedAcceleration;
 		if (Acc2FVDotProduct > MeleeCombatParameters.AccelerationToMoveDirectionMatchDotProductThreshold)
@@ -389,6 +395,7 @@ EAttackStepDirection UPlayerSwingControlCombatComponent::GetAttackStepDirection(
 				AttackStepDirection = EAttackStepDirection::Left;
 		}
 	}
+	
 	return AttackStepDirection;
 }
 

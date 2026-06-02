@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "DebugDataTypes.h"
 #include "MeleeBlockComponent.h"
 #include "NpcBlockComponent.generated.h"
 
@@ -15,10 +14,12 @@ class COMBAT_API UNpcBlockComponent : public UMeleeBlockComponent
 
 public:
 	void StartBlocking(const AActor* AttackingActor, EMeleeAttackType IncomingAttackType);
-	void StartBlocking(float Angle);
+	void StartGuidedBlocking();
 
 	virtual void StartBlocking() override;
 	virtual void StopBlocking() override;
+	
+	FORCEINLINE void SetExternalBlockInput(const FVector2D& NewExternalInput) { ExternalBlockInput = NewExternalInput; }
 	
 	mutable FSimpleDelegate OnNpcFinishedBlockingEvent;
 
@@ -28,11 +29,6 @@ protected:
 	
 	virtual FVector2D GetBlockInput(float DeltaTime) const override;
 	virtual void AddBlockInput(const FVector2D& BlockDirectionInput, float DeltaTime) override;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FDebugOptionsContainer DebugOptions;
-#endif
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float NpcBlockDrawRateScale = 0.75f;
@@ -52,8 +48,10 @@ private:
 	
 	TArray<FVector2D> PendingBlockInputs;
 	FVector2D CurrentAccumulatedBlock = FVector2D::ZeroVector;
+	FVector2D ExternalBlockInput = FVector2D::ZeroVector;
 	int CurrentPendingBlockIndex = 0;
-	
+
+	bool bUsingExternalBlockInputSource = false;
 	float NpcHoldBlockDurationMin = 0.2f;
 	float NpcHoldBlockDurationMax = 0.5f;
 	float InitialBlockStrengthAccumulationScale = 0.5f;

@@ -5,6 +5,7 @@
 
 #include "Components/NpcMeleeCombatComponent.h"
 #include "Data/CombatLogChannels.h"
+#include "Kismet/GameplayStatics.h"
 #include "UI/AttackHintChipsContainerWidget.h"
 
 void UNpcAttackDirectionHintWidget::NativeConstruct()
@@ -31,7 +32,41 @@ void UNpcAttackDirectionHintWidget::InitializeNpcCombatComponent()
 void UNpcAttackDirectionHintWidget::OnAttackPhaseChanged(EMeleeAttackPhase OldAttackPhase, EMeleeAttackPhase NewAttackPhase)
 {
 	bool bVisible = NewAttackPhase == EMeleeAttackPhase::WindUp || NewAttackPhase == EMeleeAttackPhase::Release;
-	SetVisibility(bVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	bool bRequestVisible = false;
+	if (bVisible)
+	{
+		auto NpcPawn = Cast<APawn>(NpcCombatComponent->GetOwner());
+		if (NpcPawn == nullptr)
+			if (auto NpcController = Cast<AAIController>(NpcCombatComponent->GetOwner()))
+				NpcPawn = NpcController->GetPawn();
+		
+		if (NpcPawn != nullptr)
+		{
+			auto OwningPlayerPawn = GetOwningPlayerPawn();
+			if (OwningPlayerPawn != nullptr)
+			{
+				FVector PlayerLocation = OwningPlayerPawn->GetActorLocation();
+				FVector NpcLocation = NpcPawn->GetActorLocation();
+				const float DistanceSq = (PlayerLocation - NpcLocation).SizeSquared();
+				if (DistanceSq < DistanceThreshold * DistanceThreshold)
+				{
+					auto DotProduct = NpcPawn->GetActorForwardVector() | (PlayerLocation - NpcLocation).GetSafeNormal();
+					if (DotProduct >= DotProductThreshold)
+					{
+						FHitResult HitResult;
+						FCollisionQueryParams CollisionQueryParams;
+						CollisionQueryParams.AddIgnoredActor(OwningPlayerPawn);
+						CollisionQueryParams.AddIgnoredActor(NpcPawn);
+						bRequestVisible = !GetWorld()->LineTraceSingleByChannel(HitResult, NpcLocation + FVector::UpVector * 50.f,
+							PlayerLocation + FVector::UpVector * 50.f, TraceTestChannel, CollisionQueryParams);
+					}
+				}
+			}
+		}
+	}
+
+	SetVisibility(bRequestVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		
 	
 #if WITH_EDITOR
 	auto AttackPhaseEnum = StaticEnum<EMeleeAttackPhase>();

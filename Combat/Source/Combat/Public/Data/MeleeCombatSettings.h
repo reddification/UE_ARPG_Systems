@@ -179,10 +179,7 @@ struct FMeleeCombatDirectionalInputParameters
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 1, ClampMin = 1))
 	int MinInputsToAttack = 8;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 1, ClampMin = 1))
-	float TickRate = 60.f;
-
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
 	float MaxCameraRotationAngleDuringAttack = 45.f;
 	
@@ -194,6 +191,9 @@ struct FMeleeCombatDirectionalInputParameters
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = -1.f, ClampMin = -1.f, UIMax = 1.f, ClampMax = 1.f))
 	float AccelerationToMoveDirectionMatchDotProductThreshold = 0.75f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.0, ClampMin = 0.0))
+	double PlayerAlwaysLongRangeAttackAtSpeed = 500.0;
 };
 
 USTRUCT(BlueprintType)
@@ -379,10 +379,6 @@ public:
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Collisions")
 	FName WeaponCollisionProfileName = FName("Weapon");
 	
-	// Sweeps are done only in weapon release phase
-	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Shape Sweeps")
-	int WeaponCollisionSweepsPerSeconds = 100;
-	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, Category="Shape Sweeps")
 	bool bDrawDebugSweeps = true;
 
@@ -462,4 +458,7 @@ public:
 	
 	UPROPERTY(Config, EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f), Category="Global")
 	float MaxWeaponMastery = 3.f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(UIMin = 1, ClampMin = 1), Category="Global")
+	float TickRate = 60.f;
 };

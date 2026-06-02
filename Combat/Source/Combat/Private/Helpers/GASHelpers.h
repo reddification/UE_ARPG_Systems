@@ -6,6 +6,9 @@
 template<typename TGameplayAbilityTargetDataStruct>
 const TGameplayAbilityTargetDataStruct* GetActivationData(const FGameplayAbilityTargetDataHandle& TargetData)
 {
+	if (!TargetData.IsValid(0))
+		return nullptr; 
+		
 	const auto Data = TargetData.Get(0);
 	if (Data)
 	{

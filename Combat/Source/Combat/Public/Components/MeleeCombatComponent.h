@@ -27,6 +27,7 @@ private:
 	
 public:
 	UMeleeCombatComponent(const FObjectInitializer& ObjectInitializer);
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	
 	virtual bool RequestAttack(EMeleeAttackType RequestedAttackType);
 	virtual void CancelAttack();
@@ -112,8 +113,6 @@ protected:
 	EMeleeAttackType ActiveAttack = EMeleeAttackType::None;
 	EMeleeAttackType ActiveAttackTrajectory = EMeleeAttackType::None;
 
-	FTimerHandle WeaponCollisionSweepsTimer;
-
 	// can input next attack
 	bool bComboWindowActive = false;
 	// block ability can interrupt attack ability
@@ -121,7 +120,6 @@ protected:
 	int CurrentComboTotalAttacksCount = 0;
 	int CurrentComboAttacksHitCount = 0;
 
-	float WeaponCollisionSweepsPerSecond = 60.f;
 	FName WeaponCollisionProfileName = FName("Weapon");
 	FName CombatCollisionCenterSocketName = FName("CollisionCenterSocket");
 	FName CombatCollisionName = FName("CombatCollision");
@@ -153,6 +151,7 @@ protected:
 protected:
 	uint32 ActiveAnimationId = 0;
 	uint32 ActiveComboWindowId = 0;
+	uint32 Debug_SweepsDone = 0;
 	float HeavyAttackWindupSpeedModifier = 0.7f;
 	TWeakObjectPtr<const UMeleeCombatSettings> CachedMeleeCombatSettings;
 	

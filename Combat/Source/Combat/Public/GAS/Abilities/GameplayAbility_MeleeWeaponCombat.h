@@ -45,7 +45,7 @@ protected:
 	TSubclassOf<UGameplayEffect> EffectForOwnerWhenItsAttackBlockedClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float DirectionDotProductThreshold = 0.75f;
+	float DirectionDotProductThreshold = 0.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	bool Debug_IgnoreAttackCost = false;

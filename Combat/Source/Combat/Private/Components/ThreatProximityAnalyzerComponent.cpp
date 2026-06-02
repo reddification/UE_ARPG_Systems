@@ -70,7 +70,7 @@ void UThreatProximityAnalyzerComponent::TickComponent(float DeltaTime, ELevelTic
 			{
 				if (Combatant->IsUsingRangeWeapon())
 				{
-					const float RangeWeaponDistance = Combatant->GetAttackRange();
+					const float RangeWeaponDistance = Combatant->GetAttackRange_Combatant();
 					const float RangeWeaponDistanceSq = RangeWeaponDistance * RangeWeaponDistance;
 					if (RangeWeaponDistanceSq * 1.1f < EnemyToOwnerDistSq)
 					{

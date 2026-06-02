@@ -27,6 +27,15 @@ public:
 	
 	UPROPERTY(meta=(BindWidget))
 	UAttackHintChipsContainerWidget* ChipsWidget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TEnumAsByte<ECollisionChannel> TraceTestChannel = ECC_Visibility;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float DistanceThreshold = 450.f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float DotProductThreshold = 0.935f;
 	
 private:
 	void OnAttackPhaseChanged(EMeleeAttackPhase OldAttackPhase, EMeleeAttackPhase NewAttackPhase);

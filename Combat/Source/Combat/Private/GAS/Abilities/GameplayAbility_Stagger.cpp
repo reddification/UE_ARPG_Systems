@@ -42,7 +42,7 @@ void UGameplayAbility_Stagger::ActivateAbility(const FGameplayAbilitySpecHandle 
 	}
 	
 	auto OwnerCombatantAliveCreature = Cast<ICombatAliveCreature>(ActorInfo->AvatarActor.Get());
-	if(OwnerCombatantAliveCreature->GetCombatantHealth() <= 0.f)
+	if(OwnerCombatantAliveCreature->GetHealth_Combatant() <= 0.f)
 	{
 		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(), false, false);
 		return;

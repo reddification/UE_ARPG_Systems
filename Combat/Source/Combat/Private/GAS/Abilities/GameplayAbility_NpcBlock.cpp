@@ -3,7 +3,6 @@
 #include "AbilitySystemComponent.h"
 #include "Components/NpcBlockComponent.h"
 #include "GAS/Data/GameplayAbilityTargetData_Block.h"
-#include "GAS/Data/GameplayAbilityTargetData_BlockIncomingAttack.h"
 #include "Helpers/GASHelpers.h"
 #include "Interfaces/NpcCombatant.h"
 
@@ -13,12 +12,18 @@ bool UGameplayAbility_NpcBlock::StartBlocking(const FGameplayAbilityActorInfo* A
 	if (!ensure(BlockComponent))
 		return false;
 
-	if (const auto* BlockIncomingAttackActivationData = GetActivationData<FGameplayAbilityTargetData_BlockIncomingAttack>(TriggerEventData->TargetData))
-		BlockComponent->StartBlocking(BlockIncomingAttackActivationData->Attacker, BlockIncomingAttackActivationData->IncomingAttackTrajectory);
-	else if (const auto* BlockAngleActivationData = GetActivationData<FGameplayAbilityTargetData_Block>(TriggerEventData->TargetData))
-		BlockComponent->StartBlocking(BlockAngleActivationData->BlockAngle);
+	if (const auto* ActivationData = GetActivationData<FGameplayAbilityTargetData_Block>(TriggerEventData->TargetData))
+	{
+		if (ActivationData->bUseGuidedBlocking)
+			BlockComponent->StartGuidedBlocking();
+		else 
+			BlockComponent->StartBlocking(ActivationData->Attacker, ActivationData->IncomingAttackTrajectory);
+	}
 	else
-		return ensure(false);
+	{
+		ensure(false);
+		BlockComponent->StartBlocking();
+	}
 	
 	return true;	
 }
