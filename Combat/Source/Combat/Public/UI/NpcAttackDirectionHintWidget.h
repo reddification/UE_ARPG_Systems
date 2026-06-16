@@ -40,6 +40,7 @@ public:
 private:
 	void OnAttackPhaseChanged(EMeleeAttackPhase OldAttackPhase, EMeleeAttackPhase NewAttackPhase);
 	void InitializeNpcCombatComponent();
+	bool MustShowHint() const;
 	void SetPreparedAttack(EMeleeAttackType AttackType);
 	void OnAttackCompleted();
 	

@@ -91,7 +91,7 @@ EMeleeAttackType UAttackHintChipsContainerWidget::MirrorAttack(EMeleeAttackType 
 		case EMeleeAttackType::RightOberhauw:
 			return EMeleeAttackType::LeftOberhauw;
 		case EMeleeAttackType::Thrust:
-			return EMeleeAttackType::VerticalSlash;
+			return EMeleeAttackType::Thrust;
 		case EMeleeAttackType::LeftOberhauw:
 			return EMeleeAttackType::RightOberhauw;
 		case EMeleeAttackType::LeftMittelhauw:
@@ -99,7 +99,7 @@ EMeleeAttackType UAttackHintChipsContainerWidget::MirrorAttack(EMeleeAttackType 
 		case EMeleeAttackType::LeftUnterhauw:
 			return EMeleeAttackType::RightUnterhauw;
 		case EMeleeAttackType::VerticalSlash:
-			return EMeleeAttackType::Thrust;
+			return EMeleeAttackType::VerticalSlash;
 		case EMeleeAttackType::RightUnterhauw:
 			return EMeleeAttackType::LeftUnterhauw;
 		case EMeleeAttackType::SpinRightMittelhauw:

@@ -443,11 +443,7 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
 		ResultingDamage = ResultingDamage * FMath::Exp (-DamageProtection / CombatSettings->ProtectionEffectivenessScale); // chat gpt suggested this
 		PoiseReduction *= CombatantEnemy->GetPoiseDamageScale();
 		PoiseReduction *= CombatSettings->GlobalPoiseDamageScale;
-		auto DamageEffectSpec = OwnerASC->MakeOutgoingSpec(DamageEffect, 1.f, GEContext);
-		DamageEffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Health, -ResultingDamage);
-		DamageEffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Poise, -PoiseReduction);
-		OwnerASC->ApplyGameplayEffectSpecToTarget(*DamageEffectSpec.Data, EnemyASC);
-
+		
 		if (HitRewardEffectClass)
 		{
 			auto HitRewardEffectSpec = OwnerASC->MakeOutgoingSpec(HitRewardEffectClass, GetMeleeCombatComponent()->GetCurrentComboHitAttackCount(), GEContext);
@@ -478,6 +474,17 @@ void UGameplayAbility_MeleeWeaponCombat::HandleEnemyHit(const UMeleeCombatSettin
 		
 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(EnemyActor, HitReactAbilityTag, OwnerPayload);
 		CombatantOwner->OnDealtDamage_Combatant(EnemyActor, ResultingDamage, bStaggeringHit);
+		
+		// 5 June 2026 (aki): TODO move applying this GE to HitReact ability because what can happen is:
+		// 1. HitReact GA is activated
+		// 2. but hit was actually fatal so death must start
+		// 3. so activating stagger/hit react was redundant
+		// 4. and we can't change the order because LastHitData is processed in one of HitReact abilities so they must be called BEFORE death starts
+		// but in this case there's a separation of atomic process: deal damage and on condition - start death
+		auto DamageEffectSpec = OwnerASC->MakeOutgoingSpec(DamageEffect, 1.f, GEContext);
+		DamageEffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Health, -ResultingDamage);
+		DamageEffectSpec.Data->SetByCallerTagMagnitudes.Add(CombatGameplayTags::Combat_SetByCaller_Damage_Poise, -PoiseReduction);
+		OwnerASC->ApplyGameplayEffectSpecToTarget(*DamageEffectSpec.Data, EnemyASC);
 	}
 	else
 	{

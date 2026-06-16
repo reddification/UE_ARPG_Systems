@@ -1,7 +1,4 @@
-﻿// 
-
-
-#include "UI/NpcAttackDirectionHintWidget.h"
+﻿#include "UI/NpcAttackDirectionHintWidget.h"
 
 #include "Components/NpcMeleeCombatComponent.h"
 #include "Data/CombatLogChannels.h"
@@ -20,6 +17,35 @@ void UNpcAttackDirectionHintWidget::NativeConstruct()
 		InitializeNpcCombatComponent();
 }
 
+void UNpcAttackDirectionHintWidget::NativeDestruct()
+{
+	if (NpcCombatComponent.IsValid() && IsValid(NpcCombatComponent.Get()))
+	{
+		NpcCombatComponent->OnAttackStartedEvent.RemoveAll(this);
+		NpcCombatComponent->OnAttackTrajectoryChangedEvent.RemoveAll(this);
+		NpcCombatComponent->OnAttackEndedEvent.RemoveAll(this);
+		NpcCombatComponent->OnAttackFeintedEvent.RemoveAll(this);
+		NpcCombatComponent->OnAttackActivePhaseChanged.RemoveAll(this);
+	}
+	
+	Super::NativeDestruct();
+}
+
+void UNpcAttackDirectionHintWidget::SetCombatComponent(UNpcMeleeCombatComponent* InMeleeCombatComponent)
+{
+	if (InMeleeCombatComponent)
+	{
+		if (NpcCombatComponent.IsValid())
+		{
+			ensure(false);
+			return;
+		}
+		
+		NpcCombatComponent = InMeleeCombatComponent;
+		InitializeNpcCombatComponent();
+	}
+}
+
 void UNpcAttackDirectionHintWidget::InitializeNpcCombatComponent()
 {
 	NpcCombatComponent->OnAttackStartedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::SetPreparedAttack);
@@ -29,84 +55,66 @@ void UNpcAttackDirectionHintWidget::InitializeNpcCombatComponent()
 	NpcCombatComponent->OnAttackFeintedEvent.AddUObject(this, &UNpcAttackDirectionHintWidget::OnAttackCompleted);
 }
 
+void UNpcAttackDirectionHintWidget::SetPreparedAttack(EMeleeAttackType AttackType)
+{
+	if (MustShowHint())
+		SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	
+	ChipsWidget->SetChipActive(AttackType);
+	UE_VLOG(NpcCombatComponent->GetOwner(), LogCombat_UI, Verbose, TEXT("Showing NPC attack hint widget"));
+}
+
 void UNpcAttackDirectionHintWidget::OnAttackPhaseChanged(EMeleeAttackPhase OldAttackPhase, EMeleeAttackPhase NewAttackPhase)
 {
-	bool bVisible = NewAttackPhase == EMeleeAttackPhase::WindUp || NewAttackPhase == EMeleeAttackPhase::Release;
-	bool bRequestVisible = false;
-	if (bVisible)
-	{
-		auto NpcPawn = Cast<APawn>(NpcCombatComponent->GetOwner());
-		if (NpcPawn == nullptr)
-			if (auto NpcController = Cast<AAIController>(NpcCombatComponent->GetOwner()))
-				NpcPawn = NpcController->GetPawn();
-		
-		if (NpcPawn != nullptr)
-		{
-			auto OwningPlayerPawn = GetOwningPlayerPawn();
-			if (OwningPlayerPawn != nullptr)
-			{
-				FVector PlayerLocation = OwningPlayerPawn->GetActorLocation();
-				FVector NpcLocation = NpcPawn->GetActorLocation();
-				const float DistanceSq = (PlayerLocation - NpcLocation).SizeSquared();
-				if (DistanceSq < DistanceThreshold * DistanceThreshold)
-				{
-					auto DotProduct = NpcPawn->GetActorForwardVector() | (PlayerLocation - NpcLocation).GetSafeNormal();
-					if (DotProduct >= DotProductThreshold)
-					{
-						FHitResult HitResult;
-						FCollisionQueryParams CollisionQueryParams;
-						CollisionQueryParams.AddIgnoredActor(OwningPlayerPawn);
-						CollisionQueryParams.AddIgnoredActor(NpcPawn);
-						bRequestVisible = !GetWorld()->LineTraceSingleByChannel(HitResult, NpcLocation + FVector::UpVector * 50.f,
-							PlayerLocation + FVector::UpVector * 50.f, TraceTestChannel, CollisionQueryParams);
-					}
-				}
-			}
-		}
-	}
-
+	bool bWantsToBeVisible = NewAttackPhase == EMeleeAttackPhase::WindUp || NewAttackPhase == EMeleeAttackPhase::Release;
+	bool bRequestVisible = bWantsToBeVisible ? MustShowHint() : false;
 	SetVisibility(bRequestVisible ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-		
 	
 #if WITH_EDITOR
 	auto AttackPhaseEnum = StaticEnum<EMeleeAttackPhase>();
 	UE_VLOG(NpcCombatComponent->GetOwner(), LogCombat_UI, Verbose, TEXT("Attack phase changed from %s to %s. New visibility state = %s"),
 		*AttackPhaseEnum->GetDisplayValueAsText(OldAttackPhase).ToString(), *AttackPhaseEnum->GetDisplayValueAsText(NewAttackPhase).ToString(),
-		bVisible ? TEXT("Visible") : TEXT("Non-Visible"));
+		bWantsToBeVisible ? TEXT("Visible") : TEXT("Non-Visible"));
 #endif
-}
-
-void UNpcAttackDirectionHintWidget::SetCombatComponent(UNpcMeleeCombatComponent* InMeleeCombatComponent)
-{
-	if (InMeleeCombatComponent)
-	{
-		NpcCombatComponent = InMeleeCombatComponent;
-		InitializeNpcCombatComponent();
-	}
-}
-
-void UNpcAttackDirectionHintWidget::NativeDestruct()
-{
-	if (NpcCombatComponent.IsValid() && IsValid(NpcCombatComponent.Get()))
-	{
-		NpcCombatComponent->OnAttackStartedEvent.RemoveAll(this);
-		NpcCombatComponent->OnAttackEndedEvent.RemoveAll(this);
-		NpcCombatComponent->OnAttackFeintedEvent.RemoveAll(this);
-		NpcCombatComponent->OnAttackActivePhaseChanged.RemoveAll(this);
-	}
-	
-	Super::NativeDestruct();
-}
-
-void UNpcAttackDirectionHintWidget::SetPreparedAttack(EMeleeAttackType AttackType)
-{
-	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-	ChipsWidget->SetChipActive(AttackType);
-	UE_VLOG(NpcCombatComponent->GetOwner(), LogCombat_UI, Verbose, TEXT("Showing NPC attack hint widget"));
 }
 
 void UNpcAttackDirectionHintWidget::OnAttackCompleted()
 {
 	SetVisibility(ESlateVisibility::Collapsed);
 	UE_VLOG(NpcCombatComponent->GetOwner(), LogCombat_UI, Verbose, TEXT("Hiding NPC attack hint widget"));
+}
+
+bool UNpcAttackDirectionHintWidget::MustShowHint() const
+{
+	bool bRequestVisible = false;
+	auto NpcPawn = Cast<APawn>(NpcCombatComponent->GetOwner());
+	if (NpcPawn == nullptr)
+		if (auto NpcController = Cast<AAIController>(NpcCombatComponent->GetOwner()))
+			NpcPawn = NpcController->GetPawn();
+		
+	if (NpcPawn != nullptr)
+	{
+		auto OwningPlayerPawn = GetOwningPlayerPawn();
+		if (OwningPlayerPawn != nullptr)
+		{
+			FVector PlayerLocation = OwningPlayerPawn->GetActorLocation();
+			FVector NpcLocation = NpcPawn->GetActorLocation();
+			const float DistanceSq = (PlayerLocation - NpcLocation).SizeSquared();
+			if (DistanceSq < DistanceThreshold * DistanceThreshold)
+			{
+				auto DotProduct = NpcPawn->GetActorForwardVector() | (PlayerLocation - NpcLocation).GetSafeNormal();
+				if (DotProduct >= DotProductThreshold)
+				{
+					FHitResult HitResult;
+					FCollisionQueryParams CollisionQueryParams;
+					CollisionQueryParams.AddIgnoredActor(OwningPlayerPawn);
+					CollisionQueryParams.AddIgnoredActor(NpcPawn);
+					bRequestVisible = !GetWorld()->LineTraceSingleByChannel(HitResult, NpcLocation + FVector::UpVector * 50.f,
+					PlayerLocation + FVector::UpVector * 50.f, TraceTestChannel, CollisionQueryParams);
+				}
+			}
+		}
+	}
+	
+	return bRequestVisible;
 }

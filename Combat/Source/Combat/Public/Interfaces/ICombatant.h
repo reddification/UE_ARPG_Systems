@@ -90,7 +90,7 @@ public:
 
 	virtual const FWeaponFX* GetWeaponFX(const FGameplayTag& FXSourceTag) const = 0;
 	virtual void PlayCombatSound(const FGameplayTag& SoundTag) const = 0;
-	virtual TSet<AActor*> GetCombatObservedActors() const = 0;
+	virtual TArray<AActor*> GetCombatObservedActors() const = 0;
 	virtual void PlayCombatMontage(UAnimMontage* Montage) const = 0;
 	virtual AActor* GetTarget() const = 0;
 
