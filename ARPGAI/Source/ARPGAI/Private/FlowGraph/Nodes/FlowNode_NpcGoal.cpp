@@ -1,6 +1,4 @@
-﻿// 
-
-#include "FlowGraph/Nodes/FlowNode_NpcGoal.h"
+﻿#include "FlowGraph/Nodes/FlowNode_NpcGoal.h"
 
 #include "AIController.h"
 #include "BlackboardKeyType_GameplayTag.h"
@@ -14,7 +12,7 @@
 #include "Data/NpcBlackboardDataAsset.h"
 #include "FlowGraph/Addons/FlowNodeAddon_ActivityEQS.h"
 #include "GameFramework/GameModeBase.h"
-#include "Interfaces/NpcSystemGameMode.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 
 UFlowNode_NpcGoal::UFlowNode_NpcGoal()
 {
@@ -128,7 +126,7 @@ ENpcGoalStartResult UFlowNode_NpcGoal::Restore(bool bInitialStart)
 	{
 		if (bInitialStart)
 		{
-			auto NpcGameMode = Cast<INpcSystemGameMode>(BlackboardComponent->GetWorld()->GetAuthGameMode());
+			auto NpcGameMode = Cast<INpcGameWorldTimeManager>(BlackboardComponent->GetWorld()->GetAuthGameMode());
 			if (!ensure(NpcGameMode))
 				return ENpcGoalStartResult::Failed;
 	

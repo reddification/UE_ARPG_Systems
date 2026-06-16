@@ -4,7 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
 #include "Data/NpcMemoryDataTypes.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "NpcPerceptionComponent.generated.h"
 
@@ -31,13 +31,14 @@ public:
 	UFUNCTION(BlueprintCallable)
 	float GetAccumulatedDamage(bool bRecalculate) const;
 	
-	const TMap<TWeakObjectPtr<AActor>, FCharacterPerceptionData>& GetShortTermCharactersMemory() const { return ShortTermCharacterMemory; }
+	const TMap<TWeakObjectPtr<AActor>, FCharacterShortTermMemory>& GetShortTermCharactersMemory() const { return ShortTermCharacterMemory; }
 	const TMap<TWeakObjectPtr<AActor>, TArray<FHeardSoundMemory>>& GetHeardSounds() const { return ShortTermSoundsMemory; }
-	const FCharacterPerceptionData* GetCharacterPerceptionData(AActor* Actor) const { return ShortTermCharacterMemory.Find(Actor); }
-	const TMap<TWeakObjectPtr<AActor>, FNpcValueableItemPerceptionData>& GetPerceivedValueableItems() const { return ShortTermValueablesMemory; }
+	const FCharacterShortTermMemory* GetShortTermCharactersMemory(AActor* Actor) const { return ShortTermCharacterMemory.Find(Actor); }
+	const TArray<FNpcValueableItemPerceptionData>& GetPerceivedValueableItems() const { return ShortTermValueablesMemory; }
 	
 	void SetCombatLogicComponent(const UNpcCombatLogicComponent* InCombatLogicComponent);
 	void SetMemoryComponent(UNpcMemoryComponent* InMemoryComponent);
+	void RememberAllyDied(APawn* DeadAlly, AActor* Murderer, const FGameplayTag& LastHitType);
 
 	mutable FTargetPerceptionUpdatedNativeDelegate TargetPerceptionUpdatedNativeEvent;
 	void SetPawn(APawn* InPawn);
@@ -60,9 +61,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float PerceptionCacheInterval = 0.2f;
 	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TArray<FNpcLongTermMemoryReason> LongTermMemoryReasons;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Territory")
 	float SoundEventTerritoryBoundsCheckExtent = 500.f;
 
@@ -75,8 +73,9 @@ private:
 	// bActive means is it a memory of sight perception or does NPC see actor right now like right now-right now
 	void CacheVisualPerception(const FVector& NpcLocation, AActor* PerceivedActor, float ObservationTime, bool bAlly, bool bActive);
 	void CacheDamagePerception(AActor* PerceivedActor, float ReceivedDamage);
+	bool CanResolveHeardUnseenCharacterIdentity(AActor* PerceivedActor, const FGameplayTag& SoundTag) const;
 	void RememberHeardSound(const FVector& NpcLocation, AActor* PerceivedActor, const FGameplayTag& SoundTag,
-		const FVector& SoundLocation, bool bByAlly, float SoundPerceptionAge, float Loudness);
+	                        const FVector& SoundLocation, bool bByAlly, float SoundPerceptionAge, float Loudness);
 	void ProcessShortTermMemory(const FVector& NpcLocation, const TArray<APawn*>& Allies);
 	void MergeAllyPerceptions(const FVector& NpcLocation, const TArray<APawn*>& Allies);
 	bool CanMergePerception(APawn* Ally);
@@ -92,10 +91,11 @@ private:
 	UFUNCTION()
 	void OnTargetPerceptionUpdatedHandler(AActor* Actor, FAIStimulus Stimulus);
 	
-	void OnNpcOwnerDied(AActor* Actor);
+	void OnNpcOwnerDied(AActor* Actor, const FNpcDeathEventData& DeathEventData);
 	void OnNpcTagsChanged(AActor* Pawn, const FGameplayTagContainer& NewTags);
 	
-	TWeakObjectPtr<APawn> OwnerPawn;
+	UPROPERTY()
+	TObjectPtr<APawn> OwnerPawn;
 	
 	UPROPERTY()
 	TScriptInterface<INpcPerceptionInterface> NpcPerceptionInterface;
@@ -112,11 +112,15 @@ private:
 	UPROPERTY()
 	UNpcMemoryComponent* MemoryComponent;
 	
+	UPROPERTY()
+	TScriptInterface<INpcThreat> OwnerThreat;
+	
 	TMap<TWeakObjectPtr<AActor>, float> ActorsObservationTime;
 	
-	TMap<TWeakObjectPtr<AActor>, FCharacterPerceptionData> ShortTermCharacterMemory;
+	TMap<TWeakObjectPtr<AActor>, FCharacterShortTermMemory> ShortTermCharacterMemory;
 	TMap<TWeakObjectPtr<AActor>, TArray<FHeardSoundMemory>> ShortTermSoundsMemory;
-	TMap<TWeakObjectPtr<AActor>, FNpcValueableItemPerceptionData> ShortTermValueablesMemory;
+	TArray<FNpcValueableItemPerceptionData> ShortTermValueablesMemory;
+	
 	TArray<FHazardPerceptionData> ShortTermHazardsMemory;
 	
 	FGameplayTagContainer OwnerNpcTags;

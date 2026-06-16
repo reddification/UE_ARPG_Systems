@@ -6,7 +6,7 @@
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "GameFramework/Character.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Interfaces/Npc.h"
 #include "Kismet/GameplayStatics.h"
 #include "Settings/NpcCombatSettings.h"
@@ -27,15 +27,15 @@ void UNpcInfoWidgetComponent::BeginPlay()
 
 void UNpcInfoWidgetComponent::InitializeNpc()
 {
-	if (auto AliveCreature = Cast<INpcAliveCreature>(GetOwner()))
+	if (auto AliveCreature = Cast<INpcAliveActor>(GetOwner()))
 	{
-		if (!AliveCreature->IsAlive_NpcAliveCreature()) // can happen after save-load
+		if (!AliveCreature->IsAlive_NPC()) // can happen after save-load
 		{
 			SetVisibility(false);
 			return;
 		}
 		
-		AliveCreature->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcInfoWidgetComponent::OnDeathStarted);
+		AliveCreature->OnNpcAliveActorDeathStarted.AddUObject(this, &UNpcInfoWidgetComponent::OnDeathStarted);
 	}
 	
 	auto NpcCombatSettings = GetDefault<UNpcCombatSettings>();
@@ -115,7 +115,7 @@ void UNpcInfoWidgetComponent::UpdateVisibility()
 	SetVisibility(false);
 }
 
-void UNpcInfoWidgetComponent::OnDeathStarted(AActor* OwningActor)
+void UNpcInfoWidgetComponent::OnDeathStarted(AActor* OwningActor, const FNpcDeathEventData& DeathEventData)
 {
 	SetVisibility(false);
 }

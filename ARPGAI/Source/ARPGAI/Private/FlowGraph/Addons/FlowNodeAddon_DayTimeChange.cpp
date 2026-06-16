@@ -1,10 +1,7 @@
-﻿// 
-
-
-#include "FlowGraph/Addons/FlowNodeAddon_DayTimeChange.h"
+﻿#include "FlowGraph/Addons/FlowNodeAddon_DayTimeChange.h"
 
 #include "GameFramework/GameModeBase.h"
-#include "Interfaces/NpcSystemGameMode.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 #include "Nodes/FlowNode.h"
 
 UFlowNodeAddon_DayTimeChange::UFlowNodeAddon_DayTimeChange()
@@ -18,14 +15,14 @@ UFlowNodeAddon_DayTimeChange::UFlowNodeAddon_DayTimeChange()
 void UFlowNodeAddon_DayTimeChange::ExecuteInput(const FName& PinName)
 {
 	Super::ExecuteInput(PinName);
-	if (INpcSystemGameMode* GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode()))
+	if (INpcGameWorldTimeManager* GameMode = Cast<INpcGameWorldTimeManager>(GetWorld()->GetAuthGameMode()))
 		DayTimeChangedDelegate = GameMode->NpcDayTimeChangedEvent.AddUObject(this, &UFlowNodeAddon_DayTimeChange::OnDayTimeChanged);
 }
 
 void UFlowNodeAddon_DayTimeChange::FinishState()
 {
 	if (DayTimeChangedDelegate.IsValid())
-		if (INpcSystemGameMode* GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode()))
+		if (INpcGameWorldTimeManager* GameMode = Cast<INpcGameWorldTimeManager>(GetWorld()->GetAuthGameMode()))
 			GameMode->NpcDayTimeChangedEvent.Remove(DayTimeChangedDelegate);
 
 	DayTimeChangedDelegate.Reset();

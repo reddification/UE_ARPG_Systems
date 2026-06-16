@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTDecorator.h"
-#include "BTDecorator_GrantTags.generated.h"
+#include "BTDecorator_GrantTagsOnActivation.generated.h"
 
 /**
  * 
  */
 UCLASS(HideCategories=(FlowControl,Condition))
-class ARPGAI_API UBTDecorator_GrantTags : public UBTDecorator
+class ARPGAI_API UBTDecorator_GrantTagsOnActivation : public UBTDecorator
 {
 	GENERATED_BODY()
 	
@@ -21,7 +21,7 @@ private:
 	};
 	
 public:
-	UBTDecorator_GrantTags();
+	UBTDecorator_GrantTagsOnActivation();
 	virtual FString GetStaticDescription() const override;
 	virtual uint16 GetInstanceMemorySize() const override 
 	{ return bJustOneRandom && GrantedTags.Num() > 1 ? sizeof(FBTMemory_GrantedTags) : Super::GetInstanceMemorySize(); };

@@ -7,7 +7,7 @@
 #include "Data/LogChannels.h"
 #include "GameFramework/Character.h"
 #include "Interfaces/NpcActorTagsInterface.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Interfaces/NpcInteractionInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "Subsystems/NpcRegistrationSubsystem.h"
@@ -30,9 +30,9 @@ void UNpcConversationComponent::SetPawn(APawn* InPawn)
 		OwnerNpcInteractionInterface.SetInterface(NpcInteractionInterface);
 	}
 	
-	if (auto AliveCreatureInterface = Cast<INpcAliveCreature>(InPawn))
+	if (auto AliveCreatureInterface = Cast<INpcAliveActor>(InPawn))
 	{
-		AliveCreatureInterface->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcConversationComponent::OnOwnerDeathStarted);
+		AliveCreatureInterface->OnNpcAliveActorDeathStarted.AddUObject(this, &UNpcConversationComponent::OnOwnerDeathStarted);
 	}
 }
 
@@ -398,7 +398,7 @@ bool UNpcConversationComponent::CanMaintainInteraction() const
 	return bCanMaintainActivity;
 }
 
-void UNpcConversationComponent::OnOwnerDeathStarted(AActor* Actor)
+void UNpcConversationComponent::OnOwnerDeathStarted(AActor* Actor, const FNpcDeathEventData& DeathEventData)
 {
 	if (Conversation.IsActive())
 	{

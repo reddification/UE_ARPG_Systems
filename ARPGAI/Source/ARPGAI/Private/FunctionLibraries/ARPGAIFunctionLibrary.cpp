@@ -6,7 +6,7 @@
 #include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/AIGameplayTags.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 
 bool UARPGAIFunctionLibrary::IsActorEnemyForNpc(AActor* Npc, AActor* TestedActor)
 {
@@ -28,8 +28,8 @@ FGameplayTag UARPGAIFunctionLibrary::GetNpcAttitude(AActor* Npc, AActor* TestedA
 
 bool UARPGAIFunctionLibrary::IsActorAlive(AActor* TestActor)
 {
-	auto NpcAliveCreature = Cast<INpcAliveCreature>(TestActor);
-	return NpcAliveCreature ? NpcAliveCreature->IsAlive_NpcAliveCreature() : false;
+	auto NpcAliveCreature = Cast<INpcAliveActor>(TestActor);
+	return NpcAliveCreature ? NpcAliveCreature->IsAlive_NPC() : false;
 }
 
 FGameplayTag UARPGAIFunctionLibrary::RequestGameplayTagFromName(const FName& TagName, bool bErrorOnFail)

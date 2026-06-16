@@ -8,6 +8,7 @@
 
 #include "NpcCombatLogicComponent.generated.h"
 
+struct FNpcDeathEventData;
 class AAIController;
 class INpcCombatInterface;
 struct FNpcFeintParameters;
@@ -17,7 +18,7 @@ class UNpcCombatAttributeSet;
 struct FOnAttributeChangeData;
 class UAttributeSet;
 class UAbilitySystemComponent;
-class INpcAliveCreature;
+class INpcAliveActor;
 class INpc;
 
 /**
@@ -46,8 +47,8 @@ public:
 	FORCEINLINE float GetIntelligence() const { return Intelligence; }
 	FORCEINLINE float GetReaction() const { return Reaction; }
 	FORCEINLINE float GetNormalizedStamina() const { return NormalizedStamina; }
-	FORCEINLINE const FNpcActiveTargetData& GetPrimaryTargetData() const { return PrimaryTargetData; }
-	FORCEINLINE const AActor* GetPrimaryTargetActor() const { return PrimaryTargetData.ActiveTarget.Get(); }
+	FORCEINLINE const FNpcPrimaryCombatTargetData& GetPrimaryTargetData() const { return PrimaryTargetData; }
+	FORCEINLINE const AActor* GetPrimaryTargetActor() const { return PrimaryTargetData.Actor.Get(); }
 	FORCEINLINE void SetBrainPaused(bool bPaused) { bBrainPaused = bPaused; }
 	
 	FORCEINLINE const UNpcCombatParametersDataAsset* GetNpcCombatParameters() const { return NpcCombatParameters; }
@@ -106,7 +107,7 @@ public:
 	void OnDealtDamage(AActor* Actor, float ResultingDamage);
 
 protected:
-	FNpcActiveTargetData PrimaryTargetData;
+	FNpcPrimaryCombatTargetData PrimaryTargetData;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -124,7 +125,7 @@ protected:
 	TScriptInterface<class INpcActorTagsInterface> OwnerTagsActorNPC;
 	
 	UPROPERTY()
-	TScriptInterface<INpcAliveCreature> OwnerAliveCreature;
+	TScriptInterface<INpcAliveActor> OwnerAliveCreature;
 
 	UPROPERTY()
 	TScriptInterface<INpcCombatInterface> OwnerNpcCombatInterface;
@@ -216,7 +217,7 @@ private:
 	void SetStamina(float NewValue);
 	void UpdateAttackRangeInBlackboard();
 	
-	void OnNpcDeathStarted(AActor* OwningActor);
+	void OnNpcDeathStarted(AActor* OwningActor, const FNpcDeathEventData& DeathEventData);
 	void InitializeNpcCombatLogic(AAIController& AIController);
 
 	void UnsubscribeFromDelegates();

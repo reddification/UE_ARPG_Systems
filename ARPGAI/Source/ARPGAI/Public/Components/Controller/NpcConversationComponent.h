@@ -7,6 +7,7 @@
 #include "NpcConversationComponent.generated.h"
 
 
+struct FNpcDeathEventData;
 class INpcInteractionInterface;
 class INpcConversationInterface;
 
@@ -167,7 +168,7 @@ protected:
 	virtual bool CanLeaveConversation() const { return true; };
 	virtual bool CanAbortConversation() const { return true; };
 	
-	virtual void OnOwnerDeathStarted(AActor* Actor);
+	virtual void OnOwnerDeathStarted(AActor* Actor, const FNpcDeathEventData& DeathEventData);
 	
 	void ReceiveConversationAborted();
 	

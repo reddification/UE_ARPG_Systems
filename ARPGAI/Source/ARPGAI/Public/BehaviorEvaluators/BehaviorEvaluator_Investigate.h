@@ -30,6 +30,10 @@ struct FSoundInvestigationParams
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float Score = 1.f;
+	
+	// used only for sorting multiple investigation causes so that investigation utility doesnt explode 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	float PriorityScale = 1.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TArray<FSoundEventTraitInvestigationScale> TraitScales;
@@ -44,6 +48,9 @@ struct FSoundInvestigationParams
 	// after finished investigating sounds, ignore next appearance in radius
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(EditCondition="bCanIgnore"), Category="Can Ignore")
 	float IgnoreRadius = 300.f; 	
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta=(EditCondition="bCanIgnore"), Category="Can Ignore")
+	FGameplayTagContainer IgnoreWhenOwnerHasTags; 	
 };
 
 UCLASS(DisplayName="Investigate")
@@ -109,14 +116,16 @@ private:
 		};
 		
 		FInvestigationCandidate() {  }
-		FInvestigationCandidate(float InScore, const FVector& InLocation, AActor* Causer, const FGameplayTag& InEventTag) 
-		: Score(InScore), Location(InLocation), EventTag(InEventTag), Actor(Causer), InvestigationCause(EInvestigationCause::Sound) { }
+		FInvestigationCandidate(float InScore, float InPriorityScale, const FVector& InLocation, AActor* Causer, const FGameplayTag& InEventTag) 
+			: Score(InScore), PriorityScale(InPriorityScale), Location(InLocation), EventTag(InEventTag), Actor(Causer),
+		InvestigationCause(EInvestigationCause::Sound) { }
 		
-		FInvestigationCandidate(float InScore, AActor* InActor, const FGameplayTag& InterestCauseTag)
-			: Score(InScore), Location(InActor->GetActorLocation()),
+		FInvestigationCandidate(float InScore, float InPriorityScale, AActor* InActor, const FGameplayTag& InterestCauseTag)
+			: Score(InScore), PriorityScale(InPriorityScale), Location(InActor->GetActorLocation()),
 			EventTag(InterestCauseTag), Actor(InActor), InvestigationCause(EInvestigationCause::Actor) { };
 		
 		float Score = 0.f;
+		float PriorityScale = 0.f;
 		FVector Location = FAISystem::InvalidLocation;
 		FGameplayTag EventTag;
 		TWeakObjectPtr<AActor> Actor = nullptr;
@@ -125,9 +134,7 @@ private:
 
 		bool operator < (const FInvestigationCandidate& Other) const
 		{
-			const float MyActorScale = IsValidActorEvent() ? 1.5f : 1.f;
-			const float OtherActorScale = Other.IsValidActorEvent() ? 1.5f : 1.f; 
-			return Score * MyActorScale > Other.Score * OtherActorScale;
+			return Score * PriorityScale > Other.Score * Other.PriorityScale;
 		}
 
 		FString ToString() const;
@@ -165,4 +172,5 @@ private:
 	FInvestigationCandidate ActiveInvestigation;
 	TMap<FGameplayTag, TArray<FIgnoredSound>> IgnoredSoundsLocations;
 	FGameplayTagContainer AttractingSoundsCache;
+	FGameplayTagContainer OwnerTags;
 };

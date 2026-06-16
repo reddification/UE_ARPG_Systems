@@ -42,6 +42,8 @@ float FBehaviorEvaluator_Investigate::UpdatePerception()
 {
 	const auto& ActorHeardSounds = PerceptionComponent->GetHeardSounds();
 	const auto& CharacterPerceptionContainer = PerceptionComponent->GetShortTermCharactersMemory();
+	if (auto OwnerTagsInterface = Cast<INpcActorTagsInterface>(Pawn.Get()))
+		OwnerTags = OwnerTagsInterface->GetTags_NPC();
 	
 	float InvestigationDesire = 0.f;
 	TArray<FInvestigationCandidate, TInlineAllocator<6>> InvestigationCandidates;
@@ -54,37 +56,36 @@ float FBehaviorEvaluator_Investigate::UpdatePerception()
 			auto MatchedSoundTag = GetMatchingSoundTag(HeardSound.SoundTag);
 			if (!MatchedSoundTag.IsValid())
 			{
-				UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Sound %s has no suitable match. Skip"), *HeardSound.SoundTag.ToString());
+				UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Sound %s has no suitable match. Skip"), *HeardSound.SoundTag.ToString());
 				continue;
 			}
 		
 			const auto& SoundParams = InvestigateConfig->AttractingSoundsOptions[MatchedSoundTag];
 			if (IsSoundIgnored(MatchedSoundTag, SoundParams, HeardSound.Location))
 			{
-				UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Sound %s is ignored. Skip"), *HeardSound.SoundTag.ToString());
+				UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Sound %s is ignored. Skip"), *HeardSound.SoundTag.ToString());
 				continue;
 			}
 		
 			const float TraitsScale = GetTraitsScale(SoundParams.TraitScales, HeardSound.Traits);
 			if (TraitsScale == 0.f)
 			{
-				UE_VLOG(AIController.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Sound %s skipped because traits checks scaled it to zero"),
+				UE_VLOG(AIController.Get(), LogAI_Investigation, VeryVerbose, TEXT("Sound %s skipped because traits checks scaled it to zero"),
 					*HeardSound.SoundTag.ToString());
 				continue;
 			}
 		
 			float LocalUtilityAccumulation = SoundParams.Score * HeardSound.Loudness * TraitsScale * DistanceDependency->Eval(HeardSound.Distance);
 
-			InvestigationCandidates.Add(FInvestigationCandidate(LocalUtilityAccumulation, HeardSound.Location, HeardSounds.Key.Get(),
-				MatchedSoundTag));
-			InvestigationTags.AddTag(MatchedSoundTag);
+			InvestigationCandidates.Add(FInvestigationCandidate(LocalUtilityAccumulation, SoundParams.PriorityScale,
+				HeardSound.Location, HeardSounds.Key.Get(), MatchedSoundTag));
 			InvestigationDesire += LocalUtilityAccumulation;
-			UE_VLOG(AIController.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Sound %s [matched %s] is interesting [%.2f]"), *HeardSound.SoundTag.ToString(),
+			UE_VLOG(AIController.Get(), LogAI_Investigation, VeryVerbose, TEXT("Sound %s [matched %s] is interesting [%.2f]"), *HeardSound.SoundTag.ToString(),
 				*MatchedSoundTag.ToString(), LocalUtilityAccumulation);
 		}
 	}
 	
-	UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Accumulated investigation desire from sounds = %.2f"), InvestigationDesire);
+	UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Accumulated investigation desire from sounds = %.2f"), InvestigationDesire);
 
 	if (!InvestigateConfig->ActorInterests.IsEmpty())
 	{
@@ -98,25 +99,26 @@ float FBehaviorEvaluator_Investigate::UpdatePerception()
 				
 				for (const auto& Interest : InvestigateConfig->ActorInterests)
 				{
-					if (Interest.TagsQuery.IsEmpty() && Interest.RelevantAttitudes.IsEmpty() || !CharacterData.Key.IsValid())
+					if (Interest.ActorTagsFilter.IsEmpty() && Interest.RelevantAttitudes.IsEmpty() || !CharacterData.Key.IsValid())
 					{
 						ensure(false);
 						continue;
 					}
 					
+					if (!Interest.OwnerTagsFilter.IsEmpty() && !Interest.OwnerTagsFilter.Matches(OwnerTags))
+						continue;
+					
 					if (Interest.RelevantAttitudes.IsValid() && !CharacterData.Value.Attitude.MatchesAny(Interest.RelevantAttitudes))
 						continue;
 					
-					if (!Interest.TagsQuery.IsEmpty() && !Interest.TagsQuery.Matches(CharacterData.Value.CharacterTags))
+					if (!Interest.ActorTagsFilter.IsEmpty() && !Interest.ActorTagsFilter.Matches(CharacterData.Value.CharacterTags))
 						continue;
 					
 					float ActorInterestScore = DistanceDependencyCurve->Eval(CharacterData.Value.Distance) * Interest.ScoreScale;
-					InvestigationCandidates.Add(FInvestigationCandidate(ActorInterestScore, CharacterData.Key.Get(), Interest.InterestCause));
+					InvestigationCandidates.Add(FInvestigationCandidate(ActorInterestScore, Interest.PriorityScale,
+						CharacterData.Key.Get(), Interest.InterestCause));
 					InvestigationDesire += ActorInterestScore;
-					if (Interest.InterestCause.IsValid())
-						InvestigationTags.AddTag(Interest.InterestCause);
-					
-					UE_VLOG(AIController.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Actor %s is interesting [%.2f] for interest cause [%s]"),
+					UE_VLOG(AIController.Get(), LogAI_Investigation, VeryVerbose, TEXT("Actor %s is interesting [%.2f] for interest cause [%s]"),
 						*CharacterData.Key->GetName(), ActorInterestScore, *Interest.InterestCause.ToString());
 					
 					break;
@@ -125,7 +127,7 @@ float FBehaviorEvaluator_Investigate::UpdatePerception()
 		}
 	}
 	
-	UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Accumulated investigation desire from sounds and actors = %.2f"), InvestigationDesire);
+	UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Accumulated investigation desire from sounds and actors = %.2f"), InvestigationDesire);
 	
 	if (GetState() == EBehaviorEvaluatorState::Activated && !InvestigationCandidates.IsEmpty())
 	{
@@ -137,9 +139,10 @@ float FBehaviorEvaluator_Investigate::UpdatePerception()
 			|| BestCandidate.Score > ActiveInvestigation.Score * InvestigateConfig->ActiveInvestigationPrioritizationScale;
 		if (bUpdateActiveInvestigation)
 		{
-			UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Updating invesitgation:\nPrevious: %s\nNew: %s"),
+			UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Updating invesitgation:\nPrevious: %s\nNew: %s"),
 				*ActiveInvestigation.ToString(), *BestCandidate.ToString());
 			const bool bPreviousInvestigationUrgent = ActiveInvestigation.bUrgent;
+			InvestigationTags.AddTag(BestCandidate.EventTag);
 			ActiveInvestigation = BestCandidate;
 			if (InvestigationCandidates[0].InvestigationCause == FInvestigationCandidate::EInvestigationCause::Actor)
 			{
@@ -181,13 +184,13 @@ FGameplayTag FBehaviorEvaluator_Investigate::GetMatchingSoundTag(const FGameplay
 {
 	if (!SoundTag.MatchesAny(AttractingSoundsCache))
 	{
-		UE_VLOG(AIController.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Sound %s is not interesting. Skip"), *SoundTag.ToString());
+		UE_VLOG(AIController.Get(), LogAI_Investigation, VeryVerbose, TEXT("Sound %s is not interesting. Skip"), *SoundTag.ToString());
 		return FGameplayTag::EmptyTag;
 	}
 	
 	if (InvestigateConfig->AttractingSoundsOptions.Contains(SoundTag))
 	{
-		UE_VLOG(AIController.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Sound %s has direct match in attracting sounds options"), *SoundTag.ToString());
+		UE_VLOG(AIController.Get(), LogAI_Investigation, VeryVerbose, TEXT("Sound %s has direct match in attracting sounds options"), *SoundTag.ToString());
 		return SoundTag;
 	}
 	
@@ -203,7 +206,7 @@ FGameplayTag FBehaviorEvaluator_Investigate::GetMatchingSoundTag(const FGameplay
 		}
 	}
 	
-	UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Found matching sound tag for %s: %s"), *SoundTag.ToString(), *MatchingTag.ToString());
+	UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Found matching sound tag for %s: %s"), *SoundTag.ToString(), *MatchingTag.ToString());
 	return MatchingTag;
 }
 
@@ -212,6 +215,13 @@ bool FBehaviorEvaluator_Investigate::IsSoundIgnored(const FGameplayTag& SoundTag
 {
 	if (!AttractingSoundParams.bCanIgnore)
 		return false;
+	
+	if (OwnerTags.HasAny(AttractingSoundParams.IgnoreWhenOwnerHasTags))
+	{
+		UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Ignoring sound %s because owner has one of tags %s"),
+			*SoundTag.ToString(), *AttractingSoundParams.IgnoreWhenOwnerHasTags.ToStringSimple());
+		return true;
+	}
 	
 	const auto* IgnoredSoundLocations = IgnoredSoundsLocations.Find(SoundTag);
 	if (IgnoredSoundLocations == nullptr)
@@ -224,10 +234,10 @@ bool FBehaviorEvaluator_Investigate::IsSoundIgnored(const FGameplayTag& SoundTag
 	{
 		if (IgnoredSoundLocation.UntilGameTime >= DateTimeNow && (TestLocation - IgnoredSoundLocation.Location).SizeSquared() <= IgnoredSoundRangeSq)
 		{
-			UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Ignoring sound %s because it is in ignored sounds list until %s (now is %s)"),
+			UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Ignoring sound %s because it is in ignored sounds list until %s (now is %s)"),
 				*SoundTag.ToString(), *IgnoredSoundLocation.UntilGameTime.ToFormattedString(TEXT("%j:%H:%M:%S")), *DateTimeNow.ToFormattedString(TEXT("%j:%H:%M:%S")));
-			UE_VLOG_LOCATION(AIController.Get(), LogARPGAI_BE, VeryVerbose, IgnoredSoundLocation.Location, IgnoredSoundRange, FColorList::LightGrey, TEXT("Ignored sound %s area"), *SoundTag.ToString());
-			UE_VLOG_LOCATION(AIController.Get(), LogARPGAI_BE, VeryVerbose, TestLocation, 20, FColorList::BrightGold, TEXT("Ignored sound %s probe"), *SoundTag.ToString());
+			UE_VLOG_LOCATION(AIController.Get(), LogAI_Investigation, VeryVerbose, IgnoredSoundLocation.Location, IgnoredSoundRange, FColorList::LightGrey, TEXT("Ignored sound %s area"), *SoundTag.ToString());
+			UE_VLOG_LOCATION(AIController.Get(), LogAI_Investigation, VeryVerbose, TestLocation, 20, FColorList::BrightGold, TEXT("Ignored sound %s probe"), *SoundTag.ToString());
 			return true;
 		}
 	}
@@ -312,7 +322,7 @@ void FBehaviorEvaluator_Investigate::HandleMessage_Internal(const FGameplayTag& 
 			{
 				auto& IgnoredSoundsContainer = IgnoredSoundsLocations.FindOrAdd(ActiveInvestigation.EventTag);
 				IgnoredSoundsContainer.Add(FIgnoredSound(ActiveInvestigation.Location, GetGameTime(SoundParams->IgnoreDurationGTH)));
-				UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Ignoring sound %s for %.2f GTH"), 
+				UE_VLOG(AIController.Get(), LogAI_Investigation, Verbose, TEXT("Ignoring sound %s for %.2f GTH"), 
 					*ActiveInvestigation.EventTag.ToString(), SoundParams->IgnoreDurationGTH);
 			}
 			

@@ -4,7 +4,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 
 UBTService_UpdateNpcHealthState::UBTService_UpdateNpcHealthState()
 {
@@ -35,18 +35,18 @@ void UBTService_UpdateNpcHealthState::UpdateValues(UBehaviorTreeComponent& Owner
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
 	auto AIController = OwnerComp.GetAIOwner();
 	auto PerceptionComponent = Cast<UNpcPerceptionComponent>(AIController->GetAIPerceptionComponent());
-	auto AliveCreatureInterface = Cast<INpcAliveCreature>(AIController->GetPawn());
-	const float MaxHealth = AliveCreatureInterface->GetMaxHealth_NpcAliveCreature();
+	auto AliveCreatureInterface = Cast<INpcAliveActor>(AIController->GetPawn());
+	const float MaxHealth = AliveCreatureInterface->GetMaxHealth_NPC();
 	
 	if (OutNormalizedHealthBBKey.IsSet())
-		Blackboard->SetValueAsFloat(OutNormalizedHealthBBKey.SelectedKeyName, AliveCreatureInterface->GetHealth_NpcAliveCreature() / MaxHealth);	
+		Blackboard->SetValueAsFloat(OutNormalizedHealthBBKey.SelectedKeyName, AliveCreatureInterface->GetHealth_NPC() / MaxHealth);	
 	
 	if (OutTotalAccumulatedDamageBBKey.IsSet())
 		Blackboard->SetValueAsFloat(OutTotalAccumulatedDamageBBKey.SelectedKeyName, PerceptionComponent->GetAccumulatedDamage(false) / MaxHealth);
 	
 	if (OutIndividualAccumulatedDamageBBKey.IsSet() && OptionalCurrentTargetBBKey.IsSet())
 		if (auto CurrentTarget = Cast<AActor>(Blackboard->GetValueAsObject(OptionalCurrentTargetBBKey.SelectedKeyName)))
-			if (const auto* CharacterPerceptionData = PerceptionComponent->GetCharacterPerceptionData(CurrentTarget))
+			if (const auto* CharacterPerceptionData = PerceptionComponent->GetShortTermCharactersMemory(CurrentTarget))
 				Blackboard->SetValueAsFloat(OutIndividualAccumulatedDamageBBKey.SelectedKeyName, CharacterPerceptionData->ShortTermAccumulatedDamage / MaxHealth);
 }
 

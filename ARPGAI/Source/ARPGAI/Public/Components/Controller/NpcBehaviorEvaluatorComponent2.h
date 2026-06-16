@@ -130,7 +130,6 @@ private:
 	TWeakObjectPtr<APawn> Pawn;
 	
 	TMap<FGameplayTag, FBehaviorEvaluatorWrapper> BehaviorEvaluators;
-	FGameplayTag ActiveBehaviorId = FGameplayTag::EmptyTag;
 	FGameplayTagContainer NpcTags;
 	bool bUpdatingEvaluatorsStates = false;
 };

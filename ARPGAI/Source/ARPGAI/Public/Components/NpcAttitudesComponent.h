@@ -63,7 +63,7 @@ protected:
 private:
 	void SetAttitudePresetInternal(const FGameplayTag& InAttitudePreset);
 	void CleanRememberedHitsFromCharacters();
-	FDateTime GetDateTime(float ForDurationGTH) const;
+	FDateTime GetGameWorldTime(float ForDurationGTH = 0.f) const;
 	
 	struct FReceivedHitsCountMemory
 	{

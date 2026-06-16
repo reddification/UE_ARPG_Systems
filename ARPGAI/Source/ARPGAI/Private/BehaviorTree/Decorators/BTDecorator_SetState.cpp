@@ -1,11 +1,7 @@
-﻿// 
-
-
-#include "BehaviorTree/Decorators/BTDecorator_SetState.h"
-
-#include "AIHelpers.h"
+﻿#include "BehaviorTree/Decorators/BTDecorator_SetState.h"
 #include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Components/NpcComponent.h"
 
 UBTDecorator_SetState::UBTDecorator_SetState()
 {

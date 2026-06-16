@@ -10,7 +10,7 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/Character.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Interfaces/Npc.h"
 #include "Widgets/NpcStateCategoryWidget.h"
 
@@ -19,7 +19,7 @@ void UNpcStateWidget::SetNPC_Implementation(APawn* InOwnerCharacter)
 	OwnerCharacter = InOwnerCharacter;
 
 	auto Npc = Cast<INpc>(InOwnerCharacter);
-	auto AliveCreature = Cast<INpcAliveCreature>(InOwnerCharacter);
+	auto AliveCreature = Cast<INpcAliveActor>(InOwnerCharacter);
 	auto ASCOwner = Cast<IAbilitySystemInterface>(InOwnerCharacter);
 	auto ASC = ASCOwner->GetAbilitySystemComponent();
 	auto NpcCombatComponent = InOwnerCharacter->FindComponentByClass<UNpcComponent>();
@@ -27,12 +27,12 @@ void UNpcStateWidget::SetNPC_Implementation(APawn* InOwnerCharacter)
 	NameTextblock->SetText(Npc->GetNpcName());
 
 	bool bFound;
-	auto HealthAttribute = AliveCreature->GetHealthAttribute_NpcAliveCreature();
+	auto HealthAttribute = AliveCreature->GetHealthAttribute_NPC();
 	Health = ASC->GetGameplayAttributeValue(HealthAttribute, bFound);
 	if (bFound)
 		ASC->GetGameplayAttributeValueChangeDelegate(HealthAttribute).AddUObject(this, &UNpcStateWidget::OnNpcHealthChanged);
 
-	auto MaxHealthAttribute = AliveCreature->GetMaxHealthAttribute_NpcAliveCreature();
+	auto MaxHealthAttribute = AliveCreature->GetMaxHealthAttribute_NPC();
 	MaxHealth = ASC->GetGameplayAttributeValue(MaxHealthAttribute, bFound);
 	if (bFound)
 		ASC->GetGameplayAttributeValueChangeDelegate(MaxHealthAttribute).AddUObject(this, &UNpcStateWidget::OnNpcMaxHealthChanged);
@@ -47,22 +47,22 @@ void UNpcStateWidget::SetNPC_Implementation(APawn* InOwnerCharacter)
 	if (bFound)
 		ASC->GetGameplayAttributeValueChangeDelegate(MaxAggressionAttribute).AddUObject(this, &UNpcStateWidget::MaxOnAggressionChanged);
 
-	auto PoiseAttribute = AliveCreature->GetPoiseAttribute_NpcAliveCreature();
+	auto PoiseAttribute = AliveCreature->GetPoiseAttribute_NPC();
 	Poise = ASC->GetGameplayAttributeValue(PoiseAttribute, bFound);
 	if (bFound)
 		ASC->GetGameplayAttributeValueChangeDelegate(PoiseAttribute).AddUObject(this, &UNpcStateWidget::OnPoiseChanged);
 
-	auto MaxPoiseAttribute = AliveCreature->GetMaxPoiseAttribute_NpcAliveCreature();
+	auto MaxPoiseAttribute = AliveCreature->GetMaxPoiseAttribute_NPC();
 	MaxPoise = ASC->GetGameplayAttributeValue(MaxPoiseAttribute, bFound);
 	if (bFound)
 		ASC->GetGameplayAttributeValueChangeDelegate(MaxPoiseAttribute).AddUObject(this, &UNpcStateWidget::OnMaxPoiseChanged);
 
-	auto StaminaAttribute = AliveCreature->GetStaminaAttribute_NpcAliveCreature();
+	auto StaminaAttribute = AliveCreature->GetStaminaAttribute_NPC();
 	Stamina = ASC->GetGameplayAttributeValue(StaminaAttribute, bFound);
 	if (bFound)
 		ASC->GetGameplayAttributeValueChangeDelegate(StaminaAttribute).AddUObject(this, &UNpcStateWidget::OnStaminaChanged);
 
-	auto MaxStaminaAttribute = AliveCreature->GetMaxStaminaAttribute_NpcAliveCreature();
+	auto MaxStaminaAttribute = AliveCreature->GetMaxStaminaAttribute_NPC();
 	MaxStamina = ASC->GetGameplayAttributeValue(MaxStaminaAttribute, bFound);
 	if (bFound)
 		ASC->GetGameplayAttributeValueChangeDelegate(MaxStaminaAttribute).AddUObject(this, &UNpcStateWidget::OnMaxStaminaChanged);

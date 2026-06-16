@@ -147,8 +147,6 @@ void UNpcBehaviorEvaluatorComponent2::ActivateBehavior(const FGameplayTag& Evalu
 	}
 	
 	SetEvaluatorState(*BEW, EBehaviorEvaluatorState::Activated);
-	ActiveBehaviorId = EvaluatorId;
-	
 	UpdateEvaluatorsStates();
 }
 

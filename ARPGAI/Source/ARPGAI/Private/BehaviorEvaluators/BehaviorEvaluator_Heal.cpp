@@ -3,7 +3,7 @@
 #include "AIController.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/LogChannels.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 
 TUniquePtr<FBehaviorEvaluator_Base> UBehaviorEvaluatorConfig_Heal::CreateEvaluator(UBehaviorTreeComponent* BTComponent) const
 {
@@ -21,14 +21,14 @@ void FBehaviorEvaluator_Heal::Update(const float DeltaTime)
 	Super::Update(DeltaTime);
 	const float RegressionOffset = GetUtilityOffset();
 
-	auto OwnerAliveCreature = Cast<INpcAliveCreature>(Pawn.Get());
+	auto OwnerAliveCreature = Cast<INpcAliveActor>(Pawn.Get());
 	
 	float Desire = 0.f;
-	const float NormalizedHealth = OwnerAliveCreature->GetHealth_NpcAliveCreature() / OwnerAliveCreature->GetMaxHealth_NpcAliveCreature();
+	const float NormalizedHealth = OwnerAliveCreature->GetHealth_NPC() / OwnerAliveCreature->GetMaxHealth_NPC();
 	if (auto Dependency = HealConfig->NormalizedHealthToDesireDependency.GetRichCurveConst())
 		Desire = Dependency->Eval(NormalizedHealth);
 	
-	UE_VLOG(AIController.Get(), LogARPGAI_BE_Heal, Verbose, TEXT("Heal health-based (%.2f) desire = %.2f"),
+	UE_VLOG(AIController.Get(), LogAI_Heal, Verbose, TEXT("Heal health-based (%.2f) desire = %.2f"),
 		NormalizedHealth, Desire);
 	
 	float Reluctance = 0.f;
@@ -46,15 +46,15 @@ void FBehaviorEvaluator_Heal::Update(const float DeltaTime)
 			Reluctance += IndividualReluctance;
 			
 #if WITH_EDITOR
-			UE_VLOG(AIController.Get(), LogARPGAI_BE_Heal, Verbose, TEXT("Heal distance-based reluctance = %.2f. From %s"),
+			UE_VLOG(AIController.Get(), LogAI_Heal, Verbose, TEXT("Heal distance-based reluctance = %.2f. From %s"),
 				IndividualReluctance, *PerceptionItem.Value.CharacterId.ToString());
-			UE_VLOG_CAPSULE(AIController.Get(), LogARPGAI_BE_Heal, VeryVerbose,
+			UE_VLOG_CAPSULE(AIController.Get(), LogAI_Heal, VeryVerbose,
 				PerceptionItem.Key->GetActorLocation() - FVector::UpVector * 90.f, 90.f, 30.f, FQuat::Identity, 
 				FColorList::DarkOrchid, TEXT("Heal reluctance: %.2f [%s]"), IndividualReluctance, *PerceptionItem.Value.CharacterId.ToString());
 #endif
 		}
 	
-		UE_VLOG(AIController.Get(), LogARPGAI_BE_Heal, Verbose, TEXT("Heal total reluctance = %.2f"), Reluctance);
+		UE_VLOG(AIController.Get(), LogAI_Heal, Verbose, TEXT("Heal total reluctance = %.2f"), Reluctance);
 	}
 	
 	InterpolateUtility(RegressionOffset + Desire - Reluctance, DeltaTime);

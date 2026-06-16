@@ -11,6 +11,7 @@ UBTService_SolveSquadLeaderFollowBehavior::UBTService_SolveSquadLeaderFollowBeha
 	NodeName = "Solve squad leader follow behavior";
 	OutCloseToSquadLeaderBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_SolveSquadLeaderFollowBehavior, OutCloseToSquadLeaderBBKey));
 	SquadLeaderBBKey.AddObjectFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_SolveSquadLeaderFollowBehavior, SquadLeaderBBKey), AActor::StaticClass());
+	bCanTickOnSearchStartBeExposed = true;
 	bCallTickOnSearchStart = true;
 }
 

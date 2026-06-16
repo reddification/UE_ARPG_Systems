@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "BehaviorEvaluator_Heal.generated.h"
 
-class INpcAliveCreature;
+class INpcAliveActor;
 /**
  * 
  */

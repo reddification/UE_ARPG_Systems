@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
 #include "Data/NpcActivitiesDataTypes.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "UObject/Object.h"
 #include "NpcSquadSubsystem.generated.h"
 
@@ -32,7 +33,7 @@ class ARPGAI_API UNpcSquadSubsystem : public UWorldSubsystem
 
 public:
 	static UNpcSquadSubsystem* Get(const UObject* WorldContextObject);
-	
+
 	UFUNCTION(BlueprintCallable)
 	void RegisterNpc(const FGameplayTag& NpcIdTag, APawn* Pawn);
 
@@ -49,6 +50,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void JoinOrCreateSquad(APawn* SquadMember, const FGuid& SquadId);
 
+	// Does NOT include self
 	UFUNCTION(BlueprintCallable)
 	TArray<APawn*> GetAllies(const APawn* RequestorNpc, bool bIgnoreDead) const;
 	
@@ -79,4 +81,5 @@ private:
 	// TODO @AK 29.07.2025 consider replacing TWeakObjectPtr to SoftObjectPtr. I assume world partition/level streaming can fuck up these containers
 	TMap<FGuid, FSquadData> Squads;
 	TMap<TWeakObjectPtr<APawn>, FGuid> SquadsReverseLookup;
+	void OnSquadMemberDeathStarted(AActor* Actor, const FNpcDeathEventData& NpcDeathEventData);
 };

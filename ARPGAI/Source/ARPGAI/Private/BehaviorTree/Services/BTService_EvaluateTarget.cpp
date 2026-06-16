@@ -77,7 +77,7 @@ void UBTService_EvaluateTarget::UpdatePropertiesInBlackboard(UBehaviorTreeCompon
 	if (auto Target = Cast<AActor>(Blackboard->GetValueAsObject(TargetBBKey.SelectedKeyName)))
 	{
 		auto NpcPerceptionComponent = Cast<UNpcPerceptionComponent>(BTComponent.GetAIOwner()->GetAIPerceptionComponent());
-		if (auto CharacterPerceptionData = NpcPerceptionComponent->GetCharacterPerceptionData(Target))
+		if (auto CharacterPerceptionData = NpcPerceptionComponent->GetShortTermCharactersMemory(Target))
 		{
 			Blackboard->SetValue<UBlackboardKeyType_GameplayTag>(OutAttitudeBBKey.GetSelectedKeyID(), CharacterPerceptionData->Attitude.GetSingleTagContainer());
 			Blackboard->SetValue<UBlackboardKeyType_GameplayTag>(OutTargetTagsBBKey.GetSelectedKeyID(), CharacterPerceptionData->CharacterTags);

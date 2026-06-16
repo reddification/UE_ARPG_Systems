@@ -11,7 +11,7 @@
 #include "Data/AIGameplayTags.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "EnvironmentQuery/EnvQuery.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISense_Sight.h"
 
@@ -32,8 +32,8 @@ float UNpcReactionEvaluator_ToCharacter::ProcessPerceptionInternal(AAIController
 	PerceptionComponent->GetCurrentlyPerceivedActors(UAISense_Sight::StaticClass(), SeenActors);
 	for (auto TargetActor : SeenActors)
 	{
-		if (auto AliveCreature = Cast<INpcAliveCreature>(TargetActor))
-			if (!AliveCreature->IsAlive_NpcAliveCreature())
+		if (auto AliveCreature = Cast<INpcAliveActor>(TargetActor))
+			if (!AliveCreature->IsAlive_NPC())
 				continue;
 		
 		const float DistSq = (NpcPawnLocation - TargetActor->GetActorLocation()).SizeSquared();

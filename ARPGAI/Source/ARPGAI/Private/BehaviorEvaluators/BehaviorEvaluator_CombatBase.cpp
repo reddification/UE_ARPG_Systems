@@ -2,6 +2,7 @@
 
 #include "AIController.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Components/NpcAreasComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/LogChannels.h"
@@ -34,22 +35,20 @@ float FBehaviorEvaluator_CombatBase::Evaluate()
 	FRelativeOperationContext RelativeOperationData = GetRelativeOperationContext();
 	FActorScoresContainer Enemies; 
 	const auto& CharactersMemories = PerceptionComponent->GetShortTermCharactersMemory();
+	bool bEvaluatorActivated = GetState() == EBehaviorEvaluatorState::Activated;
 	for (const auto& CharacterMemory : CharactersMemories)
 	{
 		ExecuteEntityOperations(CharacterMemory.Key.Get(), CharacterMemory.Value, RelativeOperationData,
 			Enemies, OperationsConfig->EnemiesEvaluationParameters);
 		
-		const bool bStoreEnemyMemoryData = CharacterMemory.Value.bHostile
-			&& GetState() == EBehaviorEvaluatorState::Activated
-			&& IsDetectable(CharacterMemory.Value.DetectionSource);
-		
-		if (bStoreEnemyMemoryData)
+		if (CharacterMemory.Value.bHostile && bEvaluatorActivated && IsDetectable(CharacterMemory.Value.DetectionSource))
 		{
+			FVector ActorLocation = CharacterMemory.Key->GetActorLocation();
 			FNpcEnemyCombatMemory EnemyMemoryDataItem;
 			EnemyMemoryDataItem.bAlive = CharacterMemory.Value.bAlive;
 			EnemyMemoryDataItem.CurrentDetectionSource = CharacterMemory.Value.DetectionSource;
-			EnemyMemoryDataItem.LastSeenLocation = CharacterMemory.Key->GetActorLocation();
-			EnemyMemoryDataItem.LastUpdateTime = Pawn->GetWorld()->GetTimeSeconds(); 
+			EnemyMemoryDataItem.LastSeenLocation = ActorLocation;
+			EnemyMemoryDataItem.LastUpdateTime = Pawn->GetWorld()->GetTimeSeconds();
 			EnemyMemoryData.Add(CharacterMemory.Key.Get(), EnemyMemoryDataItem);
 		}
 	}
@@ -57,13 +56,13 @@ float FBehaviorEvaluator_CombatBase::Evaluate()
 	float StatePressure = CalculateStatePressure();
 	float EnemyPressure = GetEntitiesAggregatedScore(Enemies, OperationsConfig->EnemiesEvaluationParameters);
 	
-	if (GetState() == EBehaviorEvaluatorState::Activated)
-		UpdateAiBehaviorState(Enemies);
+	if (bEvaluatorActivated)
+		UpdateBehaviorStateData(Enemies);
 	
 	return CalculateCombatUtility(EnemyPressure, StatePressure);
 }
 
-void FBehaviorEvaluator_CombatBase::OnIndividualScoreCalculated(AActor* Actor, const FCharacterPerceptionData& ActorPerception, float IndividualScore)
+void FBehaviorEvaluator_CombatBase::OnIndividualScoreCalculated(AActor* Actor, const FCharacterShortTermMemory& ActorPerception, float IndividualScore)
 {
 	if (GetState() != EBehaviorEvaluatorState::Activated)
 		return;
@@ -72,7 +71,33 @@ void FBehaviorEvaluator_CombatBase::OnIndividualScoreCalculated(AActor* Actor, c
 		NpcImmediateThreatData.Add(Actor, FNpcImmediateThreatData(IndividualScore, ActorPerception.AttackRange));
 }
 
-void FBehaviorEvaluator_CombatBase::UpdateAiBehaviorState(const FActorScoresContainer& PotentialEnemies) const
+bool FBehaviorEvaluator_CombatBase::IsTargetUpdateRedundant(AActor* BestTarget, const FNpcPrimaryCombatTargetData& CurrentPrimaryTargetData) const
+{
+	bool IsUpdateRedundant = false;
+	if (CurrentPrimaryTargetData.Actor.IsValid() && CurrentPrimaryTargetData.BehaviorType == CombatConfig->BehaviorEvaluatorTag)
+	{
+		if (CurrentPrimaryTargetData.Actor == BestTarget)
+		{
+			IsUpdateRedundant = true;
+		}
+		else
+		{
+			const auto& CharactersMemories = PerceptionComponent->GetShortTermCharactersMemory();
+			bool bCurrentEnemyIsAlive = CharactersMemories.Contains(CurrentPrimaryTargetData.Actor) && CharactersMemories[CurrentPrimaryTargetData.Actor].bAlive;
+			const float WorldTimeNow = Pawn->GetWorld()->GetTimeSeconds();
+			IsUpdateRedundant = bCurrentEnemyIsAlive && WorldTimeNow - LastTargetSwitchTime < CombatConfig->TargetSwitchDelay;
+			if (IsUpdateRedundant)
+			{
+				UE_CVLOG(BaseConfig->bLogEnabled, Pawn.Get(), LogARPGAI_BE_Combat, Verbose, TEXT("Not updating target because of target switch delay [current: %s, new: %s]"),
+				        *CurrentPrimaryTargetData.Actor->GetName(), *BestTarget->GetName());
+			}
+		}
+	}
+	
+	return IsUpdateRedundant;
+}
+
+void FBehaviorEvaluator_CombatBase::UpdateBehaviorStateData(const FActorScoresContainer& PotentialEnemies)
 {
 	// already sorted in scores calculation
 	// ensure(EnemiesData.bSorted);
@@ -98,8 +123,8 @@ void FBehaviorEvaluator_CombatBase::UpdateAiBehaviorState(const FActorScoresCont
 	{
 		ensure(BestTarget != Pawn.Get());
 		const auto& CurrentPrimaryTargetData = CombatLogicComponent->GetPrimaryTargetData();
-		const bool IsUpdateRedundant = CurrentPrimaryTargetData.ActiveTarget == BestTarget 
-			&& CurrentPrimaryTargetData.ActiveBehaviorTypeTag == CombatConfig->BehaviorEvaluatorTag;
+		bool IsUpdateRedundant = IsTargetUpdateRedundant(BestTarget, CurrentPrimaryTargetData);
+		
 		if (!IsUpdateRedundant)
 		{
 	#if WITH_EDITOR
@@ -108,6 +133,7 @@ void FBehaviorEvaluator_CombatBase::UpdateAiBehaviorState(const FActorScoresCont
 			
 			CombatLogicComponent->SetCurrentCombatTarget(BestTarget, CombatConfig->BehaviorEvaluatorTag);
 			Blackboard->SetValueAsObject(CombatConfig->CombatTargetBBKey.SelectedKeyName, BestTarget);
+			LastTargetSwitchTime = Pawn->GetWorld()->GetTimeSeconds();
 		}
 	}
 	else if (CombatLogicComponent->GetPrimaryTargetData().IsValid())
@@ -148,13 +174,8 @@ void FBehaviorEvaluator_CombatBase::Cleanup()
 		CombatLogicComponent->ClearEnemiesData();
 		CombatLogicComponent->OnCombatBehaviorEnded();
 	}
-}
-
-bool FBehaviorEvaluator_CombatBase::IsCharacterRelevant(const FCharacterPerceptionData& CharacterPerceptionData,
-	const FEntityOperationEvaluationParameters& EvaluationParameters) const
-{
-	return Super::IsCharacterRelevant(CharacterPerceptionData, EvaluationParameters) 
-		&& CharacterPerceptionData.IsHostile();
+	
+	LastTargetSwitchTime = 0.0f;
 }
 
 bool IsDetectable(EDetectionSource DetectionSource)
@@ -164,24 +185,27 @@ bool IsDetectable(EDetectionSource DetectionSource)
 
 #if WITH_EDITOR
 
-void FBehaviorEvaluator_CombatBase::LogTargetChange(AActor* BestTarget, const FNpcActiveTargetData& CurrentPrimaryTargetData) const
+void FBehaviorEvaluator_CombatBase::LogTargetChange(AActor* BestTarget, const FNpcPrimaryCombatTargetData& CurrentPrimaryTargetData) const
 {
+	if (!BaseConfig->bLogEnabled)
+		return;
+	
 	FGameplayTag NewTargetId;
-	if (auto NewTargetAliveInterface = Cast<INpcAliveCreature>(BestTarget))
-		NewTargetId = NewTargetAliveInterface->GetTagId_NpcAliveCreature();
+	if (auto NewTargetAliveInterface = Cast<INpcAliveActor>(BestTarget))
+		NewTargetId = NewTargetAliveInterface->GetTagId_NPC();
 			
 	UE_VLOG(AIController.Get(), LogARPGAI_BE_Combat, Log, TEXT("Selected new target [%s]"), *NewTargetId.ToString());
 	UE_VLOG_LOCATION(AIController.Get(), LogARPGAI_BE_Combat, Log, BestTarget->GetActorLocation(), 25, FColorList::BrightGold,
 					 TEXT("New target [%s]"), *NewTargetId.ToString());
 			
-	if (CurrentPrimaryTargetData.ActiveTarget.IsValid())
+	if (CurrentPrimaryTargetData.Actor.IsValid())
 	{
 		FGameplayTag OldTargetId;
-		if (auto OldTargetAliveInterface = Cast<INpcAliveCreature>(CurrentPrimaryTargetData.ActiveTarget))
-			OldTargetId = OldTargetAliveInterface->GetTagId_NpcAliveCreature();
+		if (auto OldTargetAliveInterface = Cast<INpcAliveActor>(CurrentPrimaryTargetData.Actor))
+			OldTargetId = OldTargetAliveInterface->GetTagId_NPC();
 				
 		UE_VLOG(AIController.Get(), LogARPGAI_BE_Combat, Log, TEXT("Old target [%s]"), *OldTargetId.ToString());
-		UE_VLOG_LOCATION(AIController.Get(), LogARPGAI_BE_Combat, Log, CurrentPrimaryTargetData.ActiveTarget->GetActorLocation(), 25, FColorList::OldGold,
+		UE_VLOG_LOCATION(AIController.Get(), LogARPGAI_BE_Combat, Log, CurrentPrimaryTargetData.Actor->GetActorLocation(), 25, FColorList::OldGold,
 						 TEXT("Old target [%s]"), *OldTargetId.ToString());
 	}
 	else

@@ -11,8 +11,8 @@ UBTTask_ChangeIntegerValue::UBTTask_ChangeIntegerValue()
 EBTNodeResult::Type UBTTask_ChangeIntegerValue::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	auto Blackboard = OwnerComp.GetBlackboardComponent();
-	auto CurrentValue = Blackboard->GetValueAsFloat(IntegerBBKey.SelectedKeyName);
-	Blackboard->SetValueAsFloat(IntegerBBKey.SelectedKeyName, CurrentValue + DeltaValue);
+	auto CurrentValue = Blackboard->GetValueAsInt(IntegerBBKey.SelectedKeyName);
+	Blackboard->SetValueAsInt(IntegerBBKey.SelectedKeyName, CurrentValue + DeltaValue);
 	return EBTNodeResult::Succeeded;
 }
 

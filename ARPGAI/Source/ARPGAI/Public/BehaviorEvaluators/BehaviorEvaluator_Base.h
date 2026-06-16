@@ -2,7 +2,6 @@
 
 #include "GameplayTagContainer.h"
 #include "BehaviorTree/BlackboardData.h"
-#include "Data/AiDataTypes.h"
 #include "BehaviorTree/BlackboardAssetProvider.h"
 #include "Data/BehaviorEvaluatorDataTypes.h"
 #include "Data/BehaviorEvaluatorStateEffects.h"
@@ -96,6 +95,9 @@ public:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TSoftObjectPtr<UBlackboardData> Blackboard;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool bLogEnabled = true;
 
 	virtual UBlackboardData* GetBlackboardAsset() const override;
 	
@@ -129,7 +131,6 @@ public:
 	
 	virtual bool CanHandleMessages() const;
 	virtual void Cleanup();
-	
 
 protected:
 	TWeakObjectPtr<UBlackboardComponent> Blackboard;

@@ -1,12 +1,11 @@
-﻿
+﻿#include "BehaviorTree/Services/BTService_SetStateEffects.h"
 
-#include "BehaviorTree/Services/BTService_SetStateEffects.h"
-
-#include "AIHelpers.h"
+#include "AIController.h"
 #include "BlackboardKeyType_GameplayTag.h"
 #include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorTree/BehaviorTree.h"
 #include "BehaviorTree/BlackboardComponent.h"
+#include "Components/NpcComponent.h"
 #include "Data/LogChannels.h"
 
 UBTService_SetStateEffects::UBTService_SetStateEffects()

@@ -1,7 +1,4 @@
-﻿// 
-
-
-#include "FlowGraph/Nodes/FlowNode_NpcGoal_StayInQueue.h"
+﻿#include "FlowGraph/Nodes/FlowNode_NpcGoal_StayInQueue.h"
 
 #include "BlackboardKeyType_GameplayTag.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -11,7 +8,7 @@
 #include "Data/LogChannels.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "GameFramework/GameModeBase.h"
-#include "Interfaces/NpcSystemGameMode.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 #include "Subsystems/NpcQueueSubsystem.h"
 
 ENpcGoalStartResult UFlowNode_NpcGoal_StayInQueue::Start()
@@ -162,7 +159,7 @@ void UFlowNode_NpcGoal_StayInQueue::UpdateQueuePosition(
 
 	if (NpcQueueMemberPosition.PlaceInQueue == 0 && !ActualGoalParameters->bStayInQueueIndefinitely)
 	{
-		auto GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
+		auto GameMode = Cast<INpcGameWorldTimeManager>(GetWorld()->GetAuthGameMode());
 		float RealTimeDuration = GameMode->ConvertGameTimeToRealTime(ActualGoalParameters->FirstInQueueGameTimeDuration);
 		BlackboardComponent->SetValueAsFloat(BlackboardKeys->StayAtTheBeginningOfQueueTimeBBKey.SelectedKeyName, RealTimeDuration);
 	}

@@ -4,16 +4,16 @@
 #include "Settings/NpcCombatSettings.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "AbilitySet.h"
+#include "AIHelpers.h"
 #include "ExtendableAbilitySystemComponentInterface.h"
 #include "Data/LogChannels.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "GameFramework/Character.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Interfaces/Npc.h"
 #include "Interfaces/NpcActorTagsInterface.h"
 #include "Interfaces/NpcControllerInterface.h"
-#include "Interfaces/NpcSystemGameMode.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Subsystems/NpcRegistrationSubsystem.h"
 #include "Subsystems/NpcSquadSubsystem.h"
@@ -84,7 +84,7 @@ void UNpcComponent::InitializeNpcComponent()
 	OwnerActorTagsNPC.SetInterface(Cast<INpcActorTagsInterface>(OwnerPawnLocal));
 	
 	OwnerAliveCreature.SetObject(OwnerPawnLocal);
-	OwnerAliveCreature.SetInterface(Cast<INpcAliveCreature>(OwnerPawnLocal));
+	OwnerAliveCreature.SetInterface(Cast<INpcAliveActor>(OwnerPawnLocal));
 	
 	auto AsTeamAgent = Cast<IGenericTeamAgentInterface>(OwnerPawnLocal);
 	AsTeamAgent->SetGenericTeamId(GetDefault<UNpcCombatSettings>()->DefaultPerceptionTeamId);
@@ -119,6 +119,9 @@ void UNpcComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 		if (auto NSS = World->GetSubsystem<UNpcSquadSubsystem>())
 			NSS->UnregisterNpc(GetNpcIdTag(), OwnerPawn.Get());
+		
+		if (TempTagsPollTimer.IsValid())
+			World->GetTimerManager().ClearTimer(TempTagsPollTimer);
 	}
 	
 	Super::EndPlay(EndPlayReason);
@@ -236,20 +239,65 @@ void UNpcComponent::RemoveBehaviorStack(const FGameplayTag& BehaviorId)
 	BehaviorStack.Remove(BehaviorId);
 }
 
+// 6 June 2026 (aki): current implementation is shit. what is this fucking polling? are you fucking stupid? 
+// TODO implement game world time manager with proper schedulling and callbacks
+void UNpcComponent::GrantTempTags(const FGameplayTagContainer& GrantedTags, float DurationGTH)
+{
+	if (!IsValid(OwnerActorTagsNPC.GetObject()))
+		return;
+	
+	FDateTime UntilGameTime = GetGameWorldTime(this, DurationGTH);
+	OwnerActorTagsNPC->GiveTags_NPC(GrantedTags);
+	for (const auto& Tag : GrantedTags)
+	{
+		if (TemporarilyGrantedTags.Contains(Tag))
+		{
+			if (TemporarilyGrantedTags[Tag] < UntilGameTime)
+			{
+				TemporarilyGrantedTags[Tag] = UntilGameTime;
+				UE_VLOG(GetOwner(), LogARPGAI, Verbose, TEXT("Updated temp tag [%s] duration to %s"), *Tag.ToString(), *UntilGameTime.ToFormattedString(TEXT("%j:%H:%M:%S")));
+			}
+		}
+		else
+		{
+			TemporarilyGrantedTags.Add(Tag, UntilGameTime);
+			UE_VLOG(GetOwner(), LogARPGAI, Verbose, TEXT("Added temp tag [%s] until %s"), *Tag.ToString(), *UntilGameTime.ToFormattedString(TEXT("%j:%H:%M:%S")));
+		}
+	}
+	
+	if (!TempTagsPollTimer.IsValid())
+		GetWorld()->GetTimerManager().SetTimer(TempTagsPollTimer, this, &UNpcComponent::PollTempTags, 3.f, true);
+}
+
+void UNpcComponent::RemoveTempTags(const FGameplayTag& RemovedTag)
+{
+	if (TemporarilyGrantedTags.Contains(RemovedTag))
+	{
+		if (IsValid(OwnerActorTagsNPC.GetObject()))
+			OwnerActorTagsNPC->RemoveTag_NPC(RemovedTag);
+		
+		TemporarilyGrantedTags.Remove(RemovedTag);
+		if (TemporarilyGrantedTags.IsEmpty() && TempTagsPollTimer.IsValid())
+			GetWorld()->GetTimerManager().ClearTimer(TempTagsPollTimer);
+	}
+}
+
+void UNpcComponent::GrantTags(const FGameplayTagContainer& Tags)
+{
+	if (IsValid(OwnerActorTagsNPC.GetObject()))
+		OwnerActorTagsNPC->GiveTags_NPC(Tags);
+}
+
 UBlackboardComponent* UNpcComponent::GetBlackboardComponent() const
 {
 	if (OwnerPawn.IsValid())
-	{
 		if (AAIController* AIController = Cast<AAIController>(OwnerPawn->GetController()))
-		{
 			return AIController->GetBlackboardComponent();
-		}
-	}
 
 	return nullptr;
 }
 
-void UNpcComponent::OnNpcDeathStarted(AActor* OwningActor)
+void UNpcComponent::OnNpcDeathStarted(AActor* OwningActor, const FNpcDeathEventData& DeathEventData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcComponent::OnNpcDeathStarted)
 	
@@ -267,6 +315,33 @@ void UNpcComponent::OnNpcDeathStarted(AActor* OwningActor)
 void UNpcComponent::OnNpcDeathFinished(AActor* OwningActor)
 {
 	//EnableRagdoll(Cast<ACharacter>(GetOwner())); // already called from death ability
+}
+
+void UNpcComponent::PollTempTags()
+{
+	if (!IsValid(OwnerActorTagsNPC.GetObject()))
+	{
+		GetWorld()->GetTimerManager().ClearTimer(TempTagsPollTimer);
+		TemporarilyGrantedTags.Empty();
+		return;
+	}
+	
+	FDateTime GameWorldTime = GetGameWorldTime(this);
+	FGameplayTagContainer RemovedTags;
+	for (const auto& TempTag : TemporarilyGrantedTags)
+		if (TempTag.Value <= GameWorldTime)
+			RemovedTags.AddTagFast(TempTag.Key);
+
+	if (!RemovedTags.IsEmpty())
+	{
+		UE_VLOG(GetOwner(), LogARPGAI, Verbose, TEXT("Removing expired temp tags: [%s] "), *RemovedTags.ToStringSimple());
+		OwnerActorTagsNPC->RemoveTags_NPC(RemovedTags);
+		for (const auto& ObsoleteTagHandle : RemovedTags)
+			TemporarilyGrantedTags.Remove(ObsoleteTagHandle);
+	}
+	
+	if (TemporarilyGrantedTags.IsEmpty())
+		GetWorld()->GetTimerManager().ClearTimer(TempTagsPollTimer);
 }
 
 const FGameplayTag& UNpcComponent::GetNpcIdTag() const
@@ -291,8 +366,8 @@ void UNpcComponent::RegisterDeathEvents()
 {
 	if (ensure(IsValid(OwnerNPC.GetObject())))
 	{
-		OwnerAliveCreature->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcComponent::OnNpcDeathStarted);
-		OwnerAliveCreature->OnNpcAliveCreatureDeathFinished.AddUObject(this, &UNpcComponent::OnNpcDeathFinished);
+		OwnerAliveCreature->OnNpcAliveActorDeathStarted.AddUObject(this, &UNpcComponent::OnNpcDeathStarted);
+		OwnerAliveCreature->OnNpcAliveActorDeathFinished.AddUObject(this, &UNpcComponent::OnNpcDeathFinished);
 	}
 }
 

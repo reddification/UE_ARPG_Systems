@@ -1,15 +1,15 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "BehaviorEvaluators/BehaviorEvaluator_Base.h"
 #include "Data/NpcDTR.h"
 #include "GAS/Attributes/NpcCombatAttributeSet.h"
 #include "NpcComponent.generated.h"
 
+struct FNpcDeathEventData;
 class INpcActorTagsInterface;
 class INpcZone;
 class UBoxComponent;
-class INpcAliveCreature;
+class INpcAliveActor;
 class INpc;
 class INpcControllerInterface;
 
@@ -24,6 +24,12 @@ private:
 	DECLARE_MULTICAST_DELEGATE(FOnDamageReceived)
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FNpcCombatStateChanged, const FGameplayTag& NewState, bool bActive);
 
+	struct FTempTags
+	{
+		FGameplayTagContainer Tags;
+		FDateTime UntilGameTime;
+	};
+	
 public:
 	UNpcComponent(const FObjectInitializer& ObjectInitializer);
 	
@@ -78,7 +84,11 @@ public:
 	const FGameplayTag& GetActiveBehaviorId() const { return BehaviorStack.IsEmpty() ? FGameplayTag::EmptyTag : BehaviorStack.Last(); }
 	
 	const UNpcBlackboardDataAsset* GetNpcBlackboardKeys() const { return NpcBlackboardKeys; }
-	
+
+	void GrantTempTags(const FGameplayTagContainer& GrantedTags, float DurationGTH);
+	void RemoveTempTags(const FGameplayTag& RemovedTag);
+	void GrantTags(const FGameplayTagContainer& Tags);
+
 	mutable FNpcCombatStateChanged OnStateChanged;
 	mutable FNpcCombatStateChanged OnBehaviorChanged;
 	mutable FNpcCombatStateChanged OnActiveAbilityChanged;
@@ -121,7 +131,7 @@ private:
 	TScriptInterface<INpcControllerInterface> NpcController;
 
 	UPROPERTY()
-	TScriptInterface<INpcAliveCreature> OwnerAliveCreature;
+	TScriptInterface<INpcAliveActor> OwnerAliveCreature;
 
 	TWeakObjectPtr<APawn> OwnerPawn;
 	// Areas of interest of NPC: spawn zones, work areas
@@ -137,11 +147,9 @@ private:
 	bool SetDialogueFollowRequestState(AActor* Actor, bool bActive);
 	void InitializeNpcComponent();
 	
-	UFUNCTION()
-	void OnNpcDeathStarted(AActor* OwningActor);
-
-	UFUNCTION()
+	void OnNpcDeathStarted(AActor* OwningActor, const FNpcDeathEventData& DeathEventData);
 	void OnNpcDeathFinished(AActor* OwningActor);
+	void PollTempTags();
 
 	bool bNpcComponentInitialized = false; // trying to figure out how to handle world partition streaming NPC in and out
 
@@ -156,4 +164,7 @@ private:
 	UNpcStatesDataAsset* NpcStates = nullptr;
 	
 	TArray<FGameplayTag, TInlineAllocator<8>> BehaviorStack;
+	TMap<FGameplayTag, FDateTime> TemporarilyGrantedTags;
+	
+	FTimerHandle TempTagsPollTimer;
 };

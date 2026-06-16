@@ -1,5 +1,7 @@
 ﻿#include "BehaviorTree/Decorators/BTDecorator_Repeat.h"
 
+#include "BehaviorTree/BehaviorTree.h"
+#include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BTCompositeNode.h"
 #include "BehaviorTree/Composites/BTComposite_SimpleParallel.h"
 
@@ -11,6 +13,9 @@ UBTDecorator_Repeat::UBTDecorator_Repeat()
 	bAllowAbortNone = false;
 	bAllowAbortLowerPri = false;
 	bAllowAbortChildNodes = false;
+
+	RepeatDurationBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTDecorator_Repeat, RepeatDurationBBKey));
+	RepeatDurationBBKey.AllowNoneAsValue(true);
 }
 
 void UBTDecorator_Repeat::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
@@ -23,7 +28,13 @@ void UBTDecorator_Repeat::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
 		(!bIsSpecialNode && ParentMemory->CurrentChild != ChildIndex))
 	{
 		DecoratorMemory->TimeStarted = GetWorld()->GetTimeSeconds();
-		DecoratorMemory->ActualRepeatDuration = FMath::RandRange(RepeatIntervalMin, RepeatIntervalMax);
+		float Duration = 0.f;
+		if (RepeatDurationBBKey.IsSet())
+			Duration = SearchData.OwnerComp.GetBlackboardComponent()->GetValueAsFloat(RepeatDurationBBKey.SelectedKeyName);
+		else
+			Duration = FMath::RandRange(RepeatIntervalMin, RepeatIntervalMax);
+		
+		DecoratorMemory->ActualRepeatDuration = Duration;
 	}
 
 	DecoratorMemory->SearchId = SearchData.SearchId;
@@ -48,21 +59,32 @@ void UBTDecorator_Repeat::OnNodeDeactivation(FBehaviorTreeSearchData& SearchData
 	}
 }
 
-FString UBTDecorator_Repeat::GetStaticDescription() const
+void UBTDecorator_Repeat::InitializeFromAsset(UBehaviorTree& Asset)
 {
-	return FString::Printf(TEXT("Repeat branch for [%.2f, %.2f]\n%s"), RepeatIntervalMin, RepeatIntervalMax, *Super::GetStaticDescription()) ;
+	Super::InitializeFromAsset(Asset);
+	if (auto BB = Asset.GetBlackboardAsset())
+		RepeatDurationBBKey.ResolveSelectedKey(*BB);
 }
 
 void UBTDecorator_Repeat::InitializeMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory,
 	EBTMemoryInit::Type InitType) const
 {
+	Super::InitializeMemory(OwnerComp, NodeMemory, InitType);
 	InitializeNodeMemory<FBTMemory_Repeat>(NodeMemory, InitType);
 }
 
 void UBTDecorator_Repeat::CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory,
 	EBTMemoryClear::Type CleanupType) const
 {
+	Super::CleanupMemory(OwnerComp, NodeMemory, CleanupType);
 	CleanupNodeMemory<FBTMemory_Repeat>(NodeMemory, CleanupType);
+}
+
+FString UBTDecorator_Repeat::GetStaticDescription() const
+{
+	return RepeatDurationBBKey.SelectedKeyName.IsNone() 
+		? FString::Printf(TEXT("Repeat branch for [%.2f, %.2f]\n%s"), RepeatIntervalMin, RepeatIntervalMax, *Super::GetStaticDescription())
+		: FString::Printf(TEXT("Repeat branch for %s\n%s"), *RepeatDurationBBKey.SelectedKeyName.ToString(), *Super::GetStaticDescription());
 }
 
 void UBTDecorator_Repeat::DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory,

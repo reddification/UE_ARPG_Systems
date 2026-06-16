@@ -9,6 +9,7 @@
 #include "NpcInfoWidgetComponent.generated.h"
 
 
+struct FNpcDeathEventData;
 class UNpcAttitudesComponent;
 class UNpcComponent;
 
@@ -41,6 +42,5 @@ private:
 	float ConsiderableDistanceToPlayerForHostile = 3000.f;
 	float ConsiderableDistanceToPlayerForNonHostile = 400.f;
 	
-	UFUNCTION()
-	void OnDeathStarted(AActor* OwningActor);
+	void OnDeathStarted(AActor* OwningActor, const FNpcDeathEventData& DeathEventData);
 };

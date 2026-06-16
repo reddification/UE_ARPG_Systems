@@ -2,6 +2,7 @@
 
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/LogChannels.h"
+#include "Interfaces/NpcThreat.h"
 #include "StructUtils/InstancedStruct.h"
 #include "Subsystems/NpcSquadSubsystem.h"
 
@@ -126,6 +127,58 @@ float FBehaviorEvaluatorOperation_CountOfAliveAllies::EvaluateInternal(const FAg
 	return DependencyCurve.GetRichCurveConst()->Eval(Count);
 }
 
+float FBehaviorEvaluatorOperation_PowerBalance::EvaluateInternal(const FAggregationOperationContext& Context,
+	const UNpcPerceptionComponent* NpcPerceptionComponent) const
+{
+	auto OwnerThreatInterface = Cast<INpcThreat>(Context.Pawn.Get());
+	int AlliesCount = 1;
+	float CombinedAlliesPower = OwnerThreatInterface->GetDamageOutput_NpcThreat();
+	float CombinedAlliesProtection = OwnerThreatInterface->GetAverageProtection_NpcThreat();
+	float AlliesHealthPool = Context.Health;
+	int EnemiesCount = 0;
+	float CombinedEnemiesPower = 0.f;
+	float CombinedEnemiesProtection = 0.f;
+	float EnemiesHealthPool = 0.f;
+	
+	const auto& AllCharactersSTM = NpcPerceptionComponent->GetShortTermCharactersMemory();
+	for (const auto& CharacterData : AllCharactersSTM)
+	{
+		if (!CharacterData.Value.bAlive || CharacterData.Value.Distance > MaxDistance)
+			continue;
+		
+		if (CharacterData.Value.bAlly)
+		{
+			AlliesCount++;
+			CombinedAlliesPower += CharacterData.Value.DamageOutput;
+			CombinedAlliesProtection += CharacterData.Value.Protection;
+			AlliesHealthPool += CharacterData.Value.Health;
+		}
+		else if (CharacterData.Value.bHostile)
+		{
+			EnemiesCount++;
+			CombinedEnemiesPower += CharacterData.Value.DamageOutput;
+			CombinedEnemiesProtection += CharacterData.Value.Protection;
+			EnemiesHealthPool += CharacterData.Value.Health;
+		}
+	}
+	
+	// The final damage calculation equation is: final damage = raw damage * e^(-protection / ProtectionEffectivenessScale)
+	bool bUseSqrt = FMath::IsNearlyEqual(0.5f, HealthFactor, 0.0001f);
+	const float AdjustedAlliesHealthPool = bUseSqrt ? FMath::Sqrt(AlliesHealthPool) : FMath::Pow(AlliesHealthPool, HealthFactor);
+	const float EnemiesProtectionScaledPower = CombinedEnemiesPower * FMath::Exp(-CombinedAlliesProtection / ProtectionEffectivenessScale);
+	const float TimeToKill_EnemiesOverAllies = AdjustedAlliesHealthPool / FMath::Max(1.f, EnemiesProtectionScaledPower);
+	
+	const float AdjustedEnemiesHealthPool = bUseSqrt ? FMath::Sqrt(EnemiesHealthPool) : FMath::Pow(EnemiesHealthPool, HealthFactor);
+	const float AlliesProtectionScaledPower = CombinedAlliesPower * FMath::Exp(-CombinedEnemiesProtection / ProtectionEffectivenessScale); 
+	const float TimeToKill_AlliesOverEnenmies = AdjustedEnemiesHealthPool / FMath::Max(1.f, AlliesProtectionScaledPower);
+	
+	const float PowerAdvantage = TimeToKill_EnemiesOverAllies / FMath::Max(TimeToKill_AlliesOverEnenmies, KINDA_SMALL_NUMBER);
+	// const float PowerAdvantage = ((CombinedAlliesPower * AverageAlliesNormalizedHealth) / (CombinedEnemiesProtection * AverageEnemiesNormalizedHealth)) 
+	// 	- ((CombinedEnemiesPower * AverageEnemiesNormalizedHealth) / (CombinedAlliesProtection * AverageAlliesNormalizedHealth));
+
+	return DependencyCurve.GetRichCurveConst()->Eval(PowerAdvantage);
+}
+
 FString FBehaviorEvaluatorOperation_Aggregative_Aggregation::GenerateFormulaDescription(int Indentation) const
 {
 	FString Base = Super::GenerateFormulaDescription(Indentation);
@@ -148,7 +201,7 @@ float FBehaviorEvaluatorOperation_Aggregative_Aggregation::EvaluateInternal(cons
 	const UNpcPerceptionComponent* NpcPerceptionComponent) const
 {
 	float Result = 0.f;
-	UE_VLOG(Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Evaluating aggregation [%s]"), *GetShortDescription());
+	UE_CVLOG(Context.bLogEnabled, Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Evaluating aggregation [%s]"), *GetShortDescription());
 	for (const auto& OperationIS : Operations)
 	{
 		if (ensure(OperationIS.IsValid()))
@@ -157,7 +210,7 @@ float FBehaviorEvaluatorOperation_Aggregative_Aggregation::EvaluateInternal(cons
 			if (Operation.IsEnabled())
 			{
 				Result = Operation.Evaluate(Context, NpcPerceptionComponent, Result);
-				UE_VLOG(Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Local aggregation score after [%s] = %.2f"), *Operation.GetShortDescription(), Result);
+				UE_CVLOG(Context.bLogEnabled, Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Local aggregation score after [%s] = %.2f"), *Operation.GetShortDescription(), Result);
 			}
 		}
 	}

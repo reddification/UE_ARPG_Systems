@@ -25,5 +25,5 @@ class ARPGAI_API INpcValueableItemInterface
 public:
 	virtual const FGameplayTag& GetItemTag_NPC() const = 0;
 	virtual bool CanPickUp_NPC(AActor* Instigator) const = 0;
-	
+	virtual float GetValue_NPC() const = 0;
 };

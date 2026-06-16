@@ -1,14 +1,11 @@
-﻿// 
-
-
-#include "FlowGraph/Addons/Predicates/FlowNodeAddon_IsDayTime.h"
+﻿#include "FlowGraph/Addons/Predicates/FlowNodeAddon_IsDayTime.h"
 
 #include "GameFramework/GameModeBase.h"
-#include "Interfaces/NpcSystemGameMode.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 
 bool UFlowNodeAddon_IsDayTime::EvaluatePredicate_Implementation() const
 {
-	auto GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
+	auto GameMode = Cast<INpcGameWorldTimeManager>(GetWorld()->GetAuthGameMode());
 	if (ensure(GameMode))
 		return DayTimes.HasTagExact(GameMode->GetDayTime());
 

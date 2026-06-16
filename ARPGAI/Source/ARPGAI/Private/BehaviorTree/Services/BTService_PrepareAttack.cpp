@@ -9,7 +9,6 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Bool.h"
 #include "Components/NpcAttitudesComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
-#include "Components/NpcComponent.h"
 #include "Data/LogChannels.h"
 #include "Interfaces/NpcCombatInterface.h"
 #include "Interfaces/NpcThreat.h"

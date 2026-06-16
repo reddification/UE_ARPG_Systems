@@ -1,14 +1,13 @@
-﻿// 
+﻿#include "Subsystems/NpcSquadSubsystem.h"
 
-
-#include "Subsystems/NpcSquadSubsystem.h"
-
+#include "Activities/NpcComponentsHelpers.h"
 #include "Components/NpcAttitudesComponent.h"
+#include "Components/Controller/NpcMemoryComponent.h"
+#include "Components/Controller/NpcPerceptionComponent.h"
 #include "Components/Controller/NpcSquadMemberComponent.h"
 #include "Data/LogChannels.h"
-#include "Interfaces/Npc.h"
 #include "Interfaces/NpcActorTagsInterface.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 
 UNpcSquadSubsystem* UNpcSquadSubsystem::Get(const UObject* WorldContextObject)
 {
@@ -18,6 +17,8 @@ UNpcSquadSubsystem* UNpcSquadSubsystem::Get(const UObject* WorldContextObject)
 void UNpcSquadSubsystem::RegisterNpc(const FGameplayTag& NpcIdTag, APawn* Pawn)
 {
 	NPCs.Add(NpcIdTag, Pawn);
+	if (auto NpcAliveActor = Cast<INpcAliveActor>(Pawn))
+		NpcAliveActor->OnNpcAliveActorDeathStarted.AddUObject(this, &UNpcSquadSubsystem::OnSquadMemberDeathStarted);
 }
 
 void UNpcSquadSubsystem::UnregisterNpc(const FGameplayTag& SquadLeaderTag, APawn* Pawn)
@@ -183,8 +184,8 @@ TArray<APawn*> UNpcSquadSubsystem::GetAllies(const APawn* RequestorNpc, bool bIg
 			continue;
 
 		if (bIgnoreDead)
-			if (auto AliveInterface = Cast<INpcAliveCreature>(SquadMember.Get()))
-				if (!AliveInterface->IsAlive_NpcAliveCreature())
+			if (auto AliveInterface = Cast<INpcAliveActor>(SquadMember.Get()))
+				if (!AliveInterface->IsAlive_NPC())
 					continue;
 		
 		Result.Add(SquadMember.Get());
@@ -215,6 +216,27 @@ APawn* UNpcSquadSubsystem::GetSquadLeader(const FGuid& SquadId)
 		return nullptr;
 
 	return SquadPtr->SquadMembers[0].Get();
+}
+
+void UNpcSquadSubsystem::OnSquadMemberDeathStarted(AActor* Actor, const FNpcDeathEventData& NpcDeathEventData)
+{
+	auto DeadPawn = Cast<APawn>(Actor);
+	if (DeadPawn == nullptr || !SquadsReverseLookup.Contains(DeadPawn))
+		return;
+	
+	FGuid SquadId = SquadsReverseLookup[DeadPawn];
+	for (const auto& Ally : Squads[SquadId].SquadMembers)
+	{
+		if (Ally == DeadPawn)
+			continue;
+		
+		auto AliveSquadMember = Cast<INpcAliveActor>(Ally.Get());
+		if (AliveSquadMember == nullptr || !AliveSquadMember->IsAlive_NPC())
+			continue;
+
+		if (auto AllyMemoryComponent = GetNpcShortTermMemoryComponent(Ally.Get()))
+			AllyMemoryComponent->RememberAllyDied(DeadPawn, NpcDeathEventData.Causer.Get(), NpcDeathEventData.LastHitType);
+	}
 }
 
 void UNpcSquadSubsystem::LeaveSquad(APawn* Pawn)

@@ -19,6 +19,7 @@ UBTService_EvaluateDistanceToTarget::UBTService_EvaluateDistanceToTarget()
 	bNotifyBecomeRelevant = true;
 	bNotifyCeaseRelevant = true;
 	bNotifyTick = true;
+	bCallTickOnSearchStart = true;
 	OutDistanceBBKey.AddFloatFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_EvaluateDistanceToTarget, OutDistanceBBKey));
 	UpdateConditionBBKey.AddBoolFilter(this, GET_MEMBER_NAME_CHECKED(UBTService_EvaluateDistanceToTarget, UpdateConditionBBKey));
 	UpdateConditionBBKey.AllowNoneAsValue(true);

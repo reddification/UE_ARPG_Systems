@@ -7,6 +7,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "Interfaces/Npc.h"
 #include "Interfaces/NpcActorTagsInterface.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 #include "Interfaces/NpcSystemGameMode.h"
 #include "ReactionEvaluators/NpcReactionEvaluatorBase.h"
 
@@ -80,10 +81,15 @@ void UNpcPerceptionReactionComponent::EndPlay(const EEndPlayReason::Type EndPlay
 	Super::EndPlay(EndPlayReason);
 }
 
+FDateTime UNpcPerceptionReactionComponent::GetGameWorldTime() const
+{
+	auto NpcGameMode = Cast<INpcGameWorldTimeManager>(GetWorld()->GetAuthGameMode());
+	return NpcGameMode ? NpcGameMode->GetARPGAIGameTime() : FDateTime(GetWorld()->GetTimeSeconds());
+}
+
 TArray<FNpcReactionEvaluatorState> UNpcPerceptionReactionComponent::GetPerceptionReactionEvaluators() const
 {
-	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-	const auto& CurrentGameTime = NpcGameMode->GetARPGAIGameTime();
+	const auto& CurrentGameTime = GetGameWorldTime();
 	
 	TArray<FNpcReactionEvaluatorState> Result;
 	for (const auto& BehaviorReactionEvaluator : BehaviorReactionEvaluators)
@@ -100,8 +106,7 @@ const FNpcReactionEvaluatorState* UNpcPerceptionReactionComponent::GetBestBehavi
 	const auto BehaviorEvaluators = BehaviorReactionEvaluators.Find(ReactionBehaviorType);
 	if (BehaviorEvaluators != nullptr && !BehaviorEvaluators->NpcReactionEvaluatorStates.IsEmpty())
 	{
-		auto GameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-		const auto& DateTime = GameMode->GetARPGAIGameTime();
+		const auto& DateTime = GetGameWorldTime();
 		if (ensure(BehaviorEvaluators->NpcReactionEvaluatorStates[0].IsActive(DateTime)))
 			return &BehaviorEvaluators->NpcReactionEvaluatorStates[0]; // it is guaranteed that first element of evaluators has the highest utility
 	}
@@ -157,7 +162,7 @@ void UNpcPerceptionReactionComponent::ResetReactionBehaviorUtility(EReactionBeha
 		{
 			auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
 			if (EvaluatorState.ReactionEvaluator->ReactionBehaviorCooldownGameTimeHours > 0.f)
-				EvaluatorState.CooldownUntilGameTime = NpcGameMode->GetARPGAIGameTime() + FTimespan::FromHours(EvaluatorState.ReactionEvaluator->ReactionBehaviorCooldownGameTimeHours);
+				EvaluatorState.CooldownUntilGameTime = GetGameWorldTime() + FTimespan::FromHours(EvaluatorState.ReactionEvaluator->ReactionBehaviorCooldownGameTimeHours);
 			
 			EvaluatorState.BehaviorUtility = 0.f;
 			if (EvaluatorsWrapper->NpcReactionEvaluatorStates.Num() > 1)
@@ -245,7 +250,7 @@ void UNpcPerceptionReactionComponent::RemoveReactionBehaviorEvaluators(
 void UNpcPerceptionReactionComponent::OnWorldStateChanged(const FGameplayTagContainer& NewWorldState)
 {
 	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-	const auto& CurrentGameTime = NpcGameMode->GetARPGAIGameTime();
+	const auto& CurrentGameTime = GetGameWorldTime();
 	TArray<TTuple<EReactionBehaviorType, FGuid>> EvaluatorsToRemove;
 	for (auto& BehaviorEvaluatorStates : BehaviorReactionEvaluators)
 	{

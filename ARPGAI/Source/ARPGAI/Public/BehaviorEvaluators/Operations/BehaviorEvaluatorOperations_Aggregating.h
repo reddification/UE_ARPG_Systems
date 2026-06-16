@@ -8,7 +8,7 @@
 #include "BehaviorEvaluatorOperations_Aggregating.generated.h"
 
 class UNpcPerceptionComponent;
-struct FCharacterPerceptionData;
+struct FCharacterShortTermMemory;
 
 USTRUCT(BlueprintType)
 struct ARPGAI_API FBehaviorEvaluatorOperation_Aggregating_Base : public FBehaviorEvaluatorOperation_Base
@@ -181,6 +181,32 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
 	float MaxDistance = 2000.f;
+};
+
+USTRUCT(BlueprintType, DisplayName="NonLinear|Power Balance")
+struct FBehaviorEvaluatorOperation_PowerBalance : public FBehaviorEvaluatorOperation_Aggregating_NonLinear
+{
+	GENERATED_BODY()
+
+	using Super = FBehaviorEvaluatorOperation_Aggregating_NonLinear;
+	
+public:
+	virtual FString GenerateFormulaDescription(int Indentation) const override
+	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("Power balance"); }
+	
+protected:
+	virtual float EvaluateInternal(const FAggregationOperationContext& Context, const UNpcPerceptionComponent* NpcPerceptionComponent) const override;
+	virtual FString GetShortDescriptionInternal() const override { return TEXT("Power balance (all allies vs all enemies)"); };
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
+	float MaxDistance = 2000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
+	float ProtectionEffectivenessScale = 50.f;
+
+	// used as FMath::Pow(HealthPool, HealthFactor) to smoothen health influence on output
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
+	float HealthFactor = 0.5f;
 };
 
 USTRUCT(BlueprintType, DisplayName="Aggregation")

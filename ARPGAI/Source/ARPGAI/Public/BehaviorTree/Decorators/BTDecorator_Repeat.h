@@ -28,6 +28,8 @@ public:
 	virtual void CleanupMemory(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTMemoryClear::Type CleanupType) const override;
 	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
 
+	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	
 #if WITH_EDITOR
 	virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
@@ -39,4 +41,7 @@ protected:
 
 	UPROPERTY(EditAnywhere)
 	float RepeatIntervalMax = 10.f;
+	
+	UPROPERTY(EditAnywhere)
+	FBlackboardKeySelector RepeatDurationBBKey;
 };

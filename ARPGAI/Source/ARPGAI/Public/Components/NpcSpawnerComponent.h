@@ -7,6 +7,7 @@
 #include "BehaviorTree/BlackboardAssetProvider.h"
 #include "BehaviorTree/BehaviorTreeTypes.h"
 #include "Components/ActorComponent.h"
+#include "Interfaces/NpcAliveActor.h"
 
 #include "NpcSpawnerComponent.generated.h"
 
@@ -99,7 +100,7 @@ protected:
 	void AddNpc(AActor* Npc);
 
 private:
-	void OnNpcDied(AActor* Actor);
+	void OnNpcDied(AActor* Actor, const FNpcDeathEventData& DeathEventData);
 
 public: // IBlackboardAssetProvider
 	virtual UBlackboardData* GetBlackboardAsset() const override;

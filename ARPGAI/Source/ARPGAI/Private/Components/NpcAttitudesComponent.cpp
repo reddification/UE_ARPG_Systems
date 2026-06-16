@@ -6,7 +6,8 @@
 #include "Data/NpcDTR.h"
 #include "Data/NpcSettings.h"
 #include "Gameframework/GameModeBase.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 #include "Interfaces/NpcSystemGameMode.h"
 
 
@@ -50,8 +51,7 @@ void UNpcAttitudesComponent::AddTemporaryCharacterAttitude(const AActor* Charact
 {
 	if (const float* AttitudeDurationPtr = NpcAttitudesDurationGameTime.Find(Attitude); ensure(AttitudeDurationPtr))
 	{
-		auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-		const FDateTime& CurrentGameTime = NpcGameMode->GetARPGAIGameTime();
+		const FDateTime& CurrentGameTime = GetGameWorldTime(0.f);
 		// Currently, this map is cleared in ::GetAttitude
 		FTemporaryCharacterAttitudeMemory& TemporaryCharacterAttitude = TemporaryCharacterAttitudes.FindOrAdd(Character);
 		TemporaryCharacterAttitude.AttitudeTag = Attitude;
@@ -105,7 +105,7 @@ void UNpcAttitudesComponent::CleanRememberedHitsFromCharacters()
 	if (GameMode == nullptr)
 		return;
 	
-	const auto& DateTime = GameMode->GetARPGAIGameTime();
+	const auto& DateTime = GetGameWorldTime();
 	TArray<TWeakObjectPtr<const AActor>, TInlineAllocator<4>> ForgetHitsFromActors;
 	for (const auto& RememberedHit : ReceivedHitsFromCharacters)
 		if (DateTime >= RememberedHit.Value.ForgetAtGameTime)
@@ -118,10 +118,12 @@ void UNpcAttitudesComponent::CleanRememberedHitsFromCharacters()
 		GetWorld()->GetTimerManager().ClearTimer(ForgiveAttacksFromNonHostilesTimer);
 }
 
-FDateTime UNpcAttitudesComponent::GetDateTime(float ForDurationGTH) const
+FDateTime UNpcAttitudesComponent::GetGameWorldTime(float ForDurationGTH) const
 {
-	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-	return NpcGameMode->GetARPGAIGameTime() + FTimespan::FromHours(ForDurationGTH);
+	auto NpcGameMode = Cast<INpcGameWorldTimeManager>(GetWorld()->GetAuthGameMode());
+	return NpcGameMode 
+		? NpcGameMode->GetARPGAIGameTime() + FTimespan::FromHours(ForDurationGTH) 
+		: FDateTime(GetWorld()->GetTimeSeconds() + ForDurationGTH * 60.f * 60.f);
 }
 
 void UNpcAttitudesComponent::ResetTemporaryAttitudePreset()
@@ -185,14 +187,14 @@ FGameplayTag UNpcAttitudesComponent::GetAttitude(const AActor* Actor) const
 	if (!IsValid(World)) // I assume this happens when world partition unloads NPC from game process memory
 		return FGameplayTag::EmptyTag;
 	
-	auto NpcGameMode = Cast<INpcSystemGameMode>(World->GetAuthGameMode());
-	const auto& GameTime = NpcGameMode->GetARPGAIGameTime();
+	const auto& GameTime = GetGameWorldTime();
 
 	auto GameplayTagActor = Cast<IGameplayTagAssetInterface>(Actor);
 	FGameplayTagContainer ActorTags;
 	if (GameplayTagActor != nullptr)
 	{
 		GameplayTagActor->GetOwnedGameplayTags(ActorTags);
+		auto NpcGameMode = Cast<INpcSystemGameMode>(World->GetAuthGameMode());
 		const FGameplayTag& GameForcedAttitude = NpcGameMode->GetForcedAttitudeToActor(NpcId, ActorTags);
 		if (GameForcedAttitude.IsValid())
 			return GameForcedAttitude;
@@ -233,8 +235,7 @@ bool UNpcAttitudesComponent::OnHitReceivedFromActor(const AActor* DamageCauser)
 	FReceivedHitsCountMemory& ReceivedHitsFromCharacterMemory = ReceivedHitsFromCharacters.FindOrAdd(DamageCauser);
 	ReceivedHitsFromCharacterMemory.Count++;
 	bool bForgive = ReceivedHitsFromCharacterMemory.Count <= ForgivableNumberOfHits;
-	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-	const auto& CurrentGameTime = NpcGameMode->GetARPGAIGameTime();
+	const auto& CurrentGameTime = GetGameWorldTime();
 	float RememberHitDurationGameHours = 1.f;
 	if (RememberHitsFromCharactersDurationsGTH.Contains(Attitude))
 		RememberHitDurationGameHours = RememberHitsFromCharactersDurationsGTH[Attitude];

@@ -1,12 +1,10 @@
-﻿// 
-
-#include "FlowGraph/Nodes/FlowNode_NpcGoal_FollowPath.h"
+﻿#include "FlowGraph/Nodes/FlowNode_NpcGoal_FollowPath.h"
 
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "GameFramework/GameModeBase.h"
-#include "Interfaces/NpcSystemGameMode.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 #include "Subsystems/NpcPatrolRoutesSubsystem.h"
 
 ENpcGoalStartResult UFlowNode_NpcGoal_FollowPath::Start()
@@ -79,7 +77,7 @@ void UFlowNode_NpcGoal_FollowPath::Finish()
 
 void UFlowNode_NpcGoal_FollowPath::UpdateStayAtPatrolPointTime() const
 {
-	if (auto NpcGameMode = Cast<INpcSystemGameMode>(NpcPawn->GetWorld()->GetAuthGameMode()))
+	if (auto NpcGameMode = Cast<INpcGameWorldTimeManager>(NpcPawn->GetWorld()->GetAuthGameMode()))
 	{
 		auto ActualParameters = GetParameters();
 		float GameTimeToRealTimeCoefficient = 3600.f / NpcGameMode->GetTimeRateSeconds();

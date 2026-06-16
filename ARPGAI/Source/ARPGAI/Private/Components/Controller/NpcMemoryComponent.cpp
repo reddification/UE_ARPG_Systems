@@ -1,12 +1,10 @@
 ﻿#include "Components/Controller/NpcMemoryComponent.h"
 
+#include "AIHelpers.h"
 #include "GameplayTagContainer.h"
 #include "Data/LogChannels.h"
-#include "GameFramework/GameModeBase.h"
-#include "Interfaces/Npc.h"
 #include "Interfaces/NpcActorTagsInterface.h"
-#include "Interfaces/NpcAliveCreature.h"
-#include "Interfaces/NpcSystemGameMode.h"
+#include "Interfaces/NpcAliveActor.h"
 
 UNpcMemoryComponent::UNpcMemoryComponent()
 {
@@ -39,23 +37,32 @@ void UNpcMemoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UNpcMemoryComponent::RememberLongTerm(AActor* Actor, const FCharacterPerceptionData& CharacterPerception, const FGuid& Id)
+void UNpcMemoryComponent::RememberLongTerm(AActor* Actor, const FCharacterShortTermMemory& CharacterSTM, const FGuid& Id)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(UNpcMemoryComponent::RememberLongTerm)
+
+	if (!ensure(Id.IsValid()))
+		return;
+	
 	for (const auto& Reason : LongTermMemoryReasons)
 	{
-		if (!Reason.NpcStateFilter.Matches(OwnerNpcTags))
-			continue;
-        
-		if (!Reason.ActorFilter.Matches(CharacterPerception.CharacterTags))
+		if (!Reason.NpcStateFilter.IsEmpty() && !Reason.NpcStateFilter.Matches(OwnerNpcTags))
 			continue;
 
-		auto LTM = LongTermMemory.FindOrAdd(Id);
+		if (!Reason.AttitudesFilter.IsEmpty() && !CharacterSTM.Attitude.MatchesAny(Reason.AttitudesFilter))
+			continue;
+		
+		FGameplayTagContainer CharacterTagsWithLTM = CharacterSTM.CharacterTags;
+		if (auto ExistingLTM = LongTermMemory.Find(Id))
+			CharacterTagsWithLTM.AppendTags(ExistingLTM->RememberedTraits.GetTraits());
+		
+		if (!Reason.ActorFilter.IsEmpty() && !Reason.ActorFilter.Matches(CharacterTagsWithLTM))
+			continue;
+
+		auto& LTM = LongTermMemory.FindOrAdd(Id);
 		if (Reason.ForDurationGTH.IsSet())
 		{
-			const float GTH = Reason.ForDurationGTH.GetValue();
-			LTM.RememberedTraits.AddTemporalTraits(Reason.RememberedTraits, GetDateTime(GTH));
-			UE_VLOG(OwnerPawn, LogARPGAI_Perception, Verbose, TEXT("Remembered trait %s for %s for %.2f GTH"), 
-				*Reason.RememberedTraits.ToStringSimple(), *Actor->GetName(), GTH);
+			RememberTemporaryTrait(Actor, LTM, Reason.RememberedTraits, Reason.ForDurationGTH.GetValue());
 		}
 		else
 		{
@@ -64,26 +71,34 @@ void UNpcMemoryComponent::RememberLongTerm(AActor* Actor, const FCharacterPercep
 				*Reason.RememberedTraits.ToStringSimple(), *Actor->GetName());
 		}
 	}
-    
-	if (LongTermMemory.Contains(Id))
+	
+	if (auto LTM = LongTermMemory.Find(Id))
 	{
-		auto& LTM = LongTermMemory[Id];
-		LTM.LastUpdateTime = GetWorld()->GetTimeSeconds();
-		LTM.Attitude = CharacterPerception.Attitude;
-		LTM.bAlive = CharacterPerception.bAlive;
-		LTM.LastDetectionSource = CharacterPerception.DetectionSource;
-		LTM.LastSeenLocation = Actor->GetActorLocation();
+		LTM->LastUpdateTime = GetWorld()->GetTimeSeconds();
+		LTM->LastUpdateGameTime = GetGameWorldTime(this);
+		LTM->Attitude = CharacterSTM.Attitude;
+		LTM->bAlive = CharacterSTM.bAlive;
+		LTM->LastDetectionSource = CharacterSTM.DetectionSource;
+		if (CharacterSTM.HasImmediateVisualDetection())
+			LTM->LastSeenLocation = Actor->GetActorLocation();
 	}
 }
 
 void UNpcMemoryComponent::CleanupStaleTraitsMemory()
 {
 	bool bNoMoreTemporalTraitsMemories = true;
+	FDateTime GameWorldTime = GetGameWorldTime(this);
+	TArray<FGuid, TInlineAllocator<2>> PendingDeleteKeys;
 	for (auto& ActorTraitsMemories : LongTermMemory)
 	{
-		int RemainingTemporalTraits = ActorTraitsMemories.Value.RememberedTraits.CleanupStaleTraits(GetDateTime(0.f));
-		bNoMoreTemporalTraitsMemories &= RemainingTemporalTraits == 0;
+		ActorTraitsMemories.Value.RememberedTraits.CleanupStaleTraits(GameWorldTime);
+		bNoMoreTemporalTraitsMemories &= !ActorTraitsMemories.Value.RememberedTraits.HasTemporalTraits();
+		if (!ActorTraitsMemories.Value.RememberedTraits.HasTraits())
+			PendingDeleteKeys.Add(ActorTraitsMemories.Key);
 	}
+	
+	for (const auto& PendingDeleteKey : PendingDeleteKeys)
+		LongTermMemory.Remove(PendingDeleteKey);
 	
 	if (bNoMoreTemporalTraitsMemories)
 		GetWorld()->GetTimerManager().ClearTimer(CleanUpRememberedTraitsTimer);
@@ -91,50 +106,99 @@ void UNpcMemoryComponent::CleanupStaleTraitsMemory()
 
 void UNpcMemoryComponent::RememberActorTraits(const AActor* Actor, const FGameplayTagContainer& Traits)
 {
-	auto NpcAliveCreature = Cast<INpcAliveCreature>(Actor);
+	auto NpcAliveCreature = Cast<INpcAliveActor>(Actor);
 	if (!NpcAliveCreature)
 		return;
 	
-	auto& TraitsMemory = LongTermMemory.FindOrAdd(NpcAliveCreature->GetId_NpcAliveCreature());
+	auto& TraitsMemory = LongTermMemory.FindOrAdd(NpcAliveCreature->GetId_NPC());
 	TraitsMemory.RememberedTraits.AddPersistentTraits(Traits);
+}
+
+void UNpcMemoryComponent::RememberTemporaryTrait(const AActor* ForActor, FLongTermMemoryActorData& Memory, const FGameplayTagContainer& Traits, float DurationGTH)
+{
+	Memory.RememberedTraits.AddTemporalTraits(Traits, GetGameWorldTime(this, DurationGTH));
+	UE_VLOG(OwnerPawn, LogARPGAI_Perception, Verbose, TEXT("Remembered trait %s for %s for %.2f GTH"), 
+		*Traits.ToStringSimple(), *ForActor->GetName(), DurationGTH);
+	if (!CleanUpRememberedTraitsTimer.IsValid())
+	{
+		GetWorld()->GetTimerManager().SetTimer(CleanUpRememberedTraitsTimer, 
+			this, &UNpcMemoryComponent::CleanupStaleTraitsMemory, 2.f, true);
+	}
 }
 
 void UNpcMemoryComponent::RememberActorTraits(const AActor* Actor, const FGameplayTagContainer& Traits, float ForDurationGTH)
 {
-	auto NpcAliveCreature = Cast<INpcAliveCreature>(Actor);
+	auto NpcAliveCreature = Cast<INpcAliveActor>(Actor);
 	if (!NpcAliveCreature)
 		return;
 	
-	auto& Memory = LongTermMemory.FindOrAdd(NpcAliveCreature->GetId_NpcAliveCreature());
-	Memory.RememberedTraits.AddTemporalTraits(Traits, GetDateTime(ForDurationGTH));
-	if (!CleanUpRememberedTraitsTimer.IsValid())
-	{
-	    GetWorld()->GetTimerManager().SetTimer(CleanUpRememberedTraitsTimer, 
-	        this, &UNpcMemoryComponent::CleanupStaleTraitsMemory, 5.f, true);
-	}
+	auto& Memory = LongTermMemory.FindOrAdd(NpcAliveCreature->GetId_NPC());
+	RememberTemporaryTrait(Actor, Memory, Traits, ForDurationGTH);
 }
 
 void UNpcMemoryComponent::ForgetActorTraits(const AActor* Actor, const FGameplayTagContainer& Traits)
 {
-	auto NpcAliveCreature = Cast<INpcAliveCreature>(Actor);
+	auto NpcAliveCreature = Cast<INpcAliveActor>(Actor);
 	if (!NpcAliveCreature)
 		return;
 	
-	auto Id = NpcAliveCreature->GetId_NpcAliveCreature();
+	auto Id = NpcAliveCreature->GetId_NPC();
 	if (auto* Memory = LongTermMemory.Find(Id))
 		Memory->RememberedTraits.RemoveTraits(Traits);
 }
 
 FGameplayTagContainer UNpcMemoryComponent::GetRememberedActorTraits(const AActor* Actor) const
 {
-	auto NpcAliveCreature = Cast<INpcAliveCreature>(Actor);
+	auto NpcAliveCreature = Cast<INpcAliveActor>(Actor);
 	if (!NpcAliveCreature)
 		return FGameplayTagContainer::EmptyContainer;
 
-	if (const auto* Memory = LongTermMemory.Find(NpcAliveCreature->GetId_NpcAliveCreature()))
+	if (const auto* Memory = LongTermMemory.Find(NpcAliveCreature->GetId_NPC()))
 		return Memory->RememberedTraits.GetTraits();
 	
 	return FGameplayTagContainer::EmptyContainer;
+}
+
+int UNpcMemoryComponent::GetAlliesKilledByCount(const AActor* Murderer, float GameTimeHoursThreshold)
+{
+	if (DeadAlliesHistory.IsEmpty())
+		return 0;
+	
+	auto NpcAliveCreature = Cast<INpcAliveActor>(Murderer);
+	if (NpcAliveCreature == nullptr)
+		return 0;
+	
+	FGuid MurdererId = NpcAliveCreature->GetId_NPC();
+
+	FDateTime CurrentDateTime = GetGameWorldTime(this);
+	int Result = 0;
+	for (const auto& DeadAlly : DeadAlliesHistory)
+	{
+		if (DeadAlly.MurdererId != MurdererId)
+			continue;
+		
+		if (GameTimeHoursThreshold <= 0.f || DeadAlly.KilledAt + FTimespan::FromHours(GameTimeHoursThreshold) >= CurrentDateTime)
+			Result++;
+	}
+	
+	return Result;
+}
+
+void UNpcMemoryComponent::RememberAllyDied(APawn* DeadAlly, AActor* Murderer, const FGameplayTag& LastHitType)
+{
+	FKilledAllyData KilledAllyData;
+	KilledAllyData.MurderActor = Murderer;
+	KilledAllyData.KilledActor = DeadAlly;
+	KilledAllyData.KilledAt = GetGameWorldTime(this);
+	KilledAllyData.LastHitTag = LastHitType;
+	
+	if (auto DeadAllyAliveActorInterface = Cast<INpcAliveActor>(DeadAlly))
+		KilledAllyData.KilledActorId = DeadAllyAliveActorInterface->GetId_NPC();
+	
+	if (auto MurdererAliveActorInterface = Cast<INpcAliveActor>(Murderer))
+		KilledAllyData.MurdererId = MurdererAliveActorInterface->GetId_NPC();
+	
+	DeadAlliesHistory.Add(KilledAllyData);
 }
 
 void UNpcMemoryComponent::OnNpcTagsChanged(AActor* Pawn, const FGameplayTagContainer& NewTags)
@@ -148,7 +212,17 @@ void UNpcMemoryComponent::OnNpcTagsChanged(AActor* Pawn, const FGameplayTagConta
 void UNpcMemoryComponent::FTraitsMemory::AddTemporalTraits(const FGameplayTagContainer& Traits,
 	const FDateTime& UntilGameTime)
 {
-	TemporalTraits.Add(FTemporalTraits { Traits, UntilGameTime });
+	
+	for (const auto& NewTemporalTrait : Traits)
+	{
+		if (TemporalTraits.Contains(NewTemporalTrait))
+		{
+			if (TemporalTraits[NewTemporalTrait] < UntilGameTime)
+				TemporalTraits[NewTemporalTrait] = UntilGameTime;
+		}
+		else 
+			TemporalTraits.Emplace(NewTemporalTrait, UntilGameTime);
+	}
 }
 
 void UNpcMemoryComponent::FTraitsMemory::AddPersistentTraits(const FGameplayTagContainer& Traits)
@@ -156,42 +230,32 @@ void UNpcMemoryComponent::FTraitsMemory::AddPersistentTraits(const FGameplayTagC
 	PersistentTraits.AppendTags(Traits);
 }
 
-void UNpcMemoryComponent::FTraitsMemory::RemoveTraits(const FGameplayTagContainer& Traits)
+void UNpcMemoryComponent::FTraitsMemory::RemoveTraits(const FGameplayTagContainer& RemovedTraits)
 {
-	PersistentTraits.RemoveTags(Traits);
-	for (int i = TemporalTraits.Num() - 1; i >= 0; --i)
-	{
-		TemporalTraits[i].Traits.RemoveTags(Traits);
-		if (TemporalTraits[i].Traits.IsEmpty())
-			TemporalTraits.RemoveAt(i);
-	}
+	PersistentTraits.RemoveTags(RemovedTraits);
+	
+	FGameplayTagContainer RemovedTempTraits;
+	for (const auto& TemporalTrait : TemporalTraits)
+		if (TemporalTrait.Key.MatchesAny(RemovedTraits))
+			RemovedTempTraits.AddTagFast(TemporalTrait.Key);
+	
+	for (const auto& RemovedTempTrait : RemovedTempTraits)
+		TemporalTraits.Remove(RemovedTempTrait);
 }
 
 FGameplayTagContainer UNpcMemoryComponent::FTraitsMemory::GetTraits() const
 {
 	FGameplayTagContainer Result = PersistentTraits;
 	for (const auto& TemporalTraitsIt : TemporalTraits)
-		Result.AppendTags(TemporalTraitsIt.Traits);
+		Result.AddTag(TemporalTraitsIt.Key);
 	
 	return Result;
 }
 
-int UNpcMemoryComponent::FTraitsMemory::CleanupStaleTraits(const FDateTime& GameTimeNow)
+void UNpcMemoryComponent::FTraitsMemory::CleanupStaleTraits(const FDateTime& GameTimeNow)
 {
-	int RemainingTemporalTraitsCount = 0;
-	for (int i = TemporalTraits.Num() - 1; i >= 0; --i)
-	{
-		if (TemporalTraits[i].UntilGameTime <= GameTimeNow)
-			TemporalTraits.RemoveAt(i);
-		else 
-			RemainingTemporalTraitsCount++;
-	}
-	
-	return RemainingTemporalTraitsCount;
-}
-
-FDateTime UNpcMemoryComponent::GetDateTime(float ForDurationGTH) const
-{
-	auto NpcGameMode = Cast<INpcSystemGameMode>(GetWorld()->GetAuthGameMode());
-	return NpcGameMode->GetARPGAIGameTime() + FTimespan::FromHours(ForDurationGTH);
+	auto TempTraitsCopy = TemporalTraits;
+	for (const auto& TemporalTraitCopy : TempTraitsCopy)
+		if (TemporalTraitCopy.Value <= GameTimeNow)
+			TemporalTraits.Remove(TemporalTraitCopy.Key);
 }

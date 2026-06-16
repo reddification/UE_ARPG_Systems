@@ -6,7 +6,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Components/NpcComponent.h"
 #include "Data/LogChannels.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AIPerceptionTypes.h"
 #include "Perception/AISense_Sight.h"
@@ -60,9 +60,9 @@ APawn* UBTService_ObserveIntruders::GetClosestIntruder(AAIController* AIControll
 					continue;
 				}
 
-				if (auto AliveCreature = Cast<INpcAliveCreature>(VisualTarget))
+				if (auto AliveCreature = Cast<INpcAliveActor>(VisualTarget))
 				{
-					if (!AliveCreature->IsAlive_NpcAliveCreature())
+					if (!AliveCreature->IsAlive_NPC())
 					{
 						continue;
 					}

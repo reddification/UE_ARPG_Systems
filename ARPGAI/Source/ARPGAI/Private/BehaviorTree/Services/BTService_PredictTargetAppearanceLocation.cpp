@@ -78,7 +78,6 @@ void UBTService_PredictTargetAppearanceLocation::TickNode(UBehaviorTreeComponent
 		FVector NpcLocation = QuerierPawn->GetActorLocation();
 		if (const ANavigationData* NavData = NavSys->GetNavDataForProps(AIController->GetNavAgentPropertiesRef(), NpcLocation))
 		{
-			FPathFindingQuery PathFindingQuery;
 			const FCollisionShape SweepShape = FCollisionShape::MakeSphere(15.f);
 			FVector PathStart = AssumedTargetLocation;
 			FVector PathEnd = NpcLocation;
@@ -89,6 +88,8 @@ void UBTService_PredictTargetAppearanceLocation::TickNode(UBehaviorTreeComponent
 			}
 			
 			FPathFindingQuery Query(AIController, *NavData, PathStart, PathEnd);
+			Query.bAllowPartialPaths = true;
+			Query.bRequireNavigableEndLocation = false;
 			FPathFindingResult PathFindingResult = NavSys->FindPathSync(Query, bUseHierarchicalPathfinding ? EPathFindingMode::Hierarchical : EPathFindingMode::Regular);
 			if (PathFindingResult.Result == ENavigationQueryResult::Type::Success)
 			{
@@ -109,11 +110,6 @@ void UBTService_PredictTargetAppearanceLocation::TickNode(UBehaviorTreeComponent
 						break;
 					}
 				}
-			}
-			else
-			{
-				int pf_error = 1;
-				ensure(false);
 			}
 		}		
 	}

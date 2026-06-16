@@ -4,7 +4,7 @@
 #include "Activities/NpcComponentsHelpers.h"
 #include "Components/NpcAttitudesComponent.h"
 #include "Engine/OverlapResult.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 
 UNpcProximityAwarenessComponent::UNpcProximityAwarenessComponent()
 {
@@ -73,8 +73,8 @@ bool UNpcProximityAwarenessComponent::CanDetect(AActor* Actor) const
 			if (AttitudesComponent->IsFriendly(Actor))
 				return false;
 	
-	auto AliveCreature = Cast<INpcAliveCreature>(Actor);
-	if (AliveCreature && !AliveCreature->IsAlive_NpcAliveCreature())
+	auto AliveCreature = Cast<INpcAliveActor>(Actor);
+	if (AliveCreature && !AliveCreature->IsAlive_NPC())
 		return false;
 	
 	FHitResult HitResult;

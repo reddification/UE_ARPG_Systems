@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "GameplayTagContainer.h"
 #include "NpcZone.generated.h"
 
 class UBoxComponent;
@@ -29,4 +30,5 @@ public:
 	virtual bool IsLocationWithinNpcArea(const FVector& TestLocation, float AreaExtent) const = 0;
 	virtual TArray<FNavLocation> ProvideEqsPoints(const float Density, const float ExtentScale) = 0;
 	virtual FVector GetNpcNavigationLocation(const FVector& QuerierLocation) const = 0;
+	virtual const FGameplayTag& GetAreaId_NPC() const = 0;
 };

@@ -34,7 +34,10 @@ struct FActorInterestCondition
 	GENERATED_BODY()
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FGameplayTagQuery TagsQuery;
+	FGameplayTagQuery OwnerTagsFilter;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTagQuery ActorTagsFilter;
 	
 	// Interest is valid only if target attitude is among these attitudes OR this container is empty
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -46,6 +49,10 @@ struct FActorInterestCondition
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float ScoreScale = 1.f;
+	
+	// used only for sorting multiple investigation causes so that investigation utility doesnt explode 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float PriorityScale = 1.5f;
 };
 
 struct FOperationContextBase
@@ -60,6 +67,7 @@ struct FOperationContextBase
 	mutable TMap<FName, float> CachedVariables;
 	
 	EBehaviorEvaluatorState EvaluatorState;
+	bool bLogEnabled = true;
 };
 
 struct FRelativeOperationContext : public FOperationContextBase

@@ -4,6 +4,7 @@
 #include "BehaviorEvaluators/Operations/BehaviorEvaluatorOperations_Conditions.h"
 #include "Components/EnemiesCoordinatorComponent.h"
 #include "Components/NpcCombatLogicComponent.h"
+#include "Components/Controller/NpcMemoryComponent.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/LogChannels.h"
 #include "Interfaces/NpcThreat.h"
@@ -11,7 +12,7 @@
 #include "Subsystems/NpcSquadSubsystem.h"
 
 float FBehaviorEvaluatorOperation_Relative_Base::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
-                                                          const FCharacterPerceptionData& CharacterPerceptionData, float CurrentScore) const
+                                                          const FCharacterShortTermMemory& CharacterPerceptionData, float CurrentScore) const
 {
 	bool bPassThrough = !bEnabled 
 		|| !MaskPasses(CharacterPerceptionData.DetectionSource) 
@@ -138,10 +139,10 @@ FString FBehaviorEvaluatorOperation_Aggregation::GenerateFormulaDescription(int 
 }
 
 float FBehaviorEvaluatorOperation_Aggregation::EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target,
-                                                                const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                                const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	float Result = 0.f;
-	UE_VLOG(Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Evaluating aggregation [%s]"), *GetShortDescription());
+	UE_CVLOG(Context.bLogEnabled, Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Evaluating aggregation [%s]"), *GetShortDescription());
 	for (const auto& OperationIS : Operations)
 	{
 		if (ensure(OperationIS.IsValid()))
@@ -150,7 +151,7 @@ float FBehaviorEvaluatorOperation_Aggregation::EvaluateInternal(const FRelativeO
 			if (Operation.IsEnabled())
 			{
 				Result = Operation.Evaluate(Context, Target, CharacterPerceptionData, Result);
-				UE_VLOG(Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Local aggregation score after [%s] = %.2f"), *Operation.GetShortDescription(), Result);
+				UE_CVLOG(Context.bLogEnabled, Context.Pawn.Get(), LogARPGAI_BE, VeryVerbose, TEXT("Local aggregation score after [%s] = %.2f"), *Operation.GetShortDescription(), Result);
 			}
 		}
 	}
@@ -159,7 +160,7 @@ float FBehaviorEvaluatorOperation_Aggregation::EvaluateInternal(const FRelativeO
 }
 
 float FBehaviorEvaluatorOperation_IfElse::EvaluateInternal(const FRelativeOperationContext& Context,
-                                                           const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                           const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	if (!Condition.IsValid())
 		return FallbackValue;
@@ -201,32 +202,32 @@ FString FBehaviorEvaluatorOperation_IfElse::GetShortDescriptionInternal() const
 }
 
 float FBehaviorEvaluatorOperation_Distance::EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target,
-                                                             const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                             const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return DependencyCurve.GetRichCurveConst()->Eval(CharacterPerceptionData.Distance, 1.f);
 }
 
 float FBehaviorEvaluatorOperation_TimeSeen::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return DependencyCurve.GetRichCurveConst()->Eval(CharacterPerceptionData.TimeSeen, 1.f);
 }
 
 float FBehaviorEvaluatorOperation_BehaviorDuration::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return DependencyCurve.GetRichCurveConst()->Eval(Context.ActiveBehaviorDuration, 1.f);
 }
 
 float FBehaviorEvaluatorOperation_IndividualAccumulatedDamage::EvaluateInternal(const FRelativeOperationContext& Context,
-                                                                                const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                                                const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	const float Damage = bUseLongTermMemory ? CharacterPerceptionData.LongTermAccumulatedReceivedDamage : CharacterPerceptionData.ShortTermAccumulatedDamage;
 	return DependencyCurve.GetRichCurveConst()->Eval(Damage / Context.MaxHealth, 1.f);
 }
 
 float FBehaviorEvaluatorOperation_CombatPerformance::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	const float X = CharacterPerceptionData.LongTermAccumulatedReceivedDamage / Context.MaxHealth;
 	const float Y = CharacterPerceptionData.LongTermAccumulatedDealtDamage / CharacterPerceptionData.MaxHealth;
@@ -260,7 +261,7 @@ FString FBehaviorEvaluatorOperation_DamageOutputAdvantage::GenerateFormulaDescri
 }
 
 float FBehaviorEvaluatorOperation_DamageOutputAdvantage::EvaluateInternal(const FRelativeOperationContext& Context,
-                                                                          const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                                          const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	float MyDamageOutput = Cast<INpcThreat>(Context.Pawn)->GetDamageOutput_NpcThreat();
 	return EvaluateAdvantage(MyDamageOutput, CharacterPerceptionData.DamageOutput);
@@ -272,7 +273,7 @@ FString FBehaviorEvaluatorOperation_ProtectionAdvantage::GenerateFormulaDescript
 }
 
 float FBehaviorEvaluatorOperation_ProtectionAdvantage::EvaluateInternal(const FRelativeOperationContext& Context,
-                                                                        const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                                        const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	float MyProtection = Cast<INpcThreat>(Context.Pawn)->GetAverageProtection_NpcThreat();
 	return EvaluateAdvantage(MyProtection, CharacterPerceptionData.Protection);
@@ -285,7 +286,7 @@ FString FBehaviorEvaluatorOperation_DamageOverProtectionAdvantage::GenerateFormu
 }
 
 float FBehaviorEvaluatorOperation_DamageOverProtectionAdvantage::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	auto OwnerThreatInterface = Cast<INpcThreat>(Context.Pawn);
 	return bMyOverTarget 
@@ -294,7 +295,7 @@ float FBehaviorEvaluatorOperation_DamageOverProtectionAdvantage::EvaluateInterna
 }
 
 float FBehaviorEvaluatorOperation_CountOfOtherAttackersOnTarget::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	auto EnemiesCoordinatorComponet = Target->FindComponentByClass<UEnemiesCoordinatorComponent>();
 	if (EnemiesCoordinatorComponet == nullptr)
@@ -304,8 +305,18 @@ float FBehaviorEvaluatorOperation_CountOfOtherAttackersOnTarget::EvaluateInterna
 	return DependencyCurve.GetRichCurveConst()->Eval(AttackersCount);
 }
 
+float FBehaviorEvaluatorOperation_CountOfWitnessedMurderedAllies::EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target,
+	const FCharacterShortTermMemory& CharacterPerceptionData) const
+{
+	int CountOfKilledAllies = 0;
+	if (auto OwnerMemoryComponent = GetNpcLongTermMemoryComponent(Context.Pawn.Get()); OwnerMemoryComponent != nullptr)
+		CountOfKilledAllies = OwnerMemoryComponent->GetAlliesKilledByCount(Target, WithinGameTimeHours);
+	
+	return DependencyCurve.GetRichCurveConst()->Eval(CountOfKilledAllies);
+}
+
 float FBehaviorEvaluatorOperation_CountOfAlliesInCombat::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                                          const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	auto SquadSubsystem = UNpcSquadSubsystem::Get(Context.Pawn.Get());
 	auto MyAllies = SquadSubsystem->GetAllies(Context.Pawn.Get(), true);
@@ -321,31 +332,31 @@ float FBehaviorEvaluatorOperation_CountOfAlliesInCombat::EvaluateInternal(const 
 }
 
 float FBehaviorEvaluatorOperation_DotProduct_OwnerFV_ToTarget::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return DependencyCurve.GetRichCurveConst()->Eval(CharacterPerceptionData.DotProduct_OwnerFV_ToActor);
 }
 
 float FBehaviorEvaluatorOperation_DotProduct_OwnerFV_TargetFV::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return DependencyCurve.GetRichCurveConst()->Eval(CharacterPerceptionData.ForwardVectorsDotProduct);
 }
 
 float FBehaviorEvaluatorOperation_DotProduct_TargetFV_ToOwner::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return DependencyCurve.GetRichCurveConst()->Eval(CharacterPerceptionData.DotProduct_ActorFV_ToOwner);
 }
 
 float FBehaviorEvaluatorOperation_Scalar_TagBased::EvaluateInternal(const FRelativeOperationContext& Context,
-                                                                    const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                                    const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return TagBasedParameters.Filter.Matches(CharacterPerceptionData.CharacterTags) ? TagBasedParameters.Value : FallbackValue;
 }
 
 float FBehaviorEvaluatorOperation_Scalar_AllyInCombat::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	auto SquadSubsystem = UNpcSquadSubsystem::Get(Context.Pawn.Get());
 	auto MyAllies = SquadSubsystem->GetAllies(Context.Pawn.Get(), true);
@@ -370,13 +381,13 @@ FString FBehaviorEvaluatorOperation_Activation_VisualContactDuration::GenerateFo
 }
 
 float FBehaviorEvaluatorOperation_Activation_VisualContactDuration::EvaluateInternal(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+	const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	return Activate(CharacterPerceptionData.HasVisualDetection() ? CharacterPerceptionData.TimeSeen : 0.f);
 }
 
 float FBehaviorEvaluatorOperation_Clamp::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
-	const FCharacterPerceptionData& CharacterPerceptionData, float CurrentScore) const
+	const FCharacterShortTermMemory& CharacterPerceptionData, float CurrentScore) const
 {
 	return DependencyCurve.GetRichCurveConst()->Eval(CurrentScore);
 }
@@ -392,7 +403,7 @@ void FBehavorEvaluatorRelativeOperationsContainer::GenerateFormulaDescription()
 
 float FBehaviorEvaluatorOperation_NonLinear_CountOfTargetAlliesInProximity::EvaluateInternal(
 	const FRelativeOperationContext& Context, const AActor* Target,
-	const FCharacterPerceptionData& CharacterPerceptionData) const
+	const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	auto TargetPawn = Cast<APawn>(Target);
 	if (TargetPawn == nullptr)
@@ -408,7 +419,7 @@ float FBehaviorEvaluatorOperation_NonLinear_CountOfTargetAlliesInProximity::Eval
 		const double DistanceThresholdSq = DistanceThreshold * DistanceThreshold;
 		for (const auto& Ally : AliveAllies)
 		{
-			const auto* AllyPerceptionData = OwnerPerceptionComponent->GetCharacterPerceptionData(Ally);
+			const auto* AllyPerceptionData = OwnerPerceptionComponent->GetShortTermCharactersMemory(Ally);
 			if (AllyPerceptionData == nullptr || !AllyPerceptionData->HasVisualDetection())
 				continue;
 			
@@ -423,7 +434,7 @@ float FBehaviorEvaluatorOperation_NonLinear_CountOfTargetAlliesInProximity::Eval
 
 float FBehaviorEvaluatorOperation_NonLinear_CountOfTargetAlliesOnWayToTarget::EvaluateInternal(
 	const FRelativeOperationContext& Context, const AActor* Target,
-	const FCharacterPerceptionData& CharacterPerceptionData) const
+	const FCharacterShortTermMemory& CharacterPerceptionData) const
 {
 	auto TargetPawn = Cast<APawn>(Target);
 	if (TargetPawn == nullptr)
@@ -441,7 +452,7 @@ float FBehaviorEvaluatorOperation_NonLinear_CountOfTargetAlliesOnWayToTarget::Ev
 		const double DistanceThresholdSq = DistanceThreshold * DistanceThreshold;
 		for (const auto& Ally : AliveAllies)
 		{
-			const auto* AllyPerceptionData = OwnerPerceptionComponent->GetCharacterPerceptionData(Ally);
+			const auto* AllyPerceptionData = OwnerPerceptionComponent->GetShortTermCharactersMemory(Ally);
 			if (AllyPerceptionData == nullptr || !AllyPerceptionData->HasVisualDetection())
 				continue;
 			

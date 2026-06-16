@@ -79,6 +79,8 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 private:
+	FDateTime GetGameWorldTime() const;
+	
 	UPROPERTY()
 	TScriptInterface<INpc> OwnerNPC;
 

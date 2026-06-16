@@ -20,7 +20,7 @@ void UEnemiesCoordinatorComponent::InitializeComponent()
 		CombatRoleContainers.Add(ENpcCombatRole::None, FNpcCombatRoleContainer(0));
 		CombatRoleContainers.Add(ENpcCombatRole::Attacker, FNpcCombatRoleContainer(Settings->MaxAttackers));
 		CombatRoleContainers.Add(ENpcCombatRole::Surrounder, FNpcCombatRoleContainer(Settings->MaxSurrounders));
-		CombatRoleContainers.Add(ENpcCombatRole::Idle, FNpcCombatRoleContainer(50));
+		CombatRoleContainers.Add(ENpcCombatRole::Idle, FNpcCombatRoleContainer(20));
 	}
 }
 

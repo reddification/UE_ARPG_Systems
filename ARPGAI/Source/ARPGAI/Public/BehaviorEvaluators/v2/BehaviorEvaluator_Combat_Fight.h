@@ -17,7 +17,8 @@ public:
 
 class FBehaviorEvaluator_Combat_Fight : public FBehaviorEvaluator_CombatBase
 {
-private:
+
+	private:
 	using Super = FBehaviorEvaluator_CombatBase;
 
 public:

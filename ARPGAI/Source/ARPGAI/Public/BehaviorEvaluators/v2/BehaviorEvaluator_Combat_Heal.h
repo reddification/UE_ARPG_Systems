@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorEvaluator_OperationBased.h"
-#include "BehaviorEvaluators/BehaviorEvaluator_CombatBase.h"
 #include "BehaviorEvaluator_Combat_Heal.generated.h"
 
 /**
@@ -26,8 +25,6 @@ public:
 	
 protected:
 	virtual float Evaluate() override;
-	virtual bool IsCharacterRelevant(const FCharacterPerceptionData& CharacterPerceptionData, 
-		const FEntityOperationEvaluationParameters& EvaluationParameters) const override;
 	
 private:
 	TWeakObjectPtr<const UBehaviorEvaluatorConfig_Combat_Heal> HealConfig;

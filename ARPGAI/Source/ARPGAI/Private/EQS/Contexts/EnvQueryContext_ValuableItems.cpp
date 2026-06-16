@@ -16,17 +16,17 @@ void UEnvQueryContext_ValuableItems::ProvideContext(FEnvQueryInstance& QueryInst
 		return;
 
 	TArray<AActor*> ValueableItems;
-	const auto& CachedPerception = NpcPerceptionComponent->GetPerceivedValueableItems();
+	const auto& RememberedValueableItems = NpcPerceptionComponent->GetPerceivedValueableItems();
 	
-	for (const auto& ActorPerception : CachedPerception)
+	for (const auto& ValueableItem : RememberedValueableItems)
 	{
-		bool bValidActor = ActorPerception.Key.IsValid()
-			&& (ActorTagsFilter.IsEmpty() || ActorTagsFilter.Matches(ActorPerception.Value.ItemTags));
+		bool bValidActor = ValueableItem.Actor.IsValid()
+			&& (ActorTagsFilter.IsEmpty() || ActorTagsFilter.Matches(ValueableItem.ItemTags));
 		
 		if (!bValidActor)
 			continue;
 
-		ValueableItems.Add(ActorPerception.Key.Get());
+		ValueableItems.Add(ValueableItem.Actor.Get());
 	}
 
 	UEnvQueryItemType_Actor::SetContextHelper(ContextData, ValueableItems);

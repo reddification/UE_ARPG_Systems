@@ -10,7 +10,7 @@
 
 struct FAttackingThreatData;
 struct FNpcImmediateThreatData;
-struct FNpcActiveTargetData;
+struct FNpcPrimaryCombatTargetData;
 
 // This class does not need to be modified.
 UINTERFACE()

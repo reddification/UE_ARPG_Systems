@@ -9,12 +9,9 @@
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
 #include "Data/NpcMemoryDataTypes.h"
-#include "GameFramework/GameModeBase.h"
-#include "Interfaces/Npc.h"
 #include "Interfaces/NpcActorTagsInterface.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Interfaces/NpcPerceptionInterface.h"
-#include "Interfaces/NpcSystemGameMode.h"
 #include "Interfaces/NpcValueableItemInterface.h"
 #include "Interfaces/NpcThreat.h"
 #include "Perception/AISense_Damage.h"
@@ -39,13 +36,28 @@ void UNpcPerceptionComponent::SetMemoryComponent(UNpcMemoryComponent* InMemoryCo
     MemoryComponent = InMemoryComponent;
 }
 
+void UNpcPerceptionComponent::RememberAllyDied(APawn* DeadAlly, AActor* Murderer, const FGameplayTag& LastHitType)
+{
+    auto DeadAllySTM = ShortTermCharacterMemory.Find(DeadAlly);
+    if (DeadAllySTM == nullptr || !DeadAllySTM->HasVisualDetection())
+        return;
+    
+    MemoryComponent->RememberAllyDied(DeadAlly, Murderer, LastHitType);
+}
+
 void UNpcPerceptionComponent::SetPawn(APawn* InPawn)
 {
     OwnerPawn = InPawn;
+    if (auto OwnerThreatInterfaceLocal = Cast<INpcThreat>(InPawn))
+    {
+        OwnerThreat.SetObject(InPawn);
+        OwnerThreat.SetInterface(OwnerThreatInterfaceLocal);
+    }
+    
     NpcAttitudesComponent = GetNpcAttitudesComponent(InPawn);
     NpcAreasComponent = GetNpcAreasComponent(InPawn);
-    if (auto NpcAliveInterface = Cast<INpcAliveCreature>(InPawn))
-        NpcAliveInterface->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcPerceptionComponent::OnNpcOwnerDied);
+    if (auto NpcAliveInterface = Cast<INpcAliveActor>(InPawn))
+        NpcAliveInterface->OnNpcAliveActorDeathStarted.AddUObject(this, &UNpcPerceptionComponent::OnNpcOwnerDied);
     
     if (auto PawnNpcPerceptionInterface = Cast<INpcPerceptionInterface>(InPawn))
     {
@@ -58,7 +70,7 @@ void UNpcPerceptionComponent::SetPawn(APawn* InPawn)
         Npc->OnTagsChangedEvent_NPC.AddUObject(this, &UNpcPerceptionComponent::OnNpcTagsChanged);
         OwnerNpcTags = Npc->GetTags_NPC();
     }
-    
+  
     NpcCombatSettings = GetDefault<UNpcCombatSettings>();
     
     GetWorld()->GetTimerManager().SetTimer(PerceptionCacheTimer, this, &UNpcPerceptionComponent::ProcessShortTermMemory,
@@ -114,7 +126,7 @@ void UNpcPerceptionComponent::ProcessShortTermMemory()
     FVector NpcLocation = OwnerPawn->GetActorLocation();
     UNpcSquadSubsystem* SquadSubsystem = UNpcSquadSubsystem::Get(this);
     auto Allies = SquadSubsystem->GetAllies(OwnerPawn.Get(), false);
-    auto OwnerThreat = Cast<INpcThreat>(OwnerPawn.Get());
+    
     MyDamageOutput = OwnerThreat->GetDamageOutput_NpcThreat();
     MyProtectionValue = OwnerThreat->GetAverageProtection_NpcThreat();
     if (NpcPerceptionInterface.GetObject() != nullptr)
@@ -122,7 +134,6 @@ void UNpcPerceptionComponent::ProcessShortTermMemory()
     
     AccumulatedDamage = 0.f;
     ProcessShortTermMemory(NpcLocation, Allies);
-    MergeAllyPerceptions(NpcLocation, Allies);
     for (const auto& Ally : Allies)
     {
         if (ShortTermCharacterMemory.Contains(Ally))
@@ -132,6 +143,7 @@ void UNpcPerceptionComponent::ProcessShortTermMemory()
         ShortTermCharacterMemory[Ally].DetectionSource = EDetectionSource::Assumption;
     }
     
+    MergeAllyPerceptions(NpcLocation, Allies);
     PostProcessSoundEvents(NpcLocation, Allies);
     
 #if WITH_EDITOR
@@ -169,7 +181,7 @@ void UNpcPerceptionComponent::ProcessShortTermMemory(const FVector& NpcLocation,
             continue;
 
         UE_VLOG(GetOwner(), LogARPGAI_Perception, VeryVerbose, TEXT("Processing perception for %s"), *PerceivedActor->GetName());
-        auto CauserAliveCreature = Cast<INpcAliveCreature>(PerceivedActor);
+        auto CauserAliveCreature = Cast<INpcAliveActor>(PerceivedActor);
         for (const auto& AIStimulus : DataIt.Value().LastSensedStimuli)
         {
             if (AIStimulus.IsExpired())
@@ -204,15 +216,16 @@ void UNpcPerceptionComponent::ProcessShortTermMemory(const FVector& NpcLocation,
                     if (AIStimulus.Type == SightSenseId)
                     {
                         FNpcValueableItemPerceptionData ItemData;
+                        ItemData.Actor = PerceivedActor;
                         ItemData.ItemId = ValueableItem->GetItemTag_NPC();
                         ItemData.Distance = (PerceivedActor->GetActorLocation() - NpcLocation).Size();
                         ItemData.TimeSeen = ActorsObservationTime.FindOrAdd(PerceivedActor);
-                        ItemData.Value = 1.f; // 8 Apr 2026: TODO evaluate items
+                        ItemData.Value = ValueableItem->GetValue_NPC(); // 8 Apr 2026: TODO evaluate items
                         if (auto ValueableItemTagsInterface = Cast<IGameplayTagAssetInterface>(PerceivedActor))
                             ValueableItemTagsInterface->GetOwnedGameplayTags(ItemData.ItemTags);
                         
                         ItemData.ItemTags.AddTag(ItemData.ItemId);
-                        ShortTermValueablesMemory.Add(PerceivedActor, ItemData);
+                        ShortTermValueablesMemory.Add(ItemData);
                     }
                 }
             }
@@ -265,15 +278,14 @@ void UNpcPerceptionComponent::PostProcessSoundEvents(const FVector &NpcLocation,
     }
 }
 
-void UNpcPerceptionComponent::CacheVisualPerception(const FVector& NpcLocation, AActor* PerceivedActor,
-                                                    float ObservationTime, bool bAlly, bool bActive)
+void UNpcPerceptionComponent::CacheVisualPerception(const FVector& NpcLocation, AActor* PerceivedActor, float ObservationTime, bool bAlly, bool bActive)
 {
-    INpcAliveCreature* AliveCreature = Cast<INpcAliveCreature>(PerceivedActor);
+    INpcAliveActor* AliveActorInterface = Cast<INpcAliveActor>(PerceivedActor);
     bool bNoVisualPerceptionYet = !ShortTermCharacterMemory.Contains(PerceivedActor);
     auto& CharacterPerception = ShortTermCharacterMemory.FindOrAdd(PerceivedActor);
     bNoVisualPerceptionYet |= (CharacterPerception.DetectionSource & EDetectionSource::VisualMemory) == EDetectionSource::None;
-    if (AliveCreature)
-        CharacterPerception.CharacterId = AliveCreature->GetTagId_NpcAliveCreature();
+    if (AliveActorInterface)
+        CharacterPerception.CharacterId = AliveActorInterface->GetTagId_NPC();
             
     CharacterPerception.Distance = (NpcLocation - PerceivedActor->GetActorLocation()).Size();
     FVector PerceivedActorFV = PerceivedActor->GetActorForwardVector();
@@ -286,15 +298,15 @@ void UNpcPerceptionComponent::CacheVisualPerception(const FVector& NpcLocation, 
     if (bActive)
         CharacterPerception.DetectionSource |= EDetectionSource::VisualActive;
     
-    bool bAlive = AliveCreature ? AliveCreature->IsAlive_NpcAliveCreature() : false;
+    bool bAlive = AliveActorInterface ? AliveActorInterface->IsAlive_NPC() : false;
     if (bAlive)
     {
-        if (auto ThreatInterface = Cast<INpcThreat>(PerceivedActor))
+        if (auto TargetThreatInterface = Cast<INpcThreat>(PerceivedActor))
         {
-            CharacterPerception.DamageOutput = ThreatInterface->GetDamageOutput_NpcThreat();
-            CharacterPerception.Protection = ThreatInterface->GetAverageProtection_NpcThreat();
-            CharacterPerception.AttackRange = ThreatInterface->GetAttackRange_NpcThreat();
-            CharacterPerception.bCharacterSeesNpc = ThreatInterface->CanSeeThreat(OwnerPawn.Get());
+            CharacterPerception.DamageOutput = TargetThreatInterface->GetDamageOutput_NpcThreat();
+            CharacterPerception.Protection = TargetThreatInterface->GetAverageProtection_NpcThreat();
+            CharacterPerception.AttackRange = TargetThreatInterface->GetAttackRange_NpcThreat();
+            CharacterPerception.bCharacterSeesNpc = TargetThreatInterface->CanSeeThreat_NpcThreat(OwnerPawn.Get());
         }
     }
     
@@ -302,10 +314,10 @@ void UNpcPerceptionComponent::CacheVisualPerception(const FVector& NpcLocation, 
     const float EnemyCombatAdvantage = MyProtectionValue > 0.f ? CharacterPerception.DamageOutput / MyProtectionValue : 1.f;
     const float MyCombatAdvantage = CharacterPerception.Protection > 0.f ? MyDamageOutput / CharacterPerception.Protection : 1.f; 
     CharacterPerception.StaticThreatScore = ThreatScoreDependency->Eval(EnemyCombatAdvantage - MyCombatAdvantage);
-            
-    const float ActorMaxHealth = AliveCreature->GetMaxHealth_NpcAliveCreature();
-    CharacterPerception.NormalizedHealth = bAlive ? AliveCreature->GetHealth_NpcAliveCreature() / ActorMaxHealth : 0.f;
-    CharacterPerception.MaxHealth = ActorMaxHealth;
+    
+    CharacterPerception.Health = AliveActorInterface->GetHealth_NPC();
+    CharacterPerception.MaxHealth = AliveActorInterface->GetMaxHealth_NPC();
+    CharacterPerception.NormalizedHealth = bAlive ? CharacterPerception.Health / CharacterPerception.MaxHealth : 0.f;
     CharacterPerception.bAlive = bAlive;
     if (NpcAttitudesComponent)
     {
@@ -330,14 +342,15 @@ void UNpcPerceptionComponent::CacheVisualPerception(const FVector& NpcLocation, 
         CharacterPerception.CharacterTags.AddTag(ActorTerritorytateTag);
     }
     
-    if (AliveCreature)
+    if (AliveActorInterface)
     {
-        FGuid ActorId = AliveCreature->GetId_NpcAliveCreature();
-        if (auto LTM = MemoryComponent->LongTermMemory.Find(ActorId))
-            CharacterPerception.CharacterTags.AppendTags(LTM->RememberedTraits.GetTraits());
-    
+        FGuid ActorId = AliveActorInterface->GetId_NPC();
+        
         if (bActive)
             MemoryComponent->RememberLongTerm(PerceivedActor, CharacterPerception, ActorId);
+        
+        if (auto LTM = MemoryComponent->LongTermMemory.Find(ActorId))
+            CharacterPerception.CharacterTags.AppendTags(LTM->RememberedTraits.GetTraits());
     }
     
     CharacterPerception.TimeSeen = ObservationTime;
@@ -361,8 +374,14 @@ void UNpcPerceptionComponent::CacheDamagePerception(AActor* PerceivedActor, floa
     AccumulatedDamage += ReceivedDamage;
 }
 
+bool UNpcPerceptionComponent::CanResolveHeardUnseenCharacterIdentity(AActor* PerceivedActor, const FGameplayTag& SoundTag) const
+{
+    // 11 June 2026 (aki): Add intellect and distance checks
+    return !SoundTag.MatchesTag(AIGameplayTags::AI_Noise_Footstep);
+}
+
 void UNpcPerceptionComponent::RememberHeardSound(const FVector& NpcLocation, AActor* PerceivedActor, const FGameplayTag& SoundTag,
-    const FVector& SoundLocation, bool bByAlly, float SoundPerceptionAge, float Loudness)
+                                                 const FVector& SoundLocation, bool bByAlly, float SoundPerceptionAge, float Loudness)
 {
     const float Distance = (NpcLocation - SoundLocation).Size();
     FHeardSoundMemory HeardSound;
@@ -382,12 +401,32 @@ void UNpcPerceptionComponent::RememberHeardSound(const FVector& NpcLocation, AAc
     auto& ActorSoundEvents = ShortTermSoundsMemory.FindOrAdd(PerceivedActor);
     ActorSoundEvents.Add(HeardSound);
 
+    // 11 June 2026 (aki): TODO Add "is resolvable pawn" check. Like, if character throws a stone to distract NPC or if it's just footsteps - 
+    // then NPC shouldn't get a character perception
     if (PerceivedActor->IsA<APawn>())
     {
         auto& CharacterPerception = ShortTermCharacterMemory.FindOrAdd(PerceivedActor);
         CharacterPerception.ProducedSounds.AddTag(SoundTag);
         CharacterPerception.DetectionSource = CharacterPerception.DetectionSource | EDetectionSource::Audio;
-        CharacterPerception.DotProduct_OwnerFV_ToActor = OwnerPawn->GetActorForwardVector() | (SoundLocation - NpcLocation).GetSafeNormal();
+        if (!CharacterPerception.HasVisualDetection())
+        {
+            CharacterPerception.Distance = Distance;
+            CharacterPerception.DotProduct_OwnerFV_ToActor = OwnerPawn->GetActorForwardVector() | (SoundLocation - NpcLocation).GetSafeNormal();
+            CharacterPerception.bAlive = true;
+            
+            if (CanResolveHeardUnseenCharacterIdentity(PerceivedActor, SoundTag))
+            {
+                if (INpcAliveActor* AliveActorInterface = Cast<INpcAliveActor>(PerceivedActor))
+                    CharacterPerception.CharacterId = AliveActorInterface->GetTagId_NPC();
+                
+                if (NpcAttitudesComponent)
+                {
+                    CharacterPerception.Attitude = NpcAttitudesComponent->GetAttitude(PerceivedActor);
+                    CharacterPerception.bHostile = CharacterPerception.Attitude.MatchesTag(AIGameplayTags::AI_Attitude_Hostile);
+                    CharacterPerception.bAlly = CharacterPerception.Attitude.MatchesTag(AIGameplayTags::AI_Attitude_Friendly);
+                }
+            }
+        }
     }
 }
 
@@ -421,8 +460,9 @@ void UNpcPerceptionComponent::MergeAllyPerceptions(const FVector& NpcLocation, c
                     CharacterPerception.ShortTermAccumulatedDamage = 0.f;
                     CharacterPerception.Distance = (AllyCharacterPerception.Key->GetActorLocation() - NpcLocation).Size();
                     CharacterPerception.ProducedSounds = FGameplayTagContainer::EmptyContainer;
-                    CharacterPerception.bCharacterSeesNpc = Cast<INpcThreat>(AllyCharacterPerception.Key.Get())->CanSeeThreat(OwnerPawn.Get());
                     CharacterPerception.DetectionSource = EDetectionSource::Ally;
+                    // 16 June 2026 (aki): deliberately set to false because idk, it kinda doesn't make sense for an NPC to understand if an enemy, that is ONLY known from ally perception, can see owner or not
+                    CharacterPerception.bCharacterSeesNpc = false; //Cast<INpcThreat>(AllyCharacterPerception.Key.Get())->CanSeeThreat_NpcThreat(OwnerPawn.Get());
                 }
             }
         }
@@ -524,12 +564,12 @@ void UNpcPerceptionComponent::OnTargetPerceptionUpdatedHandler(AActor* Actor, FA
     TargetPerceptionUpdatedNativeEvent.Broadcast(Actor, Stimulus);
 }
 
-void UNpcPerceptionComponent::OnNpcOwnerDied(AActor* Actor)
+void UNpcPerceptionComponent::OnNpcOwnerDied(AActor* Actor, const FNpcDeathEventData& DeathEventData)
 {
-    if (OwnerPawn.IsValid())
+    if (IsValid(OwnerPawn))
     {
-        auto AliveInterface = Cast<INpcAliveCreature>(OwnerPawn.Get());
-        AliveInterface->OnNpcAliveCreatureDeathStarted.RemoveAll(this);
+        auto AliveInterface = Cast<INpcAliveActor>(OwnerPawn.Get());
+        AliveInterface->OnNpcAliveActorDeathStarted.RemoveAll(this);
         if (auto World = GetWorld())
             World->GetTimerManager().ClearTimer(PerceptionCacheTimer);
     }

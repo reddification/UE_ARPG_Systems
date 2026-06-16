@@ -1,16 +1,16 @@
-﻿#include "BehaviorTree/Decorators/BTDecorator_GrantTags.h"
+﻿#include "BehaviorTree/Decorators/BTDecorator_GrantTagsOnActivation.h"
 
 #include "AIController.h"
 #include "Interfaces/NpcActorTagsInterface.h"
 
-UBTDecorator_GrantTags::UBTDecorator_GrantTags()
+UBTDecorator_GrantTagsOnActivation::UBTDecorator_GrantTagsOnActivation()
 {
-	NodeName = "Grant tags";
+	NodeName = "Grant tags on activation";
 	bNotifyActivation = true;
 	bNotifyDeactivation = true;
 }
 
-void UBTDecorator_GrantTags::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
+void UBTDecorator_GrantTagsOnActivation::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
 {
 	Super::OnNodeActivation(SearchData);
 	if (GrantedTags.IsEmpty())
@@ -33,7 +33,7 @@ void UBTDecorator_GrantTags::OnNodeActivation(FBehaviorTreeSearchData& SearchDat
 	}
 }
 
-void UBTDecorator_GrantTags::OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult)
+void UBTDecorator_GrantTagsOnActivation::OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult)
 {
 	if (!GrantedTags.IsEmpty())
 	{
@@ -57,7 +57,7 @@ void UBTDecorator_GrantTags::OnNodeDeactivation(FBehaviorTreeSearchData& SearchD
 	Super::OnNodeDeactivation(SearchData, NodeResult);
 }
 
-FString UBTDecorator_GrantTags::GetStaticDescription() const
+FString UBTDecorator_GrantTagsOnActivation::GetStaticDescription() const
 {
 	if (GrantedTags.IsEmpty())
 		return TEXT("No tags specified");

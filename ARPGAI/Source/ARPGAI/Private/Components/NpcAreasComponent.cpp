@@ -3,6 +3,7 @@
 #include "Interfaces/NpcZone.h"
 #include "Data/AiDataTypes.h"
 #include "Data/AIGameplayTags.h"
+#include "Data/LogChannels.h"
 #include "Gameframework/GameModeBase.h"
 
 UNpcAreasComponent::UNpcAreasComponent()
@@ -23,10 +24,11 @@ void UNpcAreasComponent::BeginPlay()
 	}
 }
 
-void UNpcAreasComponent::AddAreaOfInterest(const FGameplayTag& AreaType, TScriptInterface<INpcZone> NewArea)
+void UNpcAreasComponent::AddAreaOfInterest(const FGameplayTag& AreaType, const TScriptInterface<INpcZone>& NewArea)
 {
 	FNpcAreasContainer& NpcAreasContainer = NpcAreas.FindOrAdd(AreaType);
 	NpcAreasContainer.NpcAreas.Add(NewArea);
+	UE_VLOG(GetOwner(), LogARPGAI_Activity, Verbose, TEXT("Added area of interest: %s [%s]"), *AreaType.ToString(), *NewArea->GetAreaId_NPC().ToString());
 }
 
 void UNpcAreasComponent::AddAreasOfInterest(const FGameplayTag& AreaType, const FGameplayTagContainer& AreaIds)
@@ -45,6 +47,7 @@ void UNpcAreasComponent::AddAreasOfInterest(const FGameplayTag& AreaType, const 
 			NpcArea.SetObject(NpcAreaActor);
 			NpcArea.SetInterface(NpcAreaInterface);
 			NpcAreaType.NpcAreas.Add(NpcArea);
+			UE_VLOG(GetOwner(), LogARPGAI_Activity, Verbose, TEXT("Added area of interest: %s [%s]"), *AreaType.ToString(), *NpcArea->GetAreaId_NPC().ToString());
 		}
 	}
 }
@@ -52,10 +55,12 @@ void UNpcAreasComponent::AddAreasOfInterest(const FGameplayTag& AreaType, const 
 void UNpcAreasComponent::RemoveNpcAreas(const FGameplayTag& AreaType)
 {
 	NpcAreas.Remove(AreaType);
+	UE_VLOG(GetOwner(), LogARPGAI_Activity, Verbose, TEXT("Removed areas type: %s"), *AreaType.ToString());
 }
 
-void UNpcAreasComponent::RemoveNpcArea(const FGameplayTag& AreaType, TScriptInterface<INpcZone> AreaToRemove)
+void UNpcAreasComponent::RemoveNpcArea(const FGameplayTag& AreaType, const TScriptInterface<INpcZone>& AreaToRemove)
 {
+	UE_VLOG(GetOwner(), LogARPGAI_Activity, Verbose, TEXT("Removing NPC area: %s [%s]"), *AreaToRemove->GetAreaId_NPC().ToString(), *AreaType.ToString());
 	if (auto NpcAreaContainer = NpcAreas.Find(AreaType))
 		NpcAreaContainer->NpcAreas.Remove(AreaToRemove);
 }

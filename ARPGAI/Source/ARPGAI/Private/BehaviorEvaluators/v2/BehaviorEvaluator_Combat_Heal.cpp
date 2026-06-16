@@ -34,10 +34,3 @@ float FBehaviorEvaluator_Combat_Heal::Evaluate()
 	float EnemyBasedReluctance = GetEntitiesAggregatedScore(Enemies, OperationsConfig->EnemiesEvaluationParameters);
 	return HealDesire - EnemyBasedReluctance;
 }
-
-bool FBehaviorEvaluator_Combat_Heal::IsCharacterRelevant(const FCharacterPerceptionData& CharacterPerceptionData,
-	const FEntityOperationEvaluationParameters& EvaluationParameters) const
-{
-	auto Base = Super::IsCharacterRelevant(CharacterPerceptionData, EvaluationParameters);
-	return Base && CharacterPerceptionData.bAlive && CharacterPerceptionData.bHostile; 
-}

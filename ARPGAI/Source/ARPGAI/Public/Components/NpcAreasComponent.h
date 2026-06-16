@@ -17,10 +17,10 @@ class ARPGAI_API UNpcAreasComponent : public UActorComponent
 public:
 	UNpcAreasComponent();
 	
-	void AddAreaOfInterest(const FGameplayTag& AreaType, TScriptInterface<INpcZone> NewArea);
+	void AddAreaOfInterest(const FGameplayTag& AreaType, const TScriptInterface<INpcZone>& NewArea);
 	void AddAreasOfInterest(const FGameplayTag& AreaType, const FGameplayTagContainer& AreaIds);
 	void RemoveNpcAreas(const FGameplayTag& AreaType);
-	void RemoveNpcArea(const FGameplayTag& AreaType, TScriptInterface<INpcZone> AreaToRemove);
+	void RemoveNpcArea(const FGameplayTag& AreaType, const TScriptInterface<INpcZone>& AreaToRemove);
 	bool SetExclusiveNpcAreaType(const FGameplayTag& NewExclusiveAreaType);
 	bool RemoveExclusiveNpcAreaType(const FGameplayTag& RemovedExclusiveAreaType);
 	const TMap<FGameplayTag, FNpcAreasContainer>& GetNpcAreas() const;

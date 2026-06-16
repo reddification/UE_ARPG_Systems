@@ -16,7 +16,7 @@ enum class EDetectionSource : uint8
 };
 ENUM_CLASS_FLAGS(EDetectionSource)
 
-struct ARPGAI_API FCharacterPerceptionData
+struct ARPGAI_API FCharacterShortTermMemory
 {
 	FGameplayTag CharacterId;
 	FGameplayTag Attitude;
@@ -27,6 +27,7 @@ struct ARPGAI_API FCharacterPerceptionData
 	float DamageOutput = 0.f;
 	float TimeSeen = 0.f;
 	float NormalizedHealth = 0.f;
+	float Health = 0.f;
 	float MaxHealth = 0.f;
 	
 	// from this character. Active as long as damage sense is active
@@ -50,11 +51,17 @@ struct ARPGAI_API FCharacterPerceptionData
 	float Protection = 0.f;
 	float AttackRange = 0.f;
 	
+	// 13 June 2026 (aki): at this point, it's time to replace these bools with ENpcPerceptionTraits
 	bool bCharacterSeesNpc = false;
 	bool bAlly = false;
 	bool bHostile = false;
 	bool bAlive = true;
-	EDetectionSource DetectionSource;
+	
+	// 14 June 2026 (aki): TODO implement
+	bool bCanOwnerHitEnemy = false;
+	bool bCanEnemyHitOwner = false;
+	
+	EDetectionSource DetectionSource = EDetectionSource::None;
 
 	FORCEINLINE bool IsAlive() const { return bAlive; }
 	FORCEINLINE bool IsHostile() const { return bHostile; }
@@ -96,6 +103,7 @@ struct FHazardPerceptionData
 
 struct ARPGAI_API FNpcValueableItemPerceptionData
 {
+	TWeakObjectPtr<AActor> Actor;
 	FGameplayTag ItemId;
 	FGameplayTagContainer ItemTags;
 	
@@ -114,6 +122,9 @@ struct FNpcLongTermMemoryReason
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagQuery ActorFilter;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FGameplayTagContainer AttitudesFilter;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FGameplayTagContainer RememberedTraits;

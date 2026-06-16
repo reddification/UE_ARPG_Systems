@@ -4,6 +4,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Interfaces/Npc.h"
+#include "Interfaces/NpcInventoryInterface.h"
 #include "Interfaces/NpcValueableItemInterface.h"
 
 UBTTask_PickUpItem::UBTTask_PickUpItem()

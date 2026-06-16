@@ -364,8 +364,8 @@ void UBTComposite_Utility::UpdateUtilityScores(FBTUtilityMemory* UtilityMemory, 
 					*UtilityMemory->ExecutionUtilityOrdering[i].GetBlackboardKeyName().ToString(), UtilityMemory->ExecutionUtilityOrdering[i].ChildIdx,
 					OldValue, UtilityMemory->ExecutionUtilityOrdering[i].UtilityScore);
 			}
-		}
 #endif
+		}
 	}
 	
 	Algo::StableSort(UtilityMemory->ExecutionUtilityOrdering);

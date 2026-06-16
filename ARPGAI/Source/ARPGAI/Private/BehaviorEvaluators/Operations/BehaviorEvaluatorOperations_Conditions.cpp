@@ -1,21 +1,24 @@
 ﻿#include "BehaviorEvaluators/Operations/BehaviorEvaluatorOperations_Conditions.h"
 
+#include "Activities/NpcComponentsHelpers.h"
 #include "BehaviorEvaluators/Operations/BehaviorEvaluatorOperations_DataTypes.h"
 #include "Components/Controller/NpcPerceptionComponent.h"
+#include "Interfaces/NpcThreat.h"
+#include "Subsystems/NpcSquadSubsystem.h"
 
 bool FBehaviorEvaluatorOperationCondition_LogicalOperation_Binary::Evaluate(
 	const FRelativeOperationContext& Context, const AActor* Target,
-	const FCharacterPerceptionData& CharacterPerceptionData) const
+	const FCharacterShortTermMemory& CharacterSTM) const
 {
-	auto Base = Super::Evaluate(Context, Target, CharacterPerceptionData);
+	auto Base = Super::Evaluate(Context, Target, CharacterSTM);
 	if (!Base)
 		return false;
 	
 	if (!Statement1.IsValid() || !Statement2.IsValid())
 		return false;
 	
-	const bool b1 = Statement1.Get().Evaluate(Context, Target, CharacterPerceptionData);
-	const bool b2 = Statement2.Get().Evaluate(Context, Target, CharacterPerceptionData);
+	const bool b1 = Statement1.Get().Evaluate(Context, Target, CharacterSTM);
+	const bool b2 = Statement2.Get().Evaluate(Context, Target, CharacterSTM);
 	return EvaluateInternal(b1, b2);
 }
 
@@ -43,9 +46,80 @@ FString FBehaviorEvaluatorOperationCondition_LogicalOperation_Binary::ToString(i
 	if (!Statement2.IsValid())
 		return Base + TEXT("Error! Statement 2 is not set");
 	
-	FString Indentation1Str = FString::ChrN(Indentation + 2, '\t');
-	return Base + FString::Printf(TEXT("%s\n%s%s\n%s"), 
-		*Statement1.Get().ToString(Indentation + 1), *Indentation1Str, *BinaryOpInfo(), *Statement2.Get().ToString(Indentation + 1));
+	FString Indentation1Str = FString::ChrN(Indentation + 1, '\t');
+	return FString::Printf(TEXT("%s\n%s%s\n%s"), 
+		*Statement1.Get().ToString(Indentation), *Indentation1Str, *BinaryOpInfo(), *Statement2.Get().ToString(Indentation));
+}
+
+bool FBehaviorEvaluatorOperationCondition_LogicalOperation_Compound::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+	const FCharacterShortTermMemory& CharacterSTM) const
+{
+	if (Statements.IsEmpty())
+		return false;
+	
+	switch (Mode) 
+	{
+		case EBehaviorEvaluatorConditionCompoundOperation::AND:
+			for (const auto& StatementIS : Statements)
+				if (!StatementIS.IsValid() || !StatementIS.Get().Evaluate(Context, Target, CharacterSTM))
+					return false;
+
+			return true;
+		case EBehaviorEvaluatorConditionCompoundOperation::OR:
+			for (const auto& StatementIS : Statements)
+				if (StatementIS.IsValid() && StatementIS.Get().Evaluate(Context, Target, CharacterSTM))
+					return true;
+
+			return false;
+		default:
+			ensure(false);
+			break;
+	}
+	
+	return false;
+}
+
+bool FBehaviorEvaluatorOperationCondition_LogicalOperation_Compound::Evaluate(const FAggregationOperationContext& Context,
+	const UNpcPerceptionComponent* NpcPerceptionComponent) const
+{
+	if (Statements.IsEmpty())
+		return false;
+	
+	switch (Mode) 
+	{
+	case EBehaviorEvaluatorConditionCompoundOperation::AND:
+		for (const auto& StatementIS : Statements)
+			if (!StatementIS.IsValid() || !StatementIS.Get().Evaluate(Context, NpcPerceptionComponent))
+				return false;
+
+		return true;
+	case EBehaviorEvaluatorConditionCompoundOperation::OR:
+		for (const auto& StatementIS : Statements)
+			if (StatementIS.IsValid() && StatementIS.Get().Evaluate(Context, NpcPerceptionComponent))
+				return true;
+
+		return false;
+	default:
+		ensure(false);
+		break;
+	}
+	
+	return false;
+}
+
+FString FBehaviorEvaluatorOperationCondition_LogicalOperation_Compound::ToString(int Indentation) const
+{
+	FString Description = FString::ChrN(Indentation, '\t') + StaticEnum<EBehaviorEvaluatorConditionCompoundOperation>()->GetDisplayValueAsText(Mode).ToString();
+	
+	for (const auto& StatementIS : Statements)
+	{
+		if (StatementIS.IsValid())
+			Description += TEXT("\n") + StatementIS.Get().ToString(Indentation + 1);
+		else
+			Description += FString::Printf(TEXT("\n%sInvalid statement"), *FString::ChrN(Indentation + 1, '\t'));
+	}
+
+	return Description;
 }
 
 bool FBehaviorEvaluatorOperationCondition_LogicalOperation_Conjunction::EvaluateInternal(bool bStatement1, bool bStatement2) const
@@ -60,16 +134,16 @@ bool FBehaviorEvaluatorOperationCondition_LogicalOperation_Disjunction::Evaluate
 }
 
 bool FBehaviorEvaluatorOperationCondition_Unary_Not::Evaluate(const FRelativeOperationContext& Context,
-	const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                              const AActor* Target, const FCharacterShortTermMemory& CharacterSTM) const
 {
-	auto Base = Super::Evaluate(Context, Target, CharacterPerceptionData);
+	auto Base = Super::Evaluate(Context, Target, CharacterSTM);
 	if (!Base)
 		return false;
 	
 	if (!Statement1.IsValid())
 		return false;
 	
-	return !Statement1.Get().Evaluate(Context, Target, CharacterPerceptionData);
+	return !Statement1.Get().Evaluate(Context, Target, CharacterSTM);
 }
 
 bool FBehaviorEvaluatorOperationCondition_Unary_Not::Evaluate(const FAggregationOperationContext& Context,
@@ -91,9 +165,9 @@ FString FBehaviorEvaluatorOperationCondition_Unary_Not::ToString(int Indentation
 }
 
 bool FBehaviorEvaluatorOperationCondition_EvaluatorState::Evaluate(const FRelativeOperationContext& Context,
-                                                                           const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const
+                                                                   const AActor* Target, const FCharacterShortTermMemory& CharacterSTM) const
 {
-	return Super::Evaluate(Context, Target, CharacterPerceptionData) && Context.EvaluatorState == RequiredState;
+	return Super::Evaluate(Context, Target, CharacterSTM) && Context.EvaluatorState == RequiredState;
 }
 
 bool FBehaviorEvaluatorOperationCondition_EvaluatorState::Evaluate(const FAggregationOperationContext& Context,
@@ -110,10 +184,10 @@ FString FBehaviorEvaluatorOperationCondition_EvaluatorState::ToString(int Indent
 
 bool FBehaviorEvaluatorOperationCondition_Activation_VisualContactDuration::Evaluate(
 	const FRelativeOperationContext& Context, const AActor* Target,
-	const FCharacterPerceptionData& CharacterPerceptionData) const
+	const FCharacterShortTermMemory& CharacterSTM) const
 {
-	return Super::Evaluate(Context, Target, CharacterPerceptionData)
-		&& CharacterPerceptionData.HasVisualDetection() && CharacterPerceptionData.TimeSeen >= ActivationThreshold;
+	return Super::Evaluate(Context, Target, CharacterSTM)
+		&& CharacterSTM.HasVisualDetection() && CharacterSTM.TimeSeen >= ActivationThreshold;
 }
 
 bool FBehaviorEvaluatorOperationCondition_Activation_VisualContactDuration::Evaluate(
@@ -130,7 +204,7 @@ FString FBehaviorEvaluatorOperationCondition_Activation_VisualContactDuration::T
 
 bool FBehaviorEvaluatorOperationCondition_Activation_AccumulatedScore::Evaluate(
 	const FRelativeOperationContext& Context, const AActor* Target,
-	const FCharacterPerceptionData& CharacterPerceptionData) const
+	const FCharacterShortTermMemory& CharacterSTM) const
 {
 	return Context.AccumulatedScore >= ActivationThreshold;
 }
@@ -148,7 +222,7 @@ FString FBehaviorEvaluatorOperationCondition_Activation_AccumulatedScore::ToStri
 
 bool FBehaviorEvaluatorOperationCondition_Activation_BehaviorDuration::Evaluate(
 	const FRelativeOperationContext& Context, const AActor* Target,
-	const FCharacterPerceptionData& CharacterPerceptionData) const
+	const FCharacterShortTermMemory& CharacterSTM) const
 {
 	return Context.ActiveBehaviorDuration >= ActivationThreshold;
 }
@@ -159,7 +233,76 @@ bool FBehaviorEvaluatorOperationCondition_Activation_BehaviorDuration::Evaluate(
 	return Context.ActiveBehaviorDuration >= ActivationThreshold;
 }
 
-FString FBehaviorEvaluatorOperationCondition_Activation_BehaviorDuration::ToString(int Indentation) const
+bool FBehaviorEvaluatorOperationCondition_Activation_Distance::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+                                                                        const FCharacterShortTermMemory& CharacterSTM) const
 {
-	return Super::ToString(Indentation) + FString::Printf(TEXT("Behavior duration >= %.2fs"), ActivationThreshold);
+	return CharacterSTM.Distance <= DistanceThreshold;
+}
+
+bool FBehaviorEvaluatorOperationCondition_IsAlive::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+                                                            const FCharacterShortTermMemory& CharacterSTM) const
+{
+	return CharacterSTM.bAlive == bDesiredState;
+}
+
+bool FBehaviorEvaluatorOperationCondition_Activation_IsHostile::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+                                                                         const FCharacterShortTermMemory& CharacterSTM) const
+{
+	return CharacterSTM.bHostile == bDesiredState;
+}
+
+bool FBehaviorEvaluatorOperationCondition_InCombatWithAllies::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+	const FCharacterShortTermMemory& CharacterSTM) const
+{
+	auto SquadSubsystem = UNpcSquadSubsystem::Get(Context.Pawn.Get());
+	auto MyAllies = SquadSubsystem->GetAllies(Context.Pawn.Get(), true);
+	bool bInCombatWithAllies = false;
+	for (const auto* Ally: MyAllies)
+	{
+		auto AllyCombatLogicComponent = GetNpcCombatLogicComponent(Ally);
+		if (AllyCombatLogicComponent->HasTarget(Target))
+		{
+			bInCombatWithAllies = true;
+			break;
+		}
+	}
+	
+	return bInCombatWithAllies == bDesiredState;
+}
+
+bool FBehaviorEvaluatorOperationCondition_LongTermAccumulatedDamage::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+	const FCharacterShortTermMemory& CharacterSTM) const
+{
+	const float RelativeDamage = CharacterSTM.LongTermAccumulatedReceivedDamage / Context.MaxHealth;
+	return RelativeDamage >= NormalizedDamageThreshold;
+}
+
+bool FBehaviorEvaluatorOperationCondition_HasTags::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+	const FCharacterShortTermMemory& CharacterSTM) const
+{
+	return ActorFilter.Matches(CharacterSTM.CharacterTags);
+}
+
+bool FBehaviorEvaluatorOperationCondition_IsPrimaryTarget::Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
+	const FCharacterShortTermMemory& CharacterSTM) const
+{
+	if (bTargetForOwner)
+	{
+		auto OwnerThreat = Cast<INpcThreat>(Context.Pawn.Get());
+		return OwnerThreat->IsPrimaryTarget_NpcThreat(Target, ForBehavior);
+	}
+	else
+	{
+		auto TargetThreat = Cast<INpcThreat>(Target);
+		return TargetThreat != nullptr ? TargetThreat->IsPrimaryTarget_NpcThreat(Context.Pawn.Get(), ForBehavior) : false;
+	}
+}
+
+FString FBehaviorEvaluatorOperationCondition_IsPrimaryTarget::ToString(int Indentation) const
+{
+	FString ConditionDescription = bTargetForOwner ?
+		FString::Printf(TEXT("Tested actor is primary target for owner? [%s]"), *ForBehavior.ToString()):
+		FString::Printf(TEXT("Owner is primary target for tested actor? [%s]"), *ForBehavior.ToString());
+	
+	return Super::ToString(Indentation) + ConditionDescription;
 }

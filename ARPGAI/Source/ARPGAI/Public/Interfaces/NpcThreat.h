@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "GameplayTagContainer.h"
+#include "BehaviorEvaluators/Operations/BehaviorEvaluatorOperations_Conditions.h"
 #include "NpcThreat.generated.h"
 
 // This class does not need to be modified.
@@ -35,7 +36,11 @@ public:
 	virtual FVector GetThreatLocation() const = 0;
 	virtual void ReportPreparingAttack(APawn* Attacker, bool bActive) = 0;
 	virtual FGameplayTagContainer GetAttitudeTags() const = 0;
-	virtual bool CanSeeThreat(APawn* Target) const = 0;
+	virtual bool CanSeeThreat_NpcThreat(APawn* Target) const = 0;
+
+	virtual TArray<AActor*> GetCurrentEnemies_NpcThreat() const;
+	virtual AActor* GetPrimaryCombatTarget_NpcThreat() const;
+	virtual bool IsPrimaryTarget_NpcThreat(const AActor* Actor, const FGameplayTag& ForBehavior) const;
 
 	FThreatCombatCommonEvent OnThreatStartedAttackEvent;
 	FThreatCombatCommonEvent OnThreatAttackCompletedEvent;

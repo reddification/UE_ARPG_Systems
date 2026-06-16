@@ -57,10 +57,11 @@ struct FNpcImmediateThreatData
 
 typedef TMap<TWeakObjectPtr<AActor>, FNpcImmediateThreatData> FNpcCurrentCombatThreatsContainer;
 
-struct FNpcActiveTargetData
+struct FNpcPrimaryCombatTargetData
 {
-	TWeakObjectPtr<AActor> ActiveTarget;
-	FGameplayTag ActiveBehaviorTypeTag;
+	TWeakObjectPtr<AActor> Actor;
+	FGameplayTag BehaviorType;
+	
 	void Reset();
 	bool IsValid() const;
 };

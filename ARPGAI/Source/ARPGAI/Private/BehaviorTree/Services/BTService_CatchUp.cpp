@@ -61,21 +61,24 @@ void UBTService_CatchUp::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* Node
 	float DistanceToTarget = Blackboard->GetValueAsFloat(DistanceToTargetBBKey.SelectedKeyName);
 	float WorldTime = OwnerComp.GetWorld()->GetTimeSeconds();
 
-	if (WorldTime > BTMemory->NextDrawAttentionAt && DistanceToTarget < MaxRangeToDrawAttention)
+	if (bDrawAttention)
 	{
-		if (bReportNoiseEvent)
-			UAISense_Hearing::ReportNoiseEvent(Pawn, Pawn->GetActorLocation(), Loudness, Pawn, PhraseHeardAtRange, DrawAttentionPhraseId.GetTagName());
-		
-		if (auto NpcEmoteInterface = Cast<INpcEmoteInterface>(Pawn))
+		if (WorldTime > BTMemory->NextDrawAttentionAt && DistanceToTarget < MaxRangeToDrawAttention)
 		{
-			if (DrawAttentionPhraseId.IsValid())
-				NpcEmoteInterface->SayPhrase_NPC(DrawAttentionPhraseId);
+			if (bReportNoiseEvent)
+				UAISense_Hearing::ReportNoiseEvent(Pawn, Pawn->GetActorLocation(), Loudness, Pawn, PhraseHeardAtRange, DrawAttentionPhraseId.GetTagName());
+		
+			if (auto NpcEmoteInterface = Cast<INpcEmoteInterface>(Pawn))
+			{
+				if (DrawAttentionPhraseId.IsValid())
+					NpcEmoteInterface->SayPhrase_NPC(DrawAttentionPhraseId);
 			
-			if (DrawAttentionGestureId.IsValid())
-				NpcEmoteInterface->PerformGesture_NPC(DrawAttentionGestureId);
-		}
+				if (DrawAttentionGestureId.IsValid())
+					NpcEmoteInterface->PerformGesture_NPC(DrawAttentionGestureId);
+			}
 
-		BTMemory->NextDrawAttentionAt = WorldTime + FMath::RandRange(DrawAttentionCooldown * 0.75f, DrawAttentionCooldown * 1.25f);
+			BTMemory->NextDrawAttentionAt = WorldTime + FMath::RandRange(DrawAttentionCooldown * 0.75f, DrawAttentionCooldown * 1.25f);
+		}
 	}
 	
 	if (bUpdateSpeed)

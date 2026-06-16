@@ -81,7 +81,7 @@ void FBehaviorEvaluator_SuddenThreat::OnPerceptionUpdated(AActor* TriggerActor, 
 	if (Stimulus.Type == DamageSenseID)
 	{
 		if (SuddenThreatConfig->bIgnoreVisuallyPerceivedCauses)
-			if (const auto* KnownCharacterData = PerceptionComponent->GetCharacterPerceptionData(TriggerActor))
+			if (const auto* KnownCharacterData = PerceptionComponent->GetShortTermCharactersMemory(TriggerActor))
 				if (KnownCharacterData->HasImmediateVisualDetection(0.5f))
 					return;
 		

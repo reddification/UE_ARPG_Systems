@@ -7,7 +7,7 @@
 #include "BehaviorEvaluatorOperations_Relative.generated.h"
 
 struct FBehaviorEvaluatorOperationCondition_Base;
-struct FCharacterPerceptionData;
+struct FCharacterShortTermMemory;
 
 USTRUCT(BlueprintType)
 struct ARPGAI_API FBehaviorEvaluatorOperation_Relative_Base : public FBehaviorEvaluatorOperation_Base
@@ -16,13 +16,13 @@ struct ARPGAI_API FBehaviorEvaluatorOperation_Relative_Base : public FBehaviorEv
 	
 public:
 	virtual float Evaluate(const FRelativeOperationContext& Context, const AActor* Target,
-		const FCharacterPerceptionData& CharacterPerceptionData, float CurrentScore) const;
+		const FCharacterShortTermMemory& CharacterPerceptionData, float CurrentScore) const;
 	virtual FString GetShortDescription() const override;
 	virtual FString GenerateFormulaDescription(int Indentation) const override;
 	
 protected:
 	virtual float EvaluateInternal(const FRelativeOperationContext& Context,
-		const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const { return FallbackValue; };	
+		const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const { return FallbackValue; };	
 	
 	// Only evaluate if perception item detection source matches this mask.
 	// If mask is empty = no filter
@@ -57,7 +57,7 @@ public:
 		{ return Super::GenerateFormulaDescription(Indentation) + FString::Printf(TEXT("%.2f"), ConstantValue); };
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override
 		{ return ConstantValue; };
 	virtual FString GetShortDescriptionInternal() const override 
 		{ return FString::Printf(TEXT("Const %.2f"), ConstantValue) ; };
@@ -81,7 +81,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FName CachedVariable = FName("variable1");
 	
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override
 	{ return Context.CachedVariables.Contains(CachedVariable) ? Context.CachedVariables[CachedVariable] : FallbackValue; };
 	
 	virtual FString GetShortDescriptionInternal() const override 
@@ -99,7 +99,7 @@ public:
 	virtual FString GenerateFormulaDescription(int Indentation) const override;
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;	
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;	
 	virtual FString GetShortDescriptionInternal() const override { return FString::Printf(TEXT("Operations aggregations [%d]"), Operations.Num()) ; };
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct))
@@ -118,7 +118,7 @@ public:
 	
 protected:
 	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target,
-		const FCharacterPerceptionData& CharacterPerceptionData) const override;	
+		const FCharacterShortTermMemory& CharacterPerceptionData) const override;	
 	virtual FString GetShortDescriptionInternal() const override;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ExcludeBaseStruct))
@@ -155,7 +155,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + FString::Printf(TEXT("Distance")); };
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Distance"); };
 };
 
@@ -171,7 +171,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + FString::Printf(TEXT("Time seen")); };
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Time seen"); };
 };
 
@@ -188,7 +188,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + FString::Printf(TEXT("Behavior duration")); };
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Behavior duration"); };
 };
 
@@ -207,7 +207,7 @@ public:
 	bool bUseLongTermMemory = false;
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;	
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;	
 	virtual FString GetShortDescriptionInternal() const override { return FString::Printf(TEXT("Individual Accumulated Damage %s"), bUseLongTermMemory ? TEXT("long term") : TEXT("short term")); };
 };
 
@@ -223,10 +223,9 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + FString::Printf(TEXT("Combat Performance")); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;	
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;	
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Combat performance"); };
 };
-
 
 USTRUCT(BlueprintType, meta=(Hidden))
 struct FBehaviorEvaluatorOperation_AdvantageBase : public FBehaviorEvaluatorOperation_NonLinearBase
@@ -242,7 +241,6 @@ protected:
 	bool bInverted = false;
 };
 
-
 USTRUCT(BlueprintType, DisplayName="NLD | Advantage | Damage output advantage")
 struct FBehaviorEvaluatorOperation_DamageOutputAdvantage : public FBehaviorEvaluatorOperation_AdvantageBase
 {
@@ -254,7 +252,7 @@ public:
 	virtual FString GenerateFormulaDescription(int Indentation) const override;
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Damage Output Advantage"); };
 };
 
@@ -269,7 +267,7 @@ public:
 	virtual FString GenerateFormulaDescription(int Indentation) const override;
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Protection Output Advantage"); };
 };
 
@@ -284,7 +282,7 @@ public:
 	virtual FString GenerateFormulaDescription(int Indentation) const override;
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Damage over Protection Advantage"); };
 	
 	// if true - use MY damage / TARGET protection
@@ -305,8 +303,27 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("# of attackers on target"); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Count of attackers on target"); };
+};
+
+USTRUCT(BlueprintType, DisplayName="NLD | Count | Killed allies")
+struct FBehaviorEvaluatorOperation_CountOfWitnessedMurderedAllies : public FBehaviorEvaluatorOperation_NonLinearBase
+{
+	GENERATED_BODY()
+	
+	using Super = FBehaviorEvaluatorOperation_NonLinearBase;
+	
+public:
+	virtual FString GenerateFormulaDescription(int Indentation) const override
+	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("# of killed allies by target"); }
+	
+protected:
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
+	virtual FString GetShortDescriptionInternal() const override { return TEXT("Count of killed allies by target"); };
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
+	float WithinGameTimeHours = 12.f;
 };
 
 USTRUCT(BlueprintType, DisplayName="NLD | Count | Allies in combat with target")
@@ -322,7 +339,7 @@ public:
 	
 protected:
 	virtual float EvaluateInternal(const FRelativeOperationContext& Context, 
-		const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+		const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Count of allies in combat with target"); };
 };
 
@@ -338,7 +355,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("DP: NPC FV | NPC->Target"); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Dot product: owner FV to target"); };
 };
 
@@ -354,7 +371,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("DP: NPC FV | Target FV"); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Dot product: owner FV to target FV"); };
 };
 
@@ -370,7 +387,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("DP: Target FV | To Owner "); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Dot product: Target FV to owner"); };
 };
 
@@ -386,7 +403,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + FString::Printf(TEXT("Scalar tags based [%.2f | %.2f]"), TagBasedParameters.Value, FallbackValue); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return FString::Printf(TEXT("Scalar tags based [%.2f | %.2f]"), TagBasedParameters.Value, FallbackValue); };
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
@@ -405,11 +422,9 @@ public:
 	{ return Super::Super::GenerateFormulaDescription(Indentation) + FString::Printf(TEXT("Is any ally in combat with target [%.2f | %.2f]"), ConstantValue, FallbackValue); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return FString::Printf(TEXT("Is any ally in combat with target [%.2f | %.2f]"), ConstantValue, FallbackValue); };
 };
-
-
 
 USTRUCT(BlueprintType, meta=(Hidden))
 struct FBehaviorEvaluatorOperation_Activation_Base : public FBehaviorEvaluatorOperation_Const
@@ -436,10 +451,9 @@ public:
 	virtual FString GenerateFormulaDescription(int Indentation) const override;
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Activation: visual contact duration"); };
 };
-
 
 USTRUCT(BlueprintType, DisplayName="NLD | Count | Target allies in proximity")
 struct FBehaviorEvaluatorOperation_NonLinear_CountOfTargetAlliesInProximity : public FBehaviorEvaluatorOperation_NonLinearBase
@@ -453,7 +467,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("Count of target alive allies in proximity"); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Count of target alive allies in proximity"); };
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
@@ -472,7 +486,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("Count of target alive allies on way to target"); }
 	
 protected:
-	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData) const override;
+	virtual float EvaluateInternal(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData) const override;
 	virtual FString GetShortDescriptionInternal() const override { return TEXT("Count of target alive allies on way to target"); };
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(UIMin = 0.f, ClampMin = 0.f))
@@ -494,7 +508,7 @@ public:
 	{ return Super::GenerateFormulaDescription(Indentation) + TEXT("Curve override"); };
 	
 protected:
-	virtual float Evaluate(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterPerceptionData& CharacterPerceptionData, float CurrentScore) const override;
+	virtual float Evaluate(const FRelativeOperationContext& Context, const AActor* Target, const FCharacterShortTermMemory& CharacterPerceptionData, float CurrentScore) const override;
 	
 	virtual FString GetShortDescriptionInternal() const override 
 	{ return TEXT("Curve override"); };

@@ -9,7 +9,7 @@
 #include "Data/LogChannels.h"
 #include "Data/NpcBlackboardDataAsset.h"
 #include "Gameframework/GameModeBase.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Interfaces/NpcSystemGameMode.h"
 #include "Interfaces/NpcZone.h"
 #include "Subsystems/NpcSquadSubsystem.h"
@@ -43,15 +43,15 @@ void UNpcSpawnerComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 void UNpcSpawnerComponent::AddNpc(AActor* Npc)
 {
 	AliveNpcs.Add(Npc);
-	auto NpcAliveCreature = Cast<INpcAliveCreature>(Npc);
+	auto NpcAliveCreature = Cast<INpcAliveActor>(Npc);
 	if (ensure(NpcAliveCreature))
-		NpcAliveCreature->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcSpawnerComponent::OnNpcDied);
+		NpcAliveCreature->OnNpcAliveActorDeathStarted.AddUObject(this, &UNpcSpawnerComponent::OnNpcDied);
 }
 
-void UNpcSpawnerComponent::OnNpcDied(AActor* Actor)
+void UNpcSpawnerComponent::OnNpcDied(AActor* Actor, const FNpcDeathEventData& DeathEventData)
 {
-	auto NpcAliveCreature = Cast<INpcAliveCreature>(Actor);
-	NpcAliveCreature->OnNpcAliveCreatureDeathStarted.RemoveAll(this);
+	auto NpcAliveCreature = Cast<INpcAliveActor>(Actor);
+	NpcAliveCreature->OnNpcAliveActorDeathStarted.RemoveAll(this);
 	AliveNpcs.Remove(Actor);
 
 	if (bRespawnAfterAllNpcsKilled && AliveNpcs.IsEmpty())

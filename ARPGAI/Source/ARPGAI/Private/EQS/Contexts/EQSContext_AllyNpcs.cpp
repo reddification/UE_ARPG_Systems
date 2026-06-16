@@ -2,7 +2,7 @@
 #include "Data/LogChannels.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Subsystems/NpcSquadSubsystem.h"
 
 void UEQSContext_AllyNpcs::ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const
@@ -29,8 +29,8 @@ void UEQSContext_AllyNpcs::ProvideContext(FEnvQueryInstance& QueryInstance, FEnv
 		if (CharacterQueryMode == ECharacterQueryMode::DeadOnly)
 		{
 			bAdd = false;
-			if (auto AliveInterface = Cast<INpcAliveCreature>(AllyPawn))
-				bAdd = !AliveInterface->IsAlive_NpcAliveCreature();
+			if (auto AliveInterface = Cast<INpcAliveActor>(AllyPawn))
+				bAdd = !AliveInterface->IsAlive_NPC();
 		}
 		
 		if (bAdd)

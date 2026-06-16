@@ -102,8 +102,8 @@ UBTService_CountActiveCombatants::FCountAliveCharactersResult UBTService_CountAc
 		for (const auto* Ally : Allies)
 		{
 			bool bAlive = true;
-			if (auto AliveInterface = Cast<INpcAliveCreature>(Ally))
-				bAlive = AliveInterface->IsAlive_NpcAliveCreature();
+			if (auto AliveInterface = Cast<INpcAliveActor>(Ally))
+				bAlive = AliveInterface->IsAlive_NPC();
 
 			const float DistSq = (NpcLocation - Ally->GetActorLocation()).SizeSquared();
 			if (bAlive)

@@ -9,7 +9,7 @@
 #include "Components/Controller/NpcPerceptionComponent.h"
 #include "Data/LogChannels.h"
 #include "GameFramework/GameModeBase.h"
-#include "Interfaces/NpcSystemGameMode.h"
+#include "Interfaces/NpcGameWorldTimeManager.h"
 
 UBehaviorEvaluatorConfig_Base::UBehaviorEvaluatorConfig_Base()
 {
@@ -35,7 +35,7 @@ FBehaviorEvaluator_Base::FBehaviorEvaluator_Base(UBehaviorTreeComponent& OwnerCo
 void FBehaviorEvaluator_Base::Update(const float DeltaTime)
 {
 	ensure(DeltaTime < 3.f); // for debug purposes
-	UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("====================\nBehavior evaluator %s begin:"),
+	UE_CVLOG(BaseConfig->bLogEnabled, AIController.Get(), LogARPGAI_BE, Verbose, TEXT("====================\nBehavior evaluator %s begin:"),
 		*BaseConfig->BehaviorEvaluatorTag.ToString());
 }
 
@@ -107,6 +107,9 @@ void FBehaviorEvaluator_Base::DelayRegression(float NewDelay, bool bAppendToExis
 void FBehaviorEvaluator_Base::RequestRegressionFrozen(bool bFrozen)
 {
 	RegressionFreezeCounter += bFrozen ? 1 : -1;
+	UE_VLOG(AIController.Get(), LogARPGAI_BE, Log, TEXT("Regression freeze request count changed. [%s]: %d"), 
+		*BaseConfig->BehaviorEvaluatorTag.ToString(), RegressionFreezeCounter);
+	
 	if (!ensure(RegressionFreezeCounter >= 0))
 		RegressionFreezeCounter = 0;
 }
@@ -159,7 +162,7 @@ bool FBehaviorEvaluator_Base::CanHandleMessages() const
 FDateTime FBehaviorEvaluator_Base::GetGameTime(float GameHoursOffset) const
 {
 	FDateTime Result = FDateTime();
-	if (auto NpcGameMode = Cast<INpcSystemGameMode>(Pawn->GetWorld()->GetAuthGameMode()))
+	if (auto NpcGameMode = Cast<INpcGameWorldTimeManager>(Pawn->GetWorld()->GetAuthGameMode()))
 		Result = NpcGameMode->GetARPGAIGameTime();
 	
 	if (GameHoursOffset != 0.f)
@@ -172,7 +175,7 @@ bool FBehaviorEvaluator_Base::CanRegress()
 {
 	if (RegressionFreezeCounter > 0)
 	{
-		UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Regression is frozen, Freeze count = %d"), RegressionFreezeCounter);
+		UE_VLOG(AIController.Get(), LogARPGAI_BE, Log, TEXT("Regression is frozen, Freeze count = %d"), RegressionFreezeCounter);
 		return false;
 	}
 	
@@ -185,7 +188,7 @@ bool FBehaviorEvaluator_Base::CanRegress()
 		}
 		else
 		{
-			UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Regression is postponed until = %.2f"), PostponeRegressionUntil);
+			UE_VLOG(AIController.Get(), LogARPGAI_BE, Log, TEXT("Regression is postponed until = %.2f"), PostponeRegressionUntil);
 		}
 	}
 	
@@ -209,17 +212,17 @@ void FBehaviorEvaluator_Base::InterpolateUtility(float NewDesiredUtility, const 
 	{
 		if (TrueDelta < 0.f && !CanRegress())
 		{
-			UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("%s delta < 0 but decay is postponed or frozen so not changing utility"), *BaseConfig->BehaviorEvaluatorTag.ToString());
-			UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Behavior evaluator %s end\n===================="), *BaseConfig->BehaviorEvaluatorTag.ToString());
+			UE_CVLOG(BaseConfig->bLogEnabled, AIController.Get(), LogARPGAI_BE, Verbose, TEXT("%s delta < 0 but decay is postponed or frozen so not changing utility"), *BaseConfig->BehaviorEvaluatorTag.ToString());
+			UE_CVLOG(BaseConfig->bLogEnabled, AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Behavior evaluator %s end\n===================="), *BaseConfig->BehaviorEvaluatorTag.ToString());
 			return;		
 		}
 		
 		float FinalNewUtility = FMath::Clamp(InterpolatedNewUtility, 0.f, BaseConfig->MaxUtility);
 		Blackboard->SetValueAsFloat(BaseConfig->UtilityBBKey.SelectedKeyName, FinalNewUtility);
-		UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("%s new utility = %.2f"), *BaseConfig->BehaviorEvaluatorTag.ToString(), FinalNewUtility);
+		UE_CVLOG(BaseConfig->bLogEnabled, AIController.Get(), LogARPGAI_BE, Verbose, TEXT("%s new utility = %.2f"), *BaseConfig->BehaviorEvaluatorTag.ToString(), FinalNewUtility);
 	}
 	
-	UE_VLOG(AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Behavior evaluator %s end\n===================="), *BaseConfig->BehaviorEvaluatorTag.ToString());
+	UE_CVLOG(BaseConfig->bLogEnabled, AIController.Get(), LogARPGAI_BE, Verbose, TEXT("Behavior evaluator %s end\n===================="), *BaseConfig->BehaviorEvaluatorTag.ToString());
 }
 
 void FBehaviorEvaluator_Base::OnActivated()

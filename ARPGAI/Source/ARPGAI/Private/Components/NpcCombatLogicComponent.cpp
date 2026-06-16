@@ -15,7 +15,7 @@
 #include "GAS/Attributes/NpcCombatAttributeSet.h"
 #include "Interfaces/Npc.h"
 #include "Interfaces/NpcActorTagsInterface.h"
-#include "Interfaces/NpcAliveCreature.h"
+#include "Interfaces/NpcAliveActor.h"
 #include "Interfaces/NpcCombatInterface.h"
 #include "Interfaces/NpcThreat.h"
 #include "Perception/AISense_Damage.h"
@@ -64,8 +64,8 @@ void UNpcCombatLogicComponent::InitializeComponent()
 	}
 	
 	OwnerAliveCreature.SetObject(PawnLocal);
-	OwnerAliveCreature.SetInterface(Cast<INpcAliveCreature>(PawnLocal));
-	OwnerAliveCreature->OnNpcAliveCreatureDeathStarted.AddUObject(this, &UNpcCombatLogicComponent::OnNpcDeathStarted);
+	OwnerAliveCreature.SetInterface(Cast<INpcAliveActor>(PawnLocal));
+	OwnerAliveCreature->OnNpcAliveActorDeathStarted.AddUObject(this, &UNpcCombatLogicComponent::OnNpcDeathStarted);
 
 	if (auto NpcCombatInterfaceLocal = Cast<INpcCombatInterface>(PawnLocal))
 	{
@@ -111,11 +111,11 @@ void UNpcCombatLogicComponent::InitializeCombatData()
 			InitializeNpcCombatAttributeSet(NpcCombatAttributeSet);
 		}
 
-		auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute_NpcAliveCreature();
+		auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute_NPC();
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(HealthAttribute).AddUObject(this, &UNpcCombatLogicComponent::OnHealthChanged);
 			SetHealth(OwnerASC->GetNumericAttribute(HealthAttribute));
 
-		auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute_NpcAliveCreature();
+		auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute_NPC();
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(StaminaAttribute).AddUObject(this, &UNpcCombatLogicComponent::OnStaminaChanged);
 			SetStamina(OwnerASC->GetNumericAttribute(StaminaAttribute));
 	}
@@ -436,7 +436,7 @@ void UNpcCombatLogicComponent::ReactToFeintedAttack(AActor* ThreatActor)
 	}
 	
 	// source of formula: i just felt this way at the moment of writing it
-	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetNpcAliveCreatureMaxStamina())) / 2.f;
+	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetMaxStamina_NPC())) / 2.f;
 	if (FMath::RandRange(0.f, 1.f) <= ChanceToCounterAttack)
 		BlackboardComponent->SetValueAsEnum(NpcBlackboardKeys->DefenseActionBBKey.SelectedKeyName, (uint8)ENpcDefensiveAction::CounterAttack);
 	else // in theory, this should abort block immediately
@@ -466,7 +466,7 @@ void UNpcCombatLogicComponent::ReactToEnemyWhiffedAttack(AActor* ThreatActor)
 		return;	
 	}
 	
-	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetNpcAliveCreatureMaxStamina())) / 2.f;
+	const float ChanceToCounterAttack = (Reaction * Aggressiveness + (Stamina / OwnerAliveCreature->GetMaxStamina_NPC())) / 2.f;
 	if (FMath::RandRange(0.f, 1.f) <= ChanceToCounterAttack)
 		BlackboardComponent->SetValueAsEnum(NpcBlackboardKeys->DefenseActionBBKey.SelectedKeyName, (uint8)ENpcDefensiveAction::CounterAttack);
 	
@@ -480,7 +480,7 @@ void UNpcCombatLogicComponent::ReactToEnemyBlock(AActor* Actor)
 	if (IsImmobilized())
 		return;
 	
-	if (Actor != PrimaryTargetData.ActiveTarget)
+	if (Actor != PrimaryTargetData.Actor)
 		return;
 	
 	auto BTComponent = OwnerPawn->GetController()->FindComponentByClass<UEnhancedBehaviorTreeComponent>();
@@ -522,11 +522,11 @@ void UNpcCombatLogicComponent::OnAttributeAdded(UAbilitySystemComponent* ASC, co
 	}
 }
 
-void UNpcCombatLogicComponent::OnNpcDeathStarted(AActor* OwningActor)
+void UNpcCombatLogicComponent::OnNpcDeathStarted(AActor* OwningActor, const FNpcDeathEventData& DeathEventData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNpcCombatLogicComponent::OnNpcDeathStarted)
 	
-	ClearCurrentCombatTarget(PrimaryTargetData.ActiveBehaviorTypeTag);
+	ClearCurrentCombatTarget(PrimaryTargetData.BehaviorType);
 	
 	for (auto& ActiveThreat : ImmediateThreats)
 	{
@@ -629,32 +629,32 @@ void UNpcCombatLogicComponent::SetCurrentCombatTarget(AActor* Target, const FGam
 	if (!ensure(IsValid(Target)))
 		return;
 
-	if (Target == PrimaryTargetData.ActiveTarget)
+	if (Target == PrimaryTargetData.Actor)
 		return;
 	
-	if (PrimaryTargetData.ActiveTarget.IsValid())
-		ClearCurrentCombatTarget(PrimaryTargetData.ActiveBehaviorTypeTag);
+	if (PrimaryTargetData.Actor.IsValid())
+		ClearCurrentCombatTarget(PrimaryTargetData.BehaviorType);
 	
 	UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Log, TEXT("UNpcCombatLogicComponent::SetCurrentCombatTarget: Setting new target data: %s [%s]"), 
 		*Target->GetName(), *BehaviorTypeTag.ToString());
 	
-	PrimaryTargetData.ActiveTarget = Target;
-	PrimaryTargetData.ActiveBehaviorTypeTag = BehaviorTypeTag;
+	PrimaryTargetData.Actor = Target;
+	PrimaryTargetData.BehaviorType = BehaviorTypeTag;
 }
 
 void UNpcCombatLogicComponent::ClearCurrentCombatTarget(const FGameplayTag& BehaviorId)
 {
-	if (PrimaryTargetData.ActiveBehaviorTypeTag != BehaviorId)
+	if (PrimaryTargetData.BehaviorType != BehaviorId)
 	{
 		UE_VLOG_UELOG(GetOwner(), LogARPGAI_CombatLogic, Warning, TEXT(""))
 		return;
 	}
 	
-	if (PrimaryTargetData.ActiveTarget.IsValid())
+	if (PrimaryTargetData.Actor.IsValid())
 	{
 		UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Log, TEXT("UNpcCombatLogicComponent::ClearCurrentCombatTarget: Clearing current combat target"));
 		UE_VLOG(GetOwner(), LogARPGAI_CombatLogic, Log, TEXT("UNpcCombatLogicComponent::ClearCurrentCombatTarget: Target was %s [%s]"), 
-			*PrimaryTargetData.ActiveTarget->GetName(), *PrimaryTargetData.ActiveBehaviorTypeTag.ToString());
+			*PrimaryTargetData.Actor->GetName(), *PrimaryTargetData.BehaviorType.ToString());
 	}
 	
 	PrimaryTargetData.Reset();
@@ -708,7 +708,7 @@ void UNpcCombatLogicComponent::SetReaction(float NewValue)
 void UNpcCombatLogicComponent::SetHealth(float NewValue)
 {
 	Health = NewValue;
-	NormalizedHealth = Health / OwnerAliveCreature->GetMaxHealth_NpcAliveCreature();
+	NormalizedHealth = Health / OwnerAliveCreature->GetMaxHealth_NPC();
 	if (ensure(NpcBlackboardKeys) && NpcBlackboardKeys->NormalizedHealthBBKey.SelectedKeyName != NAME_None)
 		BlackboardComponent->SetValueAsFloat(NpcBlackboardKeys->NormalizedHealthBBKey.SelectedKeyName, NormalizedHealth);
 }
@@ -716,7 +716,7 @@ void UNpcCombatLogicComponent::SetHealth(float NewValue)
 void UNpcCombatLogicComponent::SetStamina(float NewValue)
 {
 	Stamina = NewValue;
-	NormalizedStamina = Stamina / OwnerAliveCreature->GetNpcAliveCreatureMaxStamina();
+	NormalizedStamina = Stamina / OwnerAliveCreature->GetMaxStamina_NPC();
 	if (ensure(NpcBlackboardKeys) && NpcBlackboardKeys->NormalizedStaminaBBKey.SelectedKeyName != NAME_None)
 	{
 		BlackboardComponent->SetValueAsFloat(NpcBlackboardKeys->NormalizedStaminaBBKey.SelectedKeyName, NormalizedStamina);
@@ -790,7 +790,7 @@ bool UNpcCombatLogicComponent::IsRetreating() const
 
 bool UNpcCombatLogicComponent::IsSurrounding() const
 {
-	return ActiveAttackerRole == ENpcCombatRole::Attacker || ActiveAttackerRole == ENpcCombatRole::Surrounder;
+	return ActiveAttackerRole == ENpcCombatRole::Surrounder;
 }
 
 void UNpcCombatLogicComponent::SetCombatRole(ENpcCombatRole NpcAttackRole)
@@ -843,10 +843,10 @@ void UNpcCombatLogicComponent::UnsubscribeFromDelegates()
 		OwnerASC->GetGameplayAttributeValueChangeDelegate(UNpcCombatAttributeSet::GetReactionAttribute()).RemoveAll(this);
 		if (OwnerAliveCreature != nullptr)
 		{
-			auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute_NpcAliveCreature();
+			auto HealthAttribute = OwnerAliveCreature->GetHealthAttribute_NPC();
 			OwnerASC->GetGameplayAttributeValueChangeDelegate(HealthAttribute).RemoveAll(this);
 
-			auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute_NpcAliveCreature();
+			auto StaminaAttribute = OwnerAliveCreature->GetStaminaAttribute_NPC();
 			OwnerASC->GetGameplayAttributeValueChangeDelegate(StaminaAttribute).RemoveAll(this);
 		}
 	}
@@ -961,13 +961,13 @@ void UNpcCombatLogicComponent::OnDealtDamage(AActor* Actor, float ResultingDamag
 		EnemiesCombatMemory[Actor].AccumulatedDealtDamage += ResultingDamage;
 }
 
-void FNpcActiveTargetData::Reset()
+void FNpcPrimaryCombatTargetData::Reset()
 {
-	ActiveTarget.Reset();
-	ActiveBehaviorTypeTag = FGameplayTag::EmptyTag;
+	Actor.Reset();
+	BehaviorType = FGameplayTag::EmptyTag;
 }
 
-bool FNpcActiveTargetData::IsValid() const
+bool FNpcPrimaryCombatTargetData::IsValid() const
 {
-	return ActiveTarget.IsValid() && ActiveBehaviorTypeTag.IsValid();
+	return Actor.IsValid() && BehaviorType.IsValid();
 }

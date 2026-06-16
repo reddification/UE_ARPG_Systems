@@ -5,7 +5,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Data/AIGameplayTags.h"
 #include "Data/LogChannels.h"
-#include "Interfaces/NpcInventortyInterface.h"
+#include "Interfaces/NpcInventoryInterface.h"
 
 UBTTask_LootContainer::UBTTask_LootContainer()
 {
@@ -18,7 +18,7 @@ EBTNodeResult::Type UBTTask_LootContainer::ExecuteTask(UBehaviorTreeComponent& O
 {
 	auto ContainerActor = Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(ContainerBBKey.SelectedKeyName));
 	
-	auto NpcInventoryInterface = Cast<INpcInventortyInterface>(OwnerComp.GetAIOwner()->GetPawn());
+	auto NpcInventoryInterface = Cast<INpcInventoryInterface>(OwnerComp.GetAIOwner()->GetPawn());
 	if (NpcInventoryInterface == nullptr)
 		return EBTNodeResult::Failed;
 	
@@ -41,7 +41,7 @@ void UBTTask_LootContainer::InitializeFromAsset(UBehaviorTree& Asset)
 
 EBTNodeResult::Type UBTTask_LootContainer::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	auto NpcInventoryInterface = Cast<INpcInventortyInterface>(OwnerComp.GetAIOwner()->GetPawn());
+	auto NpcInventoryInterface = Cast<INpcInventoryInterface>(OwnerComp.GetAIOwner()->GetPawn());
 	if (NpcInventoryInterface != nullptr)
 		NpcInventoryInterface->StopLooting_NPC();
 	

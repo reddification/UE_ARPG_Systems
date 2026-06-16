@@ -5,23 +5,18 @@
 #include "UObject/Interface.h"
 #include "NpcActorTagsInterface.generated.h"
 
-// This class does not need to be modified.
 UINTERFACE()
 class UNpcActorTagsInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
-/**
- * 
- */
 class ARPGAI_API INpcActorTagsInterface
 {
 	GENERATED_BODY()
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FTagsChangedEvent_NPC, AActor* OwnerActor, const FGameplayTagContainer& NewTags);
 	
-	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	virtual FGameplayTagContainer GetTags_NPC() const = 0;
 
